@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Production: replace with your real AdMob IDs.
+      These are currently Google test IDs.
+    -->
+    <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
+    <string name="admob_banner_unit_id">ca-app-pub-3940256099942544/6300978111</string>
+    <string name="admob_native_unit_id">ca-app-pub-3940256099942544/2247696110</string>
+</resources>
+

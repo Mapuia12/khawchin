@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "88630222212",
+    "project_id": "mizosmart-weather",
+    "storage_bucket": "mizosmart-weather.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:88630222212:android:99dfb86bea517617f2d1d1",
+        "android_client_info": {
+          "package_name": "com.mapuia.khawchinthlirna"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDBcP3D5YZlxy6Qkjn5juj09qhbpqyL1XM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
