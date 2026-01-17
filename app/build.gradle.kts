@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.services)
+    id("com.google.devtools.ksp") version "2.0.21-1.0.27"
 }
 
 android {
@@ -87,4 +88,24 @@ dependencies {
     // Offline cache
     implementation("androidx.datastore:datastore-preferences:1.1.7")
     implementation("com.google.code.gson:gson:2.11.0")
+
+    // Firebase Auth & Messaging (no Storage - photos stored locally)
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-messaging-ktx")
+    implementation("com.google.android.gms:play-services-auth:21.3.0")
+
+    // Room Database (Offline)
+    implementation("androidx.room:room-runtime:2.7.0")
+    implementation("androidx.room:room-ktx:2.7.0")
+    ksp("androidx.room:room-compiler:2.7.0")
+
+    // Navigation Compose
+    implementation("androidx.navigation:navigation-compose:2.8.5")
+
+    // WorkManager (background sync)
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
+
+    // Glance (App Widgets)
+    implementation("androidx.glance:glance-appwidget:1.1.1")
+    implementation("androidx.glance:glance-material3:1.1.1")
 }

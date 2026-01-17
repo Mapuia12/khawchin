@@ -1,5 +1,6 @@
 package com.mapuia.khawchinthlirna.data.model
 
+import com.google.firebase.firestore.IgnoreExtraProperties
 import com.google.firebase.firestore.PropertyName
 
 /**
@@ -9,18 +10,37 @@ import com.google.firebase.firestore.PropertyName
  * - Keep field names and types aligned with Firestore to avoid runtime mapping crashes.
  * - Supports both old format (current/hourly) and new backend format (blended/times/ensemble)
  */
+@IgnoreExtraProperties
 data class WeatherDoc(
     val lat: Double = 0.0,
     val lon: Double = 0.0,
 
+    // Backend v69 fields
+    @get:PropertyName("grid_id")
+    @set:PropertyName("grid_id")
+    var gridId: String? = null,
+    
+    val generated: String? = null, // ISO timestamp when data was generated
+
     @get:PropertyName("updated_at")
     @set:PropertyName("updated_at")
     var updatedAt: Any? = null, // Timestamp or String
+    
+    // Models used for forecast (backend v69)
+    @get:PropertyName("models_used")
+    @set:PropertyName("models_used")
+    var modelsUsed: List<String>? = null,
 
     // Core Weather Blocks (old format)
     val current: CurrentWeather? = null,
     val hourly: HourlyArrays? = null,
     val daily: DailyArrays? = null,
+    
+    // Marine data (backend v69 format)
+    val marine: MarineData? = null,
+    
+    // Meta data (backend v69 format)
+    val meta: MetaData? = null,
 
     // New backend format (blended ensemble)
     val times: List<String>? = null,
@@ -52,9 +72,6 @@ data class WeatherDoc(
     @set:PropertyName("marine_upstream_rain")
     var marineUpstreamRain: UpstreamRainAlert? = null,
 
-    // Meta (Radar URL)
-    val meta: MetaData? = null,
-
     // Fallback info
     @get:PropertyName("fallback_from")
     @set:PropertyName("fallback_from")
@@ -74,20 +91,32 @@ data class WeatherDoc(
     var seasonalOutlookMonthly: SeasonalOutlookMonthly? = null,
 ) {
     /**
-     * Check if document has valid data (either old or new format)
+     * Check if document has valid data (supports multiple formats)
      */
     fun isValid(): Boolean {
         // Valid coordinates check
         if (lat !in -90.0..90.0 || lon !in -180.0..180.0) return false
 
-        // Old format: has current block with valid temp
+        // Format 1: Old format with current block
         if (current != null && current.temp > -100.0 && current.temp < 100.0) {
             return true
         }
 
-        // New format: has blended data with temperature
+        // Format 2: New blended format
         if (blended != null && !blended.temperature2m.isNullOrEmpty()) {
             val firstTemp = blended.temperature2m?.firstOrNull() ?: return false
+            return firstTemp > -100.0 && firstTemp < 100.0
+        }
+
+        // Format 3: Backend v69 format with hourly.temperature_c
+        if (hourly != null && !hourly.temperatureC.isNullOrEmpty()) {
+            val firstTemp = hourly.temperatureC?.firstOrNull() ?: return false
+            return firstTemp > -100.0 && firstTemp < 100.0
+        }
+
+        // Format 4: Legacy hourly.temp format
+        if (hourly != null && hourly.temp.isNotEmpty()) {
+            val firstTemp = hourly.temp.firstOrNull() ?: return false
             return firstTemp > -100.0 && firstTemp < 100.0
         }
 
@@ -95,25 +124,109 @@ data class WeatherDoc(
     }
 
     /**
-     * Get current weather - works with both old and new format
+     * Find the index for the current hour in the hourly time array.
+     * Returns 0 if no matching hour is found (fallback to first hour).
+     */
+    private fun findCurrentHourIndex(timeList: List<String>): Int {
+        if (timeList.isEmpty()) return 0
+        
+        // Get current time in format matching backend: "2026-01-16T14:00"
+        val now = java.time.ZonedDateTime.now(java.time.ZoneId.of("Asia/Kolkata"))
+        val currentHour = now.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:00"))
+        
+        // Find exact match
+        val exactIndex = timeList.indexOfFirst { it == currentHour }
+        if (exactIndex >= 0) return exactIndex
+        
+        // Find closest hour that's not in the future
+        val currentInstant = now.toInstant()
+        var bestIndex = 0
+        var bestDiff = Long.MAX_VALUE
+        
+        for (i in timeList.indices) {
+            try {
+                val timeStr = timeList[i]
+                // Parse "2026-01-14T00:00" format (local time, assume Asia/Kolkata)
+                val hourTime = java.time.LocalDateTime.parse(timeStr)
+                    .atZone(java.time.ZoneId.of("Asia/Kolkata"))
+                    .toInstant()
+                
+                val diff = currentInstant.epochSecond - hourTime.epochSecond
+                // Only consider past or current hours
+                if (diff >= 0 && diff < bestDiff) {
+                    bestDiff = diff
+                    bestIndex = i
+                }
+            } catch (e: Exception) {
+                continue
+            }
+        }
+        
+        return bestIndex
+    }
+    
+    /**
+     * Calculate if it's currently day or night based on approximate sunrise/sunset
+     */
+    private fun calculateIsDay(): Int {
+        val hour = java.time.ZonedDateTime.now(java.time.ZoneId.of("Asia/Kolkata")).hour
+        // Approximate: Day is 6 AM to 6 PM
+        return if (hour in 6..17) 1 else 0
+    }
+    
+    /**
+     * Get current weather - works with both old and new format.
+     * Uses current hour index instead of always first hour.
      */
     fun getCurrentWeather(): CurrentWeather? {
         // If old format exists, use it
         if (current != null) return current
 
-        // Build from new format
+        // Try v69 hourly format - build current from matching hour
+        val h = hourly
+        if (h != null) {
+            val temps = h.temperatureC ?: h.temp
+            if (temps.isNotEmpty()) {
+                val idx = findCurrentHourIndex(h.time)
+                
+                // Safe getter helper
+                fun <T> List<T>.safeAt(index: Int): T? = getOrNull(index) ?: firstOrNull()
+                
+                return CurrentWeather(
+                    temp = temps.safeAt(idx) ?: 0.0,
+                    feelsLike = (h.apparentTemperatureC ?: h.apparentTemperature)?.safeAt(idx) ?: temps.safeAt(idx) ?: 0.0,
+                    rainMm = (h.precipitationMm ?: h.rainMm).safeAt(idx) ?: 0.0,
+                    humidity = (h.relativeHumidity?.safeAt(idx)?.toInt() ?: h.humidity?.safeAt(idx)) ?: 0,
+                    wind = (h.windSpeedKmh ?: h.wind).safeAt(idx) ?: 0.0,
+                    windGust = (h.windGustKmh ?: h.windGust)?.safeAt(idx),
+                    windDir = h.windDirectionDeg?.safeAt(idx) ?: h.windDir.safeAt(idx),
+                    isDay = calculateIsDay(),
+                    weatherCode = h.weatherCode.safeAt(idx) ?: 0,
+                    vis = (h.visibilityM?.safeAt(idx) ?: h.visibility?.safeAt(idx)?.toDouble()) ?: 0.0,
+                    pressure = (h.pressureHpa ?: h.pressure)?.safeAt(idx),
+                    cloudCover = (h.cloudCoverPercent?.safeAt(idx)?.toInt() ?: h.cloudCover?.safeAt(idx)),
+                    uvIndex = h.uvIndex?.safeAt(idx),
+                    dewpoint = (h.dewpointC ?: h.dewpoint)?.safeAt(idx),
+                )
+            }
+        }
+
+        // Build from blended format (fallback)
+        val timeList = times ?: emptyList()
         val temps = blended?.temperature2m ?: return null
         val precips = blended?.precipitation ?: emptyList()
 
         if (temps.isEmpty()) return null
+        
+        val idx = findCurrentHourIndex(timeList)
 
         return CurrentWeather(
-            temp = temps.firstOrNull() ?: 0.0,
-            feelsLike = temps.firstOrNull() ?: 0.0, // Use same as temp if no feels_like
-            rainMm = precips.firstOrNull() ?: 0.0,
-            humidity = 0, // Not available in new format
-            wind = 0.0, // Not available in new format
-            isDay = 1,
+            temp = temps.getOrNull(idx) ?: temps.firstOrNull() ?: 0.0,
+            feelsLike = temps.getOrNull(idx) ?: temps.firstOrNull() ?: 0.0,
+            rainMm = precips.getOrNull(idx) ?: precips.firstOrNull() ?: 0.0,
+            humidity = 0, // Not available in blended format
+            wind = 0.0, // Not available in blended format
+            isDay = calculateIsDay(),
             weatherCode = 0,
             vis = 0.0,
         )
@@ -123,10 +236,33 @@ data class WeatherDoc(
      * Get hourly forecast - works with both old and new format
      */
     fun getHourlyForecast(): HourlyArrays? {
-        // If old format exists, use it
-        if (hourly != null) return hourly
+        // If hourly exists (old or v69 format), return it
+        if (hourly != null) {
+            // For v69 format, ensure legacy fields are populated from new field names
+            val h = hourly
+            val temps = h.temperatureC ?: h.temp
+            val rains = h.precipitationMm ?: h.rainMm
+            val winds = h.windSpeedKmh ?: h.wind
+            
+            // If v69 fields exist but legacy fields are empty, create a merged copy
+            if (h.temperatureC != null && h.temp.isEmpty()) {
+                return h.copy(
+                    temp = h.temperatureC ?: emptyList(),
+                    rainMm = h.precipitationMm ?: h.rainMm,
+                    wind = h.windSpeedKmh ?: h.wind,
+                    apparentTemperature = h.apparentTemperatureC ?: h.apparentTemperature,
+                    windGust = h.windGustKmh ?: h.windGust,
+                    humidity = h.relativeHumidity?.map { it.toInt() } ?: h.humidity,
+                    pressure = h.pressureHpa ?: h.pressure,
+                    cloudCover = h.cloudCoverPercent?.map { it.toInt() } ?: h.cloudCover,
+                    visibility = h.visibilityM?.map { it.toInt() } ?: h.visibility,
+                    dewpoint = h.dewpointC ?: h.dewpoint,
+                )
+            }
+            return hourly
+        }
 
-        // Build from new format
+        // Build from blended format
         val timeList = times ?: return null
         val temps = blended?.temperature2m ?: return null
         val precips = blended?.precipitation ?: emptyList()
@@ -144,19 +280,24 @@ data class WeatherDoc(
     }
 
     fun getSafeHourlyCount(): Int {
-        // Try old format first
+        // Try hourly format (old or v69)
         val oldHourly = this.hourly
         if (oldHourly != null) {
+            // Get temps from v69 or legacy field
+            val temps = oldHourly.temperatureC ?: oldHourly.temp
+            val rains = oldHourly.precipitationMm ?: oldHourly.rainMm
+            val winds = oldHourly.windSpeedKmh ?: oldHourly.wind
+            
             return listOf(
                 oldHourly.time.size,
-                oldHourly.temp.size,
+                temps.size,
                 oldHourly.weatherCode.size,
-                oldHourly.rainMm.size,
-                oldHourly.wind.size
-            ).minOrNull() ?: 0
+                rains.size,
+                winds.size
+            ).filter { it > 0 }.minOrNull() ?: oldHourly.time.size.coerceAtMost(temps.size)
         }
 
-        // Try new format
+        // Try blended format
         val timeList = times ?: return 0
         val temps = blended?.temperature2m ?: return 0
         return minOf(timeList.size, temps.size)
@@ -164,6 +305,7 @@ data class WeatherDoc(
 }
 
 /** New backend blended data format */
+@IgnoreExtraProperties
 data class BlendedData(
     @get:PropertyName("temperature_2m")
     @set:PropertyName("temperature_2m")
@@ -173,6 +315,7 @@ data class BlendedData(
 )
 
 /** New backend ensemble data format */
+@IgnoreExtraProperties
 data class EnsembleData(
     val members: List<String>? = null,
 
@@ -188,12 +331,14 @@ data class EnsembleData(
 )
 
 /** New backend bias data format */
+@IgnoreExtraProperties
 data class BiasData(
     @get:PropertyName("rain_bias")
     @set:PropertyName("rain_bias")
     var rainBias: Double? = null,
 )
 
+@IgnoreExtraProperties
 data class CurrentWeather(
     val temp: Double = 0.0,
 
@@ -210,6 +355,11 @@ data class CurrentWeather(
 
     // In your schema this is km/h already.
     val wind: Double = 0.0,
+
+    /** Wind gusts km/h */
+    @get:PropertyName("wind_gust")
+    @set:PropertyName("wind_gust")
+    var windGust: Double? = null,
 
     /** Some docs provide wind direction in degrees. */
     @get:PropertyName("wind_dir")
@@ -234,36 +384,154 @@ data class CurrentWeather(
     @get:PropertyName("visibility")
     @set:PropertyName("visibility")
     var vis: Double = 0.0,
+
+    // NEW: Additional current weather variables
+    val pressure: Double? = null, // Pressure hPa
+
+    @get:PropertyName("cloud_cover")
+    @set:PropertyName("cloud_cover")
+    var cloudCover: Int? = null, // Cloud cover %
+
+    @get:PropertyName("uv_index")
+    @set:PropertyName("uv_index")
+    var uvIndex: Double? = null, // UV index
+
+    val dewpoint: Double? = null, // Dew point °C
 )
 
 /** Optional backend `alert` map. */
+@IgnoreExtraProperties
 data class AlertBlock(
     val level: String = "GREEN",
     val reasons: List<String> = emptyList(),
     val score: Double = 0.0,
 )
 
-/** Arrays-based hourly forecast. */
+/** Arrays-based hourly forecast with additional weather variables. */
+@IgnoreExtraProperties
 data class HourlyArrays(
     val time: List<String> = emptyList(),
+    
+    // Legacy field name
     val temp: List<Double> = emptyList(),
+    
+    // Backend v69 field name: temperature_c
+    @get:PropertyName("temperature_c")
+    @set:PropertyName("temperature_c")
+    var temperatureC: List<Double>? = null,
 
     @get:PropertyName("rain_mm")
     @set:PropertyName("rain_mm")
     var rainMm: List<Double> = emptyList(),
+    
+    // Backend v69 field name: precipitation_mm
+    @get:PropertyName("precipitation_mm")
+    @set:PropertyName("precipitation_mm")
+    var precipitationMm: List<Double>? = null,
 
     val wind: List<Double> = emptyList(),
+    
+    // Backend v69 field name: wind_speed_kmh
+    @get:PropertyName("wind_speed_kmh")
+    @set:PropertyName("wind_speed_kmh")
+    var windSpeedKmh: List<Double>? = null,
 
     /** Optional wind direction per hour if backend provides it. */
     @get:PropertyName("wind_dir")
     @set:PropertyName("wind_dir")
     var windDir: List<Int> = emptyList(),
+    
+    /** Wind direction in degrees from backend v86+ */
+    @get:PropertyName("wind_direction_deg")
+    @set:PropertyName("wind_direction_deg")
+    var windDirectionDeg: List<Int>? = null,
 
     @get:PropertyName("weather_code")
     @set:PropertyName("weather_code")
     var weatherCode: List<Int> = emptyList(),
+
+    // Backend v69 field name: apparent_temperature_c
+    @get:PropertyName("apparent_temperature")
+    @set:PropertyName("apparent_temperature")
+    var apparentTemperature: List<Double>? = null,
+    
+    @get:PropertyName("apparent_temperature_c")
+    @set:PropertyName("apparent_temperature_c")
+    var apparentTemperatureC: List<Double>? = null,
+
+    // Backend v69 field name: wind_gust_kmh
+    @get:PropertyName("wind_gust")
+    @set:PropertyName("wind_gust")
+    var windGust: List<Double>? = null,
+    
+    @get:PropertyName("wind_gust_kmh")
+    @set:PropertyName("wind_gust_kmh")
+    var windGustKmh: List<Double>? = null,
+
+    val humidity: List<Int>? = null,
+    
+    // Backend v69 field name: relative_humidity
+    @get:PropertyName("relative_humidity")
+    @set:PropertyName("relative_humidity")
+    var relativeHumidity: List<Double>? = null,
+
+    val pressure: List<Double>? = null,
+    
+    // Backend v69 field name: pressure_hpa
+    @get:PropertyName("pressure_hpa")
+    @set:PropertyName("pressure_hpa")
+    var pressureHpa: List<Double>? = null,
+
+    // Backend v69 field name: cloud_cover_percent
+    @get:PropertyName("cloud_cover")
+    @set:PropertyName("cloud_cover")
+    var cloudCover: List<Int>? = null,
+    
+    @get:PropertyName("cloud_cover_percent")
+    @set:PropertyName("cloud_cover_percent")
+    var cloudCoverPercent: List<Double>? = null,
+
+    val visibility: List<Int>? = null,
+    
+    // Backend v69 field name: visibility_m
+    @get:PropertyName("visibility_m")
+    @set:PropertyName("visibility_m")
+    var visibilityM: List<Double>? = null,
+
+    @get:PropertyName("uv_index")
+    @set:PropertyName("uv_index")
+    var uvIndex: List<Double>? = null,
+
+    val dewpoint: List<Double>? = null,
+    
+    // Backend v69 field name: dewpoint_c
+    @get:PropertyName("dewpoint_c")
+    @set:PropertyName("dewpoint_c")
+    var dewpointC: List<Double>? = null,
+
+    @get:PropertyName("precipitation_probability")
+    @set:PropertyName("precipitation_probability")
+    var precipitationProbability: List<Int>? = null,
+    
+    // Ensemble uncertainty data (backend v86+)
+    @get:PropertyName("precipitation_ensemble")
+    @set:PropertyName("precipitation_ensemble")
+    var precipitationEnsemble: EnsembleSpread? = null,
+    
+    @get:PropertyName("temperature_ensemble")
+    @set:PropertyName("temperature_ensemble")
+    var temperatureEnsemble: EnsembleSpread? = null,
 )
 
+/** Ensemble spread data for uncertainty quantification */
+@IgnoreExtraProperties
+data class EnsembleSpread(
+    val p10: List<Double>? = null, // 10th percentile (optimistic)
+    val p50: List<Double>? = null, // 50th percentile (median/best estimate)
+    val p90: List<Double>? = null, // 90th percentile (pessimistic)
+)
+
+@IgnoreExtraProperties
 data class DailyArrays(
     val time: List<String> = emptyList(),
 
@@ -281,8 +549,22 @@ data class DailyArrays(
     @get:PropertyName("rain_prob")
     @set:PropertyName("rain_prob")
     var rainProb: List<Int> = emptyList(),
+    
+    @get:PropertyName("precipitation_sum")
+    @set:PropertyName("precipitation_sum")
+    var precipitationSum: List<Double> = emptyList(),
+    
+    @get:PropertyName("weather_code")
+    @set:PropertyName("weather_code")
+    var weatherCode: List<Int> = emptyList(),
+    
+    // Forecast confidence per day (backend v86+)
+    // Values: 0.95 (day 1-2), 0.85 (day 3), 0.75 (day 4), 0.60 (day 5), etc.
+    // Can be List of Doubles or List of complex objects (HashMap) from backend
+    var confidence: List<Any>? = null,
 )
 
+@IgnoreExtraProperties
 data class MarineEvidence(
     val season: String? = "NEUTRAL", // "MONSOON", "PRE_POST", "NEUTRAL"
 
@@ -291,15 +573,48 @@ data class MarineEvidence(
     var pressure: Double? = null,
 )
 
+@IgnoreExtraProperties
 data class UpstreamRainAlert(
     val level: String = "NONE", // "HIGH", "MODERATE"
     val reason: String = "", // Mizo text reason
 )
 
+/** Marine data from backend v69 */
+@IgnoreExtraProperties
+data class MarineData(
+    val level: String? = null, // e.g., "GREEN", "YELLOW", "ORANGE", "RED"
+    val score: Double? = null,
+    val reasons: List<String>? = null,
+)
+
+@IgnoreExtraProperties
 data class MetaData(
     @get:PropertyName("radar_url")
     @set:PropertyName("radar_url")
-    var radarUrl: String? = null, // Website URL
+    var radarUrl: String? = null, // Website URL (deprecated - no radar coverage)
+    
+    // Backend v69 fields
+    @get:PropertyName("bias_factor")
+    @set:PropertyName("bias_factor")
+    var biasFactor: Double? = null,
+    
+    @get:PropertyName("elevation_m")
+    @set:PropertyName("elevation_m")
+    var elevationM: Double? = null,
+    
+    @get:PropertyName("orographic_factor")
+    @set:PropertyName("orographic_factor")
+    var orographicFactor: Double? = null,
+    
+    // Accuracy features (backend v86+)
+    @get:PropertyName("model_weights")
+    @set:PropertyName("model_weights")
+    var modelWeights: Map<String, Any>? = null, // e.g. {"ecmwf": 0.75, "gfs": 0.10, "icon": 0.15}
+    
+    // confidence_by_day can be List of doubles or List of complex objects
+    @get:PropertyName("confidence_by_day")
+    @set:PropertyName("confidence_by_day")
+    var confidenceByDay: List<Any>? = null, // Accept any format from backend
 )
 
 // --- Seasonal forecast models (best-effort mapping; optional in Firestore) ---

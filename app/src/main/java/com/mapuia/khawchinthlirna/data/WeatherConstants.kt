@@ -1,9 +1,9 @@
 package com.mapuia.khawchinthlirna.data
 
 object WeatherConstants {
-    // Default grid ID: Aizawl area (snapped to 0.20 step grid)
-    // Backend uses 0.20 step from 22.30-24.50 lat, 92.40-94.40 lon
-    const val DEFAULT_GRID_ID = "23.70_92.80"
+    // Default grid ID: Aizawl area (2 decimal format to match Firebase/backend)
+    // Backend uses 2 decimal places: "23.73_92.72"
+    const val DEFAULT_GRID_ID = "22.00_92.15"
     const val MAX_HOURLY_ITEMS = 24
     const val CACHE_EXPIRY_MINUTES = 30L
     const val MAX_RETRY_ATTEMPTS = 3
@@ -12,9 +12,9 @@ object WeatherConstants {
     
     // Firestore collections
     const val WEATHER_COLLECTION = "weather_v69_grid"
-    const val REPORTS_COLLECTION = "crowd_reports"
+    const val REPORTS_COLLECTION = "crowdsource_reports"
     
-    // Grid validation pattern (supports both 0.10 and 0.20 step grids)
+    // Grid validation pattern: 2 decimal places (e.g., "23.73_92.72")
     val GRID_ID_PATTERN = Regex("^\\d{2}\\.\\d{2}_\\d{2}\\.\\d{2}$")
 }
 

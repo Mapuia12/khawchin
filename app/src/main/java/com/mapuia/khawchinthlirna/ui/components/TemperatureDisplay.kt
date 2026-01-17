@@ -20,19 +20,20 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.geometry.Offset
 
 /**
- * Vibrant temperature colors that pop
+ * Vibrant temperature colors that pop against blue/purple backgrounds
+ * All colors are bright and have high contrast
  */
 fun getTemperatureColor(temp: Double): Color {
     return when {
         temp >= 40 -> Color(0xFFFF1744) // Extreme Hot - Bright Red
-        temp >= 35 -> Color(0xFFFF5722) // Very Hot - Deep Orange
-        temp >= 30 -> Color(0xFFFF9800) // Hot - Orange
-        temp >= 25 -> Color(0xFFFFEB3B) // Warm - Yellow
-        temp >= 20 -> Color(0xFF8BC34A) // Pleasant - Light Green
-        temp >= 15 -> Color(0xFF00BCD4) // Cool - Cyan
-        temp >= 10 -> Color(0xFF2196F3) // Cold - Blue
-        temp >= 5 -> Color(0xFF673AB7) // Very Cold - Deep Purple
-        else -> Color(0xFFE1F5FE) // Freezing - Ice Blue
+        temp >= 35 -> Color(0xFFFF5252) // Very Hot - Light Red
+        temp >= 30 -> Color(0xFFFFAB40) // Hot - Bright Orange
+        temp >= 25 -> Color(0xFFFFEA00) // Warm - Vivid Yellow
+        temp >= 20 -> Color(0xFFB2FF59) // Pleasant - Bright Lime
+        temp >= 15 -> Color(0xFFFFFFFF) // Cool - Pure White (was cyan - blended with bg)
+        temp >= 10 -> Color(0xFFE0F7FA) // Cold - Light Cyan White
+        temp >= 5 -> Color(0xFFE1BEE7) // Very Cold - Light Purple
+        else -> Color(0xFFFFFFFF) // Freezing - White
     }
 }
 

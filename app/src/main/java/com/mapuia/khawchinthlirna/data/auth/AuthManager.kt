@@ -1,0 +1,272 @@
+package com.mapuia.khawchinthlirna.data.auth
+
+import android.content.Context
+import android.content.Intent
+import androidx.activity.result.ActivityResultLauncher
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.tasks.await
+
+/**
+ * Manages Firebase Authentication with Google Sign-In and Anonymous auth.
+ * Supports upgrading anonymous accounts to Google accounts.
+ */
+class AuthManager(
+    private val context: Context,
+    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
+) {
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val googleSignInClient: GoogleSignInClient
+
+    init {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(WEB_CLIENT_ID)
+            .requestEmail()
+            .build()
+        googleSignInClient = GoogleSignIn.getClient(context, gso)
+    }
+
+    companion object {
+        // Replace with your actual Web Client ID from Firebase Console
+        private const val WEB_CLIENT_ID = "88630222212-ndtudd79n92emt0ptged8cnffdcp60gb.apps.googleusercontent.com"
+        private const val USERS_COLLECTION = "users"
+    }
+
+    /**
+     * Current authenticated user
+     */
+    val currentUser: FirebaseUser?
+        get() = auth.currentUser
+
+    /**
+     * User ID (anonymous or authenticated)
+     */
+    val userId: String
+        get() = auth.currentUser?.uid ?: ""
+
+    /**
+     * Check if user is signed in (including anonymous)
+     */
+    val isSignedIn: Boolean
+        get() = auth.currentUser != null
+
+    /**
+     * Check if user needs to sign in (null or anonymous)
+     * Used to show sign-in button - true if user is null OR anonymous
+     */
+    val isAnonymous: Boolean
+        get() = auth.currentUser == null || auth.currentUser?.isAnonymous == true
+
+    /**
+     * Flow of auth state changes
+     */
+    val authStateFlow: Flow<FirebaseUser?> = callbackFlow {
+        val listener = FirebaseAuth.AuthStateListener { auth ->
+            trySend(auth.currentUser)
+        }
+        auth.addAuthStateListener(listener)
+        awaitClose { auth.removeAuthStateListener(listener) }
+    }
+
+    /**
+     * Sign in anonymously - for users who don't want to create account
+     */
+    suspend fun signInAnonymously(): Result<FirebaseUser> {
+        return try {
+            val result = auth.signInAnonymously().await()
+            result.user?.let {
+                createUserProfile(it)
+                Result.success(it)
+            } ?: Result.failure(Exception("Anonymous sign-in failed"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Get Google Sign-In intent
+     */
+    fun getGoogleSignInIntent(): Intent {
+        return googleSignInClient.signInIntent
+    }
+
+    /**
+     * Handle Google Sign-In result
+     */
+    suspend fun handleGoogleSignInResult(data: Intent?): Result<FirebaseUser> {
+        return try {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(data)
+            val account = task.getResult(ApiException::class.java)
+            firebaseAuthWithGoogle(account)
+        } catch (e: ApiException) {
+            Result.failure(Exception("Google sign-in failed: ${e.statusCode}"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Authenticate with Google credentials
+     */
+    private suspend fun firebaseAuthWithGoogle(account: GoogleSignInAccount): Result<FirebaseUser> {
+        return try {
+            val credential = GoogleAuthProvider.getCredential(account.idToken, null)
+            
+            // Check if we need to link anonymous account
+            val currentUser = auth.currentUser
+            val result = if (currentUser != null && currentUser.isAnonymous) {
+                // Link anonymous account to Google
+                currentUser.linkWithCredential(credential).await()
+            } else {
+                // Regular sign-in
+                auth.signInWithCredential(credential).await()
+            }
+
+            result.user?.let {
+                createOrUpdateUserProfile(it, account)
+                Result.success(it)
+            } ?: Result.failure(Exception("Google authentication failed"))
+        } catch (e: Exception) {
+            // If linking fails (account already exists), sign in directly
+            if (e.message?.contains("already in use") == true) {
+                val result = auth.signInWithCredential(
+                    GoogleAuthProvider.getCredential(account.idToken, null)
+                ).await()
+                result.user?.let {
+                    createOrUpdateUserProfile(it, account)
+                    Result.success(it)
+                } ?: Result.failure(e)
+            } else {
+                Result.failure(e)
+            }
+        }
+    }
+
+    /**
+     * Create user profile in Firestore
+     */
+    private suspend fun createUserProfile(user: FirebaseUser) {
+        val userDoc = firestore.collection(USERS_COLLECTION).document(user.uid)
+        val existingDoc = userDoc.get().await()
+        
+        if (!existingDoc.exists()) {
+            val profile = hashMapOf(
+                "uid" to user.uid,
+                "display_name" to (user.displayName ?: "Mizo User"),
+                "email" to user.email,
+                "photo_url" to user.photoUrl?.toString(),
+                "is_anonymous" to user.isAnonymous,
+                "reputation" to 0.5, // Start at 50%
+                "total_reports" to 0,
+                "accurate_reports" to 0,
+                "trust_level" to 1,
+                "points" to 0,
+                "badges" to emptyList<String>(),
+                "created_at" to System.currentTimeMillis(),
+                "last_active" to System.currentTimeMillis(),
+            )
+            userDoc.set(profile).await()
+        }
+    }
+
+    /**
+     * Create or update user profile after Google sign-in
+     */
+    private suspend fun createOrUpdateUserProfile(user: FirebaseUser, account: GoogleSignInAccount) {
+        val userDoc = firestore.collection(USERS_COLLECTION).document(user.uid)
+        val existingDoc = userDoc.get().await()
+
+        if (existingDoc.exists()) {
+            // Update existing profile
+            userDoc.update(
+                mapOf(
+                    "display_name" to (account.displayName ?: user.displayName),
+                    "email" to account.email,
+                    "photo_url" to account.photoUrl?.toString(),
+                    "is_anonymous" to false,
+                    "last_active" to System.currentTimeMillis(),
+                )
+            ).await()
+        } else {
+            // Create new profile
+            val profile = hashMapOf(
+                "uid" to user.uid,
+                "display_name" to (account.displayName ?: "Mizo User"),
+                "email" to account.email,
+                "photo_url" to account.photoUrl?.toString(),
+                "is_anonymous" to false,
+                "reputation" to 0.5,
+                "total_reports" to 0,
+                "accurate_reports" to 0,
+                "trust_level" to 1,
+                "points" to 0,
+                "badges" to emptyList<String>(),
+                "created_at" to System.currentTimeMillis(),
+                "last_active" to System.currentTimeMillis(),
+            )
+            userDoc.set(profile).await()
+        }
+    }
+
+    /**
+     * Get current user profile from Firestore
+     */
+    suspend fun getUserProfile(): UserProfile? {
+        val user = auth.currentUser ?: return null
+        return try {
+            val doc = firestore.collection(USERS_COLLECTION).document(user.uid).get().await()
+            if (doc.exists()) {
+                doc.toObject(UserProfile::class.java)
+            } else {
+                // Create profile if doesn't exist
+                createUserProfile(user)
+                UserProfile(
+                    uid = user.uid,
+                    displayName = user.displayName ?: "Mizo User",
+                    email = user.email,
+                    photoUrl = user.photoUrl?.toString(),
+                    isAnonymous = user.isAnonymous
+                )
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Sign out
+     */
+    suspend fun signOut() {
+        googleSignInClient.signOut().await()
+        auth.signOut()
+    }
+
+    /**
+     * Delete account
+     */
+    suspend fun deleteAccount(): Result<Unit> {
+        return try {
+            val user = auth.currentUser ?: return Result.failure(Exception("Not signed in"))
+            
+            // Delete user data from Firestore
+            firestore.collection(USERS_COLLECTION).document(user.uid).delete().await()
+            
+            // Delete Firebase Auth account
+            user.delete().await()
+            
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+}

@@ -5,15 +5,11 @@ import android.location.Location
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mapuia.khawchinthlirna.data.LocationProvider
-import com.mapuia.khawchinthlirna.data.MIZORAM_GRID_POINTS
 import com.mapuia.khawchinthlirna.data.ReverseGeocoder
 import com.mapuia.khawchinthlirna.data.WeatherRepository
-import com.mapuia.khawchinthlirna.data.nearestGridPointId
 import com.mapuia.khawchinthlirna.data.model.WeatherDoc
 import com.mapuia.khawchinthlirna.data.WeatherConstants
 import com.mapuia.khawchinthlirna.data.LoadingState
-import com.mapuia.khawchinthlirna.data.isValidGridId
-import com.mapuia.khawchinthlirna.data.sanitizeInput
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -81,11 +77,19 @@ class WeatherViewModel(
                 val loc = safeGetLocationOrNull()
 
                 val resolvedGridId = if (loc != null && uiState.value.locationPermissionState == LocationPermissionState.GRANTED) {
-                    val nearest = nearestGridPointId(loc.latitude, loc.longitude, MIZORAM_GRID_POINTS)
-                    nearest ?: DEFAULT_GRID_ID
+                    // Simply round user location to 2 decimals - no hardcoded grid list needed
+                    // Firebase documents are stored as "23.20_94.02" format
+                    val roundedLat = (loc.latitude * 100).toInt() / 100.0
+                    val roundedLon = (loc.longitude * 100).toInt() / 100.0
+                    val gridId = String.format(java.util.Locale.US, "%.2f_%.2f", roundedLat, roundedLon)
+                    android.util.Log.d("WeatherVM", "Location: ${loc.latitude}, ${loc.longitude}")
+                    android.util.Log.d("WeatherVM", "Generated grid ID: $gridId")
+                    gridId
                 } else {
+                    android.util.Log.d("WeatherVM", "Using DEFAULT_GRID_ID: $DEFAULT_GRID_ID")
                     DEFAULT_GRID_ID
                 }
+                android.util.Log.d("WeatherVM", "Resolved grid ID: $resolvedGridId")
 
                 // Resolve human-friendly place name (best-effort). Keep old value if resolution fails.
                 val placeName = if (loc != null && uiState.value.locationPermissionState == LocationPermissionState.GRANTED) {
@@ -158,12 +162,12 @@ class WeatherViewModel(
                     return@launch
                 }
 
-                // Map the UI options to a 1..5 severity scale for backend clustering.
+                // Map the UI options to a 1..5 integer severity scale for backend clustering.
                 val severity = when (optionMizo) {
-                    "Ruah a sur" -> 4.0
-                    "Thli a na" -> 4.0
-                    "Khua a tha" -> 2.0
-                    else -> 3.0
+                    "Ruah a sur" -> 4
+                    "Thli a na" -> 4
+                    "Khua a tha" -> 2
+                    else -> 3
                 }
 
                 repository.submitCrowdReport(
@@ -173,8 +177,6 @@ class WeatherViewModel(
                     userLon = resolvedLon,
                     accuracyMeters = accuracy,
                     severity = severity,
-                    hasPhoto = false,
-                    photoPath = null,
                 )
 
                 onDone(true, null)

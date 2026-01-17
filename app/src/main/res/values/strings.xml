@@ -1,3 +1,168 @@
 <resources>
     <string name="app_name">Khawchin Thlirna</string>
+    
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_report">Report Weather</string>
+    <string name="nav_nearby_reports">Nearby Reports</string>
+    <string name="nav_info">Help &amp; Info</string>
+    <string name="nav_back">Back</string>
+    
+    <!-- Report Weather Screen -->
+    <string name="report_title">Report Weather</string>
+    <string name="report_rain_intensity">Ruah Sur Dan / Rain Intensity</string>
+    <string name="report_sky_condition">Van Dinhmun / Sky Condition</string>
+    <string name="report_wind_strength">Thli Dan / Wind Strength</string>
+    <string name="report_notes">Notes</string>
+    <string name="report_photo">Photo</string>
+    <string name="report_location">Location</string>
+    <string name="report_submit">Submit Report</string>
+    <string name="report_submitting">Submitting…</string>
+    <string name="report_success">Ka lawm e! Report a hlawn a.</string>
+    <string name="report_error">Report submit a hlawh lo</string>
+    <string name="report_gps_required">GPS location required to submit report</string>
+    
+    <!-- Rain Intensity Levels -->
+    <string name="rain_0_mizo">Ruah a sur lo</string>
+    <string name="rain_0_english">No Rain</string>
+    <string name="rain_1_mizo">Ruah fa</string>
+    <string name="rain_1_english">Drizzle</string>
+    <string name="rain_2_mizo">Ruah nuam</string>
+    <string name="rain_2_english">Light Rain</string>
+    <string name="rain_3_mizo">Ruah zau</string>
+    <string name="rain_3_english">Moderate</string>
+    <string name="rain_4_mizo">Ruah nasa</string>
+    <string name="rain_4_english">Heavy</string>
+    <string name="rain_5_mizo">Ruah nasa tak</string>
+    <string name="rain_5_english">Very Heavy</string>
+    <string name="rain_6_mizo">Ruah vanduai</string>
+    <string name="rain_6_english">Extreme</string>
+    
+    <!-- Sky Conditions -->
+    <string name="sky_0_mizo">Van a eng</string>
+    <string name="sky_0_english">Clear</string>
+    <string name="sky_1_mizo">Sum leh van</string>
+    <string name="sky_1_english">Partly Cloudy</string>
+    <string name="sky_2_mizo">Van a dum zau</string>
+    <string name="sky_2_english">Mostly Cloudy</string>
+    <string name="sky_3_mizo">Van a dum vek</string>
+    <string name="sky_3_english">Overcast</string>
+    <string name="sky_4_mizo">Mauva</string>
+    <string name="sky_4_english">Fog</string>
+    
+    <!-- Wind Strength -->
+    <string name="wind_0_mizo">A del</string>
+    <string name="wind_0_english">Calm</string>
+    <string name="wind_1_mizo">Thli nuam</string>
+    <string name="wind_1_english">Light</string>
+    <string name="wind_2_mizo">Thli zau</string>
+    <string name="wind_2_english">Moderate</string>
+    <string name="wind_3_mizo">Thli nasa</string>
+    <string name="wind_3_english">Strong</string>
+    <string name="wind_4_mizo">Thli vanduai</string>
+    <string name="wind_4_english">Very Strong</string>
+    
+    <!-- Weather Details -->
+    <string name="weather_temperature">Temperature</string>
+    <string name="weather_feels_like">Feels like</string>
+    <string name="weather_rain_probability">Rain Probability</string>
+    <string name="weather_wind_speed">Wind Speed</string>
+    <string name="weather_wind_gust">Wind Gust</string>
+    <string name="weather_humidity">Humidity</string>
+    <string name="weather_pressure">Pressure</string>
+    <string name="weather_uv_index">UV Index</string>
+    <string name="weather_visibility">Visibility</string>
+    <string name="weather_cloud_cover">Cloud Cover</string>
+    <string name="weather_dew_point">Dew Point</string>
+    
+    <!-- Marine Risk -->
+    <string name="marine_risk_green">Safe - A him, pawnah i che thei</string>
+    <string name="marine_risk_yellow">Caution - Fimkhur ang</string>
+    <string name="marine_risk_orange">Dangerous - A him lo, experience nei lo ten chhuah lo ang</string>
+    <string name="marine_risk_red">Do not go out - Chhuah ngai lo, a him lo!</string>
+    
+    <!-- Info Screens -->
+    <string name="info_hub_title">Help &amp; Information</string>
+    <string name="info_app_guide">App Guide</string>
+    <string name="info_crowdsourcing">How Crowdsourcing Works</string>
+    <string name="info_rain_guide">Rain Intensity Guide</string>
+    <string name="info_weather_data">Weather Data Explained</string>
+    
+    <!-- Nearby Reports -->
+    <string name="nearby_title">Nearby Reports</string>
+    <string name="nearby_no_reports">Report a awm lo</string>
+    <string name="nearby_time_30min">30 min</string>
+    <string name="nearby_time_1hr">1 darh</string>
+    <string name="nearby_time_2hr">2 darh</string>
+    <string name="nearby_time_3hr">3 darh</string>
+    
+    <!-- Accessibility -->
+    <string name="cd_back_button">Go back</string>
+    <string name="cd_info_button">Help and information</string>
+    <string name="cd_report_button">Report weather</string>
+    <string name="cd_refresh">Refresh</string>
+    <string name="cd_camera">Take photo</string>
+    <string name="cd_gallery">Choose from gallery</string>
+    <string name="cd_remove_photo">Remove photo</string>
+    
+    <!-- Widget -->
+    <string name="widget_description">Khawchin weather widget - shows current weather</string>
+    
+    <!-- Notification Channels -->
+    <string name="channel_weather_alerts">Weather Alerts</string>
+    <string name="channel_weather_alerts_desc">Notifications about weather updates</string>
+    <string name="channel_severe_weather">Severe Weather Alerts</string>
+    <string name="channel_severe_weather_desc">Emergency notifications for severe weather conditions</string>
+    <string name="channel_report_updates">Report Updates</string>
+    <string name="channel_report_updates_desc">Updates about your submitted weather reports</string>
+    <string name="channel_achievements">Achievements</string>
+    <string name="channel_achievements_desc">Notifications when you earn badges</string>
+    <string name="channel_general">General</string>
+    <string name="channel_general_desc">General app notifications</string>
+    
+    <!-- Notifications -->
+    <string name="weather_alert">Weather Alert</string>
+    <string name="severe_weather_alert">Severe Weather Alert</string>
+    <string name="report_verified_title">Report Verified!</string>
+    <string name="report_verified_body">Your weather report has been verified as accurate</string>
+    <string name="badge_earned_title">New Badge Earned!</string>
+    <string name="badge_earned_body">Congratulations! You earned the %1$s badge</string>
+    <string name="upvote_title">Report Upvoted</string>
+    <string name="upvote_body">Someone found your weather report helpful!</string>
+    
+    <!-- User Profile -->
+    <string name="profile_title">My Profile</string>
+    <string name="profile_anonymous">Anonymous User</string>
+    <string name="profile_sign_in_google">Sign in with Google</string>
+    <string name="profile_sign_out">Sign Out</string>
+    <string name="profile_reports">Reports</string>
+    <string name="profile_accuracy">Accuracy</string>
+    <string name="profile_points">Points</string>
+    <string name="profile_trust_level">Trust Level</string>
+    <string name="profile_badges">Badges</string>
+    <string name="profile_no_badges">No badges yet! Submit your first report.</string>
+    <string name="profile_badges_to_earn">Badges to earn</string>
+    
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_theme_system">System default</string>
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_severe_alerts">Severe Weather Alerts</string>
+    <string name="settings_temperature_unit">Temperature Unit</string>
+    <string name="settings_clear_cache">Clear Cache</string>
+    <string name="settings_about">About</string>
+    <string name="settings_privacy">Privacy Policy</string>
+    <string name="settings_delete_account">Delete Account</string>
+    <string name="settings_delete_confirm">This will permanently delete your account and all your data. This action cannot be undone!</string>
+    
+    <!-- Common Actions -->
+    <string name="action_cancel">Cancel</string>
+    <string name="action_confirm">Confirm</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_save">Save</string>
+    <string name="action_clear">Clear</string>
 </resources>
