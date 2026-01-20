@@ -73,6 +73,7 @@ import com.mapuia.khawchinthlirna.data.model.NearbyReport
 import com.mapuia.khawchinthlirna.data.model.RainIntensity
 import com.mapuia.khawchinthlirna.data.model.SkyCondition
 import com.mapuia.khawchinthlirna.data.model.WindStrength
+import com.mapuia.khawchinthlirna.ui.components.BannerAd
 import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.Instant
@@ -267,6 +268,10 @@ fun NearbyReportsScreen(
                                         selectedReport = if (selectedReport?.id == report.id) null else report
                                     }
                                 )
+                            }
+                            // Banner Ad
+                            item { 
+                                BannerAd(modifier = Modifier.fillMaxWidth())
                             }
                             item { Spacer(Modifier.height(16.dp)) }
                         }

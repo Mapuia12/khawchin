@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.mapuia.khawchinthlirna.data.auth.Badges
 import com.mapuia.khawchinthlirna.data.auth.UserProfile
+import com.mapuia.khawchinthlirna.ui.components.BannerAd
 
 // Premium color palette
 private val PremiumGradient = Brush.verticalGradient(
@@ -73,17 +74,17 @@ fun UserProfileScreen(
             containerColor = Color.Transparent,
             topBar = {
                 TopAppBar(
-                    title = { 
+                    title = {
                         Text(
                             text = if (isMizo) "Ka Profile" else "My Profile",
                             color = Color.White,
                             fontWeight = FontWeight.Bold
-                        ) 
+                        )
                     },
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
                             Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack, 
+                                Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
                                 tint = Color.White
                             )
@@ -92,7 +93,7 @@ fun UserProfileScreen(
                     actions = {
                         IconButton(onClick = onSettingsClick) {
                             Icon(
-                                Icons.Default.Settings, 
+                                Icons.Default.Settings,
                                 contentDescription = "Settings",
                                 tint = Color.White
                             )
@@ -151,13 +152,18 @@ fun UserProfileScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         PremiumOutlinedButton(
                             onClick = onSignOutClick,
-                            text = if (isMizo) "Chhuak" else "Sign Out",
+                            text = if (isMizo) "Chhuak (Sign Out)" else "Sign Out",
                             icon = Icons.AutoMirrored.Filled.Logout,
                             isDanger = true
                         )
                     }
                 }
-                
+
+                // Banner Ad
+                item {
+                    BannerAd(modifier = Modifier.fillMaxWidth())
+                }
+
                 item {
                     Spacer(modifier = Modifier.height(32.dp))
                 }
@@ -174,7 +180,7 @@ private fun PremiumOutlinedButton(
     isDanger: Boolean = false
 ) {
     val borderColor = if (isDanger) Color(0xFFFF6B6B) else AccentCyan
-    
+
     OutlinedButton(
         onClick = onClick,
         modifier = Modifier
@@ -300,7 +306,7 @@ private fun ProfileHeader(
 
             // Display Name
             Text(
-                text = userProfile?.displayName ?: (if (isMizo) "Hming Siam lo" else "Guest User"),
+                text = userProfile?.displayName ?: (if (isMizo) "Hming Dah Loh" else "Guest User"),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
@@ -311,7 +317,7 @@ private fun ProfileHeader(
             // Email or Anonymous status
             Text(
                 text = if (isAnonymous) {
-                    if (isMizo) "Mikhual" else "Anonymous User"
+                    if (isMizo) "Mikhual (Guest)" else "Anonymous User"
                 } else {
                     userProfile?.email ?: ""
                 },
@@ -359,13 +365,13 @@ private fun ProfileHeader(
                     )
                 ) {
                     Icon(
-                        Icons.AutoMirrored.Filled.Login, 
+                        Icons.AutoMirrored.Filled.Login,
                         contentDescription = null,
                         tint = Color.Black
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isMizo) "Google-a sign in rawh" else "Sign in with Google",
+                        text = if (isMizo) "Google hmangin lut rawh" else "Sign in with Google",
                         color = Color.Black,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -392,7 +398,7 @@ private fun StatsSection(userProfile: UserProfile, isMizo: Boolean) {
             modifier = Modifier.weight(1f),
             icon = Icons.Default.CheckCircle,
             value = "${userProfile.accuracyPercent}%",
-            label = if (isMizo) "Dikna" else "Accuracy",
+            label = if (isMizo) "Dik Dan" else "Accuracy",
             accentColor = AccentPurple
         )
         PremiumStatCard(
@@ -450,7 +456,7 @@ private fun TrustLevelCard(userProfile: UserProfile, isMizo: Boolean) {
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = if (isMizo) "Rintlak Zia Level" else "Trust Level",
+                text = if (isMizo) "Rintlak Chin (Trust Level)" else "Trust Level",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
@@ -555,7 +561,7 @@ private fun TrustLevelCard(userProfile: UserProfile, isMizo: Boolean) {
 private fun TrustLevelIndicator(level: Int, isActive: Boolean, isCurrent: Boolean) {
     val size = if (isCurrent) 36.dp else 28.dp
     val emoji = getTrustLevelEmoji(level)
-    
+
     val bgBrush = when {
         isCurrent -> Brush.linearGradient(listOf(AccentCyan, AccentPurple))
         isActive -> Brush.linearGradient(listOf(AccentCyan.copy(alpha = 0.3f), AccentCyan.copy(alpha = 0.3f)))
@@ -642,13 +648,13 @@ private fun BadgesSection(userProfile: UserProfile, isMizo: Boolean) {
                         Text("🏆", fontSize = 32.sp)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = if (isMizo) "Badge i nei lo!" else "No badges yet!",
+                            text = if (isMizo) "Badge i la nei lo!" else "No badges yet!",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color.White.copy(alpha = 0.8f)
                         )
                         Text(
-                            text = if (isMizo) "Report thar kha submit rawh" else "Submit your first report",
+                            text = if (isMizo) "Report thehlut tan rawh le" else "Submit your first report",
                             fontSize = 12.sp,
                             color = Color.White.copy(alpha = 0.5f)
                         )
@@ -671,7 +677,7 @@ private fun BadgesSection(userProfile: UserProfile, isMizo: Boolean) {
             // Show locked badges
             Spacer(modifier = Modifier.height(20.dp))
             Text(
-                text = if (isMizo) "Badges nei tur" else "Badges to earn",
+                text = if (isMizo) "Badge lak theih te" else "Badges to earn",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 color = Color.White.copy(alpha = 0.6f)
@@ -696,11 +702,11 @@ private fun BadgesSection(userProfile: UserProfile, isMizo: Boolean) {
 
 @Composable
 private fun BadgeItem(badgeId: String, isEarned: Boolean, isMizo: Boolean) {
-    val backgroundColor = if (isEarned) 
+    val backgroundColor = if (isEarned)
         Brush.linearGradient(listOf(AccentGold.copy(alpha = 0.3f), AccentPurple.copy(alpha = 0.2f)))
-    else 
+    else
         Brush.linearGradient(listOf(Color.White.copy(alpha = 0.08f), Color.White.copy(alpha = 0.04f)))
-    
+
     Box(
         modifier = Modifier
             .width(80.dp)
@@ -772,19 +778,19 @@ private fun ActivitySummaryCard(userProfile: UserProfile, isMizo: Boolean) {
 
             ActivityRow(
                 icon = Icons.AutoMirrored.Filled.Send,
-                label = if (isMizo) "Reports thawn zat" else "Total reports submitted",
+                label = if (isMizo) "Report thehluh zat" else "Total reports submitted",
                 value = userProfile.totalReports.toString(),
                 color = AccentCyan
             )
             ActivityRow(
                 icon = Icons.Default.Verified,
-                label = if (isMizo) "Reports pawmzui" else "Verified accurate reports",
+                label = if (isMizo) "Report dik/pawm te" else "Verified accurate reports",
                 value = userProfile.accurateReports.toString(),
                 color = AccentGold
             )
             ActivityRow(
                 icon = Icons.Default.EmojiEvents,
-                label = if (isMizo) "Badges nei" else "Badges earned",
+                label = if (isMizo) "Badge neih zat" else "Badges earned",
                 value = userProfile.badges.size.toString(),
                 color = AccentPurple
             )
@@ -840,9 +846,9 @@ private fun getTrustLevelEmoji(level: Int): String = when (level) {
 }
 
 private fun getNextLevelHint(currentLevel: Int, isMizo: Boolean): String = when (currentLevel) {
-    1 -> if (isMizo) "Level 2 atan report 10 thleng rawh" else "Submit 10 reports to reach Level 2"
-    2 -> if (isMizo) "85% accuracy-a thlen ta Level 3" else "Reach 85% accuracy for Level 3"
-    3 -> if (isMizo) "Report 50 submit rawh Level 4 atan" else "Submit 50 reports for Level 4"
-    4 -> if (isMizo) "95% accuracy leh report 100 thleng Level 5" else "95% accuracy + 100 reports for Level 5"
+    1 -> if (isMizo) "Level 2 kai turin report 10 thehlut rawh" else "Submit 10 reports to reach Level 2"
+    2 -> if (isMizo) "Level 3 kai turin accuracy 85% a ngai" else "Reach 85% accuracy for Level 3"
+    3 -> if (isMizo) "Level 4 kai turin report 50 thehlut rawh" else "Submit 50 reports for Level 4"
+    4 -> if (isMizo) "Level 5 kai turin accuracy 95% leh report 100" else "95% accuracy + 100 reports for Level 5"
     else -> ""
 }

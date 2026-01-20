@@ -56,8 +56,8 @@ class GamificationManager(
             pointsEarned += POINTS_FIRST_REPORT
         }
 
-        // Time-based badges
-        val hour = LocalTime.now(ZoneId.of("Asia/Kolkata")).hour
+        // Time-based badges (use device's system timezone for user-local time)
+        val hour = LocalTime.now(ZoneId.systemDefault()).hour
         
         // Early Bird - before 6 AM
         if (hour < 6 && !currentBadges.contains(Badges.EARLY_BIRD)) {

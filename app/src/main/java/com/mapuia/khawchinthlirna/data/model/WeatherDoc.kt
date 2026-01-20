@@ -21,6 +21,13 @@ data class WeatherDoc(
     var gridId: String? = null,
     
     val generated: String? = null, // ISO timestamp when data was generated
+    
+    // Timezone info (for proper time display in Mizoram IST vs Myanmar MMT)
+    val timezone: String? = null, // e.g. "Asia/Kolkata" or "Asia/Yangon"
+    
+    @get:PropertyName("utc_offset_seconds")
+    @set:PropertyName("utc_offset_seconds")
+    var utcOffsetSeconds: Long? = null, // e.g. 19800 for +5:30, 23400 for +6:30
 
     @get:PropertyName("updated_at")
     @set:PropertyName("updated_at")
@@ -89,6 +96,11 @@ data class WeatherDoc(
     @get:PropertyName("seasonal_outlook_monthly")
     @set:PropertyName("seasonal_outlook_monthly")
     var seasonalOutlookMonthly: SeasonalOutlookMonthly? = null,
+    
+    // Weather systems tracking (Bay of Bengal cyclones, Western Disturbance, etc.)
+    @get:PropertyName("weather_systems")
+    @set:PropertyName("weather_systems")
+    var weatherSystems: WeatherSystems? = null,
 ) {
     /**
      * Check if document has valid data (supports multiple formats)
@@ -126,16 +138,23 @@ data class WeatherDoc(
     /**
      * Find the index for the current hour in the hourly time array.
      * Returns 0 if no matching hour is found (fallback to first hour).
+     * Public so UI can use same logic as getCurrentWeather().
      */
-    private fun findCurrentHourIndex(timeList: List<String>): Int {
+    fun findCurrentHourIndex(timeList: List<String>): Int {
         if (timeList.isEmpty()) return 0
         
+        // Get timezone from document (supports both Mizoram IST and Myanmar MMT)
+        val tzName = timezone ?: "Asia/Kolkata"
+        val zoneId = try { java.time.ZoneId.of(tzName) } catch (e: Exception) { java.time.ZoneId.of("Asia/Kolkata") }
+        
         // Get current time in format matching backend: "2026-01-16T14:00"
-        val now = java.time.ZonedDateTime.now(java.time.ZoneId.of("Asia/Kolkata"))
+        val now = java.time.ZonedDateTime.now(zoneId)
         val currentHour = now.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:00"))
         
-        // Find exact match
-        val exactIndex = timeList.indexOfFirst { it == currentHour }
+        // Find exact match (handle both "2026-01-16T14:00" and "2026-01-16T14:00:00" formats)
+        val exactIndex = timeList.indexOfFirst { 
+            it == currentHour || it.startsWith(currentHour) 
+        }
         if (exactIndex >= 0) return exactIndex
         
         // Find closest hour that's not in the future
@@ -146,9 +165,9 @@ data class WeatherDoc(
         for (i in timeList.indices) {
             try {
                 val timeStr = timeList[i]
-                // Parse "2026-01-14T00:00" format (local time, assume Asia/Kolkata)
+                // Parse "2026-01-14T00:00" format (local time, use document timezone)
                 val hourTime = java.time.LocalDateTime.parse(timeStr)
-                    .atZone(java.time.ZoneId.of("Asia/Kolkata"))
+                    .atZone(zoneId)
                     .toInstant()
                 
                 val diff = currentInstant.epochSecond - hourTime.epochSecond
@@ -169,7 +188,9 @@ data class WeatherDoc(
      * Calculate if it's currently day or night based on approximate sunrise/sunset
      */
     private fun calculateIsDay(): Int {
-        val hour = java.time.ZonedDateTime.now(java.time.ZoneId.of("Asia/Kolkata")).hour
+        val tzName = timezone ?: "Asia/Kolkata"
+        val zoneId = try { java.time.ZoneId.of(tzName) } catch (e: Exception) { java.time.ZoneId.of("Asia/Kolkata") }
+        val hour = java.time.ZonedDateTime.now(zoneId).hour
         // Approximate: Day is 6 AM to 6 PM
         return if (hour in 6..17) 1 else 0
     }
@@ -285,16 +306,15 @@ data class WeatherDoc(
         if (oldHourly != null) {
             // Get temps from v69 or legacy field
             val temps = oldHourly.temperatureC ?: oldHourly.temp
-            val rains = oldHourly.precipitationMm ?: oldHourly.rainMm
-            val winds = oldHourly.windSpeedKmh ?: oldHourly.wind
             
-            return listOf(
-                oldHourly.time.size,
-                temps.size,
-                oldHourly.weatherCode.size,
-                rains.size,
-                winds.size
-            ).filter { it > 0 }.minOrNull() ?: oldHourly.time.size.coerceAtMost(temps.size)
+            // Only require time and temps to have data (other fields are optional)
+            val timeSize = oldHourly.time.size
+            val tempSize = temps.size
+            
+            if (timeSize > 0 && tempSize > 0) {
+                return minOf(timeSize, tempSize)
+            }
+            return 0
         }
 
         // Try blended format
@@ -617,16 +637,216 @@ data class MetaData(
     var confidenceByDay: List<Any>? = null, // Accept any format from backend
 )
 
-// --- Seasonal forecast models (best-effort mapping; optional in Firestore) ---
+// --- Seasonal forecast models (backend v86+ enhanced format) ---
 
+/** Climatology data for a month */
+@IgnoreExtraProperties
+data class ClimatologyData(
+    @get:PropertyName("avg_rain_mm")
+    @set:PropertyName("avg_rain_mm")
+    var avgRainMm: Int = 0,
+    
+    @get:PropertyName("avg_temp_max")
+    @set:PropertyName("avg_temp_max")
+    var avgTempMax: Int = 0,
+    
+    @get:PropertyName("avg_temp_min")
+    @set:PropertyName("avg_temp_min")
+    var avgTempMin: Int = 0,
+    
+    @get:PropertyName("rain_days")
+    @set:PropertyName("rain_days")
+    var rainDays: Int = 0,
+)
+
+/** Current month outlook */
+@IgnoreExtraProperties
+data class MonthOutlook(
+    val month: Int = 0,
+    
+    @get:PropertyName("month_name")
+    @set:PropertyName("month_name")
+    var monthName: String = "",
+    
+    val text: String = "",
+    val level: String = "",
+    val season: String? = null,
+    val climatology: ClimatologyData? = null,
+)
+
+/** Upcoming season outlook */
+@IgnoreExtraProperties
+data class SeasonOutlook(
+    val season: String = "",
+    val text: String = "",
+    val level: String = "",
+    
+    @get:PropertyName("months_away")
+    @set:PropertyName("months_away")
+    var monthsAway: Int = 0,
+)
+
+/** Enhanced seasonal outlook from backend v86+ */
+@IgnoreExtraProperties
 data class SeasonalOutlook(
-    /** Backend may provide a headline/summary string. */
+    /** Backend may provide a headline/summary string (legacy). */
     val text: String? = null,
     val level: String? = null,
+    
+    // Enhanced format from v86+
+    @get:PropertyName("current_month")
+    @set:PropertyName("current_month")
+    var currentMonth: MonthOutlook? = null,
+    
+    @get:PropertyName("next_month")
+    @set:PropertyName("next_month")
+    var nextMonth: MonthOutlook? = null,
+    
+    @get:PropertyName("upcoming_season")
+    @set:PropertyName("upcoming_season")
+    var upcomingSeason: SeasonOutlook? = null,
+    
+    val alerts: List<Map<String, Any>>? = null,
+    
+    @get:PropertyName("generated_at")
+    @set:PropertyName("generated_at")
+    var generatedAt: String? = null,
 )
 
 data class SeasonalOutlookMonthly(
     /** Backend may provide month-wise strings. Keep generic to avoid mapping crashes. */
     val text: String? = null,
     val months: List<String> = emptyList(),
+)
+
+// --- Weather Systems Models (Bay of Bengal cyclones, Western Disturbance, etc.) ---
+
+/** Cyclone impact assessment */
+@IgnoreExtraProperties
+data class CycloneImpactAssessment(
+    @get:PropertyName("will_impact")
+    @set:PropertyName("will_impact")
+    var willImpact: Boolean = false,
+    
+    @get:PropertyName("impact_probability")
+    @set:PropertyName("impact_probability")
+    var impactProbability: Int = 0,
+    
+    @get:PropertyName("closest_approach_km")
+    @set:PropertyName("closest_approach_km")
+    var closestApproachKm: Double = 0.0,
+    
+    @get:PropertyName("eta_hours")
+    @set:PropertyName("eta_hours")
+    var etaHours: Int = 0,
+    
+    @get:PropertyName("impact_areas")
+    @set:PropertyName("impact_areas")
+    var impactAreas: List<Map<String, Any>>? = null,
+    
+    val trajectory: List<Map<String, Any>>? = null,
+)
+
+/** Cyclone information */
+@IgnoreExtraProperties
+data class CycloneInfo(
+    val name: String = "",
+    val lat: Double = 0.0,
+    val lon: Double = 0.0,
+    
+    @get:PropertyName("wind_speed_kmh")
+    @set:PropertyName("wind_speed_kmh")
+    var windSpeedKmh: Double = 0.0,
+    
+    @get:PropertyName("pressure_hpa")
+    @set:PropertyName("pressure_hpa")
+    var pressureHpa: Double = 0.0,
+    
+    val category: String = "",
+    
+    @get:PropertyName("category_short")
+    @set:PropertyName("category_short")
+    var categoryShort: String = "",
+    
+    @get:PropertyName("movement_dir")
+    @set:PropertyName("movement_dir")
+    var movementDir: Double = 0.0,
+    
+    @get:PropertyName("movement_speed_kmh")
+    @set:PropertyName("movement_speed_kmh")
+    var movementSpeedKmh: Double = 0.0,
+    
+    val timestamp: String? = null,
+    
+    @get:PropertyName("forecast_track")
+    @set:PropertyName("forecast_track")
+    var forecastTrack: List<Map<String, Any>>? = null,
+    
+    @get:PropertyName("impact_assessment")
+    @set:PropertyName("impact_assessment")
+    var impactAssessment: CycloneImpactAssessment? = null,
+)
+
+/** Bay of Bengal monitoring status */
+@IgnoreExtraProperties
+data class BayOfBengalStatus(
+    @get:PropertyName("cyclone_active")
+    @set:PropertyName("cyclone_active")
+    var cycloneActive: Boolean = false,
+    
+    val cyclones: List<CycloneInfo> = emptyList(),
+    val alerts: List<Map<String, Any>>? = null,
+    
+    @get:PropertyName("checked_at")
+    @set:PropertyName("checked_at")
+    var checkedAt: String? = null,
+)
+
+/** Western Disturbance status */
+@IgnoreExtraProperties
+data class WesternDisturbanceStatus(
+    val active: Boolean = false,
+    val approaching: Boolean = false,
+    val intensity: String = "none",
+    
+    @get:PropertyName("rain_expected")
+    @set:PropertyName("rain_expected")
+    var rainExpected: Boolean = false,
+    
+    @get:PropertyName("eta_hours")
+    @set:PropertyName("eta_hours")
+    var etaHours: Int? = null,
+    
+    val systems: List<Map<String, Any>>? = null,
+)
+
+/** Weather systems tracking from backend */
+@IgnoreExtraProperties
+data class WeatherSystems(
+    @get:PropertyName("active_systems")
+    @set:PropertyName("active_systems")
+    var activeSystems: List<String> = emptyList(),
+    
+    val alerts: List<Map<String, Any>>? = null,
+    
+    @get:PropertyName("bay_of_bengal")
+    @set:PropertyName("bay_of_bengal")
+    var bayOfBengal: BayOfBengalStatus? = null,
+    
+    @get:PropertyName("western_disturbance")
+    @set:PropertyName("western_disturbance")
+    var westernDisturbance: WesternDisturbanceStatus? = null,
+    
+    val norwesters: Map<String, Any>? = null,
+    
+    val timestamp: String? = null,
+)
+
+/** Daily confidence info from backend v86+ */
+@IgnoreExtraProperties
+data class DayConfidence(
+    val label: String = "",
+    val overall: Int = 0,
+    val precip: Int = 0,
+    val temp: Int = 0,
 )

@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mapuia.khawchinthlirna.ui.components.BannerAd
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,7 +70,7 @@ fun WeatherDataExplainedScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "Weather Data Explained",
+                            text = "Khawchin Data Hrilhfiahna", // Weather Data Explained
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                         )
@@ -78,7 +79,7 @@ fun WeatherDataExplainedScreen(
                         IconButton(onClick = onBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = "Kirna",
                                 tint = Color.White
                             )
                         }
@@ -101,10 +102,10 @@ fun WeatherDataExplainedScreen(
                     icon = Icons.Default.Thermostat,
                     iconColor = Color(0xFFFF6B6B),
                     title = "Temperature (°C)",
-                    titleMizo = "A lum/vawh dan",
+                    titleMizo = "Khaw Lum/Vawh Lam",
                     description = "Actual air temperature measured at your location.",
-                    descriptionMizo = "I awmnaa boruak a lum/vawh dan dik tak a ni.",
-                    tip = "\"Feels like\" includes wind chill and humidity effects - a lum dan tak i hre tur a ni."
+                    descriptionMizo = "I awmna hmuna boruak lum leh vawh dan dik tak.",
+                    tip = "\"Feels like\" (A lan dan) hian thli leh boruak hnawng a huam tel a, a vawh dan tak tak a ni."
                 )
 
                 // Precipitation Probability
@@ -112,10 +113,10 @@ fun WeatherDataExplainedScreen(
                     icon = Icons.Default.WaterDrop,
                     iconColor = Color(0xFF3A86FF),
                     title = "Precipitation Probability (%)",
-                    titleMizo = "Ruah sur thei chance",
+                    titleMizo = "Ruah Sur Thei Dinhmun",
                     description = "The chance of rain occurring in that hour.",
-                    descriptionMizo = "Darkar khat chhunga ruah sur thei chance a ni.",
-                    tip = "80%+ = Nihliap ken a ngai! Umbrella bring!"
+                    descriptionMizo = "Darkar 1 chhunga ruah sur thei chance zat.",
+                    tip = "80%+ a nih chuan nihliap ken a ngai ang!"
                 )
 
                 // Wind Speed & Gusts
@@ -123,10 +124,10 @@ fun WeatherDataExplainedScreen(
                     icon = Icons.Default.Air,
                     iconColor = Color(0xFF00D4FF),
                     title = "Wind Speed & Gusts",
-                    titleMizo = "Thli chak dan",
+                    titleMizo = "Thli Tleh Chak Lam",
                     description = "Average wind speed vs maximum sudden gusts.",
-                    descriptionMizo = "Thli a chak dan pangngai leh a thawk huk inkar a ni.",
-                    tip = "Strong winds affect outdoor activities - pawna chet chhuahna tliin harsatna a thlen thei."
+                    descriptionMizo = "Thli tleh dan pangngai leh a thawk thut (Gust) chak dan.",
+                    tip = "Thli a na chuan pawn chhuah fimkhur a ngai."
                 )
 
                 // Humidity
@@ -134,10 +135,10 @@ fun WeatherDataExplainedScreen(
                     icon = Icons.Default.WaterDrop,
                     iconColor = Color(0xFF06D6A0),
                     title = "Humidity (%)",
-                    titleMizo = "Boruak hnawng dan",
+                    titleMizo = "Boruak Hnawng Lam",
                     description = "Amount of moisture in the air.",
-                    descriptionMizo = "Boruak-ah tui awm zat a ni.",
-                    tip = "High humidity = khua a ti lum zual - feels hotter than actual temperature."
+                    descriptionMizo = "Boruaka tui (moisture) awm zat.",
+                    tip = "Hnawng a tam chuan khua a lum zualin a hriat."
                 )
 
                 // UV Index
@@ -145,10 +146,10 @@ fun WeatherDataExplainedScreen(
                     icon = Icons.Default.WbSunny,
                     iconColor = Color(0xFFFFD166),
                     title = "UV Index",
-                    titleMizo = "Ni eng chak dan",
+                    titleMizo = "Ni Zung Chak Lam (UV)",
                     description = "Measures sun's UV radiation strength.",
-                    descriptionMizo = "Ni eng atanga UV radiation chak dan a ni.",
-                    tip = "6+ = sunscreen hman ang, ni eng hnuaiah rei tak awm suh."
+                    descriptionMizo = "Ni zung hlauhawm (UV radiation) chak lam tehna.",
+                    tip = "6+ a nih chuan ni sa hnuaiah rei tak awm loh tur."
                 )
 
                 // UV Index Color Guide
@@ -159,10 +160,10 @@ fun WeatherDataExplainedScreen(
                     icon = Icons.Default.Visibility,
                     iconColor = Color(0xFF8338EC),
                     title = "Visibility",
-                    titleMizo = "A lang dan/hmu theih dan",
+                    titleMizo = "Khaw Hmuh Theih Chin",
                     description = "How far you can see clearly.",
-                    descriptionMizo = "A hlat zawng zawng in i hmuh theih dan a ni.",
-                    tip = "Low visibility = mauva/fog, ruah nasa - drive fimkhur ang!"
+                    descriptionMizo = "Khaw hla lam hmuh theih chin (Km in).",
+                    tip = "A tlem chuan motor khalh fimkhur tur (Meikhu/Ruah vang)."
                 )
 
                 // Pressure
@@ -170,14 +171,16 @@ fun WeatherDataExplainedScreen(
                     icon = Icons.Default.Compress,
                     iconColor = Color(0xFFFF006E),
                     title = "Pressure (hPa)",
-                    titleMizo = "Boruak pressure",
+                    titleMizo = "Boruak Rit Lam (Pressure)",
                     description = "Atmospheric pressure at your location.",
-                    descriptionMizo = "I hmuna boruak a thlum dan/pressure a ni.",
-                    tip = "Rising = khawchin a ṭha zawk ang; Falling = ruah sur thei."
+                    descriptionMizo = "I awmnaa boruak rit lam (Atmospheric pressure).",
+                    tip = "A san chuan khua a tha ang; a hniam chuan ruah a sur thei."
                 )
 
                 // Marine Risk
                 MarineRiskGuide()
+
+                BannerAd(modifier = Modifier.fillMaxWidth())
 
                 Spacer(modifier = Modifier.height(32.dp))
             }
@@ -303,10 +306,10 @@ private fun UVIndexGuide() {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                UVLevelBox(range = "0-2", label = "Low", color = Color(0xFF06D6A0), modifier = Modifier.weight(1f))
-                UVLevelBox(range = "3-5", label = "Moderate", color = Color(0xFFFFD166), modifier = Modifier.weight(1f))
-                UVLevelBox(range = "6-7", label = "High", color = Color(0xFFFF9F1C), modifier = Modifier.weight(1f))
-                UVLevelBox(range = "8+", label = "Very High", color = Color(0xFFFF3D00), modifier = Modifier.weight(1f))
+                UVLevelBox(range = "0-2", label = "Hniam", color = Color(0xFF06D6A0), modifier = Modifier.weight(1f))
+                UVLevelBox(range = "3-5", label = "Pangngai", color = Color(0xFFFFD166), modifier = Modifier.weight(1f))
+                UVLevelBox(range = "6-7", label = "Sang", color = Color(0xFFFF9F1C), modifier = Modifier.weight(1f))
+                UVLevelBox(range = "8+", label = "Sang Lutuk", color = Color(0xFFFF3D00), modifier = Modifier.weight(1f))
             }
         }
     }
@@ -373,13 +376,13 @@ private fun MarineRiskGuide() {
                 Spacer(Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = "Marine Risk",
+                        text = "Tuifinriat Ralveng", // Marine Risk
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
                     )
                     Text(
-                        text = "Tuifinriat Ralveng (for coastal areas)",
+                        text = "Tuipui hnaih a awmte tan bik",
                         color = Color(0xFF00B4DB).copy(alpha = 0.8f),
                         fontSize = 12.sp,
                     )
@@ -391,22 +394,22 @@ private fun MarineRiskGuide() {
             ) {
                 MarineRiskLevel(
                     level = "GREEN",
-                    label = "Safe - A him, pawnah i che thei",
+                    label = "Him - Tuifinriat chung a thiang a, hlauhawm a awm lo",
                     color = Color(0xFF06D6A0)
                 )
                 MarineRiskLevel(
                     level = "YELLOW",
-                    label = "Caution - Fimkhur ang, thil tih tur chiang takin ngaihtuah ang",
+                    label = "Fimkhur - Fimkhur a ngai, lawng te chhuah loh tur",
                     color = Color(0xFFFFD166)
                 )
                 MarineRiskLevel(
                     level = "ORANGE",
-                    label = "Dangerous - Ralveng a awm, experience nei lo ten chhuah lo ang",
+                    label = "Hlauhawm - Experience nei lo tan chhuah a him lo",
                     color = Color(0xFFFF9F1C)
                 )
                 MarineRiskLevel(
                     level = "RED",
-                    label = "Do not go out - Chhuah ngai lo, a him lo!",
+                    label = "Chhuah Loh Tur - A hlauhawm hle, chhuah loh tawp tur!",
                     color = Color(0xFFFF3D00)
                 )
             }
@@ -450,4 +453,3 @@ private fun MarineRiskLevel(
         }
     }
 }
-

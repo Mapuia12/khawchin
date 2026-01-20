@@ -58,5 +58,21 @@ data class CachedWeather(
     val gridId: String?,
     val fetchedAtEpochMs: Long,
     val doc: WeatherDoc,
-)
+) {
+    /**
+     * Check if cache has expired based on CACHE_EXPIRY_MINUTES constant.
+     * Returns true if cache is older than the expiry threshold.
+     */
+    fun isExpired(): Boolean {
+        val expiryMs = WeatherConstants.CACHE_EXPIRY_MINUTES * 60 * 1000
+        return System.currentTimeMillis() - fetchedAtEpochMs > expiryMs
+    }
+    
+    /**
+     * Get cache age in minutes for UI display.
+     */
+    fun getAgeMinutes(): Long {
+        return (System.currentTimeMillis() - fetchedAtEpochMs) / (60 * 1000)
+    }
+}
 

@@ -1,6 +1,5 @@
 package com.mapuia.khawchinthlirna.ui.screens.report
 
-import android.location.Geocoder
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -85,10 +84,9 @@ import com.mapuia.khawchinthlirna.data.model.SkyCondition
 import com.mapuia.khawchinthlirna.data.model.WindStrength
 import com.mapuia.khawchinthlirna.data.auth.AuthManager
 import com.mapuia.khawchinthlirna.data.auth.UserProfile
-import kotlinx.coroutines.Dispatchers
+import com.mapuia.khawchinthlirna.data.ReverseGeocoder
+import com.mapuia.khawchinthlirna.ui.components.BannerAd
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.util.Locale
 
 /**
  * Full-featured Report Weather Screen.
@@ -113,16 +111,17 @@ fun ReportWeatherScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val authManager: AuthManager = koinInject()
+    val reverseGeocoder = remember { ReverseGeocoder(context) }
 
     // Auth state
     var userProfile by remember { mutableStateOf<UserProfile?>(null) }
     var isSigningIn by remember { mutableStateOf(false) }
-    
+
     // Load user profile
     LaunchedEffect(authManager.userId) {
         userProfile = authManager.getUserProfile()
     }
-    
+
     // Google Sign-In launcher
     val signInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -133,9 +132,9 @@ fun ReportWeatherScreen(
             isSigningIn = false
             if (signInResult.isSuccess) {
                 userProfile = authManager.getUserProfile()
-                Toast.makeText(context, "Sign in a hlawn!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Sign in a hlawhtling e!", Toast.LENGTH_SHORT).show()
             } else {
-                Toast.makeText(context, "Sign in a hlawh lo", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Sign in a hlawhchham tlat.", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -149,32 +148,13 @@ fun ReportWeatherScreen(
     var isAutoDetectingLocation by remember { mutableStateOf(false) }
     var isSubmitting by remember { mutableStateOf(false) }
 
-    // Auto-detect location name
+    // Auto-detect location name using ReverseGeocoder (handles API deprecation properly)
     LaunchedEffect(userLat, userLon) {
         if (userLat != null && userLon != null && locationName.isBlank()) {
             isAutoDetectingLocation = true
-            withContext(Dispatchers.IO) {
-                try {
-                    val geocoder = Geocoder(context, Locale.getDefault())
-                    @Suppress("DEPRECATION")
-                    val addresses = geocoder.getFromLocation(userLat, userLon, 1)
-                    val address = addresses?.firstOrNull()
-                    address?.let {
-                        val name = buildString {
-                            it.subLocality?.let { append(it) }
-                            if (isNotEmpty() && it.locality != null) append(", ")
-                            it.locality?.let { append(it) }
-                        }.ifBlank { it.adminArea ?: "" }
-
-                        withContext(Dispatchers.Main) {
-                            if (locationName.isBlank()) {
-                                locationName = name
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    // Geocoding failed, user can enter manually
-                }
+            val name = reverseGeocoder.getPlaceName(userLat, userLon)
+            if (!name.isNullOrBlank() && locationName.isBlank()) {
+                locationName = name
             }
             isAutoDetectingLocation = false
         }
@@ -199,7 +179,7 @@ fun ReportWeatherScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "Report Weather",
+                            text = "Khawchin Report-na", // Changed from Report Weather
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                         )
@@ -208,7 +188,7 @@ fun ReportWeatherScreen(
                         IconButton(onClick = onBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = "Kirna",
                                 tint = Color.White
                             )
                         }
@@ -217,7 +197,7 @@ fun ReportWeatherScreen(
                         IconButton(onClick = onNavigateToRainGuide) {
                             Icon(
                                 Icons.AutoMirrored.Filled.HelpOutline,
-                                contentDescription = "Rain intensity guide",
+                                contentDescription = "Ruah sur dan Sawifiahna",
                                 tint = Color.White
                             )
                         }
@@ -242,7 +222,7 @@ fun ReportWeatherScreen(
                     isSigningIn = isSigningIn,
                     onSignInClick = { signInLauncher.launch(authManager.getGoogleSignInIntent()) }
                 )
-                
+
                 // Location indicator
                 if (userLat != null && userLon != null) {
                     LocationCard(
@@ -256,7 +236,7 @@ fun ReportWeatherScreen(
 
                 // Rain Intensity Selector (Required)
                 SectionCard(
-                    title = "Ruah Sur Dan / Rain Intensity *",
+                    title = "Ruah Sur Dan (Tih ngei ngei tur) *", // Rain Intensity
                     icon = Icons.Default.WaterDrop,
                 ) {
                     RainIntensitySelector(
@@ -267,7 +247,7 @@ fun ReportWeatherScreen(
 
                 // Sky Condition Selector (Optional)
                 SectionCard(
-                    title = "Van Dinhmun / Sky Condition",
+                    title = "Van Dinhmun (Sky Condition)",
                     icon = Icons.Default.Cloud,
                     optional = true,
                 ) {
@@ -279,7 +259,7 @@ fun ReportWeatherScreen(
 
                 // Wind Strength Selector (Optional)
                 SectionCard(
-                    title = "Thli Dan / Wind Strength",
+                    title = "Thli Tleh Dan (Wind Strength)",
                     icon = Icons.Default.Cloud,
                     optional = true,
                 ) {
@@ -291,7 +271,7 @@ fun ReportWeatherScreen(
 
                 // Notes Section (Optional)
                 SectionCard(
-                    title = "Notes (${notes.length}/500)",
+                    title = "Thil dang sawi duh (Notes)",
                     icon = Icons.Default.Cloud,
                     optional = true,
                 ) {
@@ -301,7 +281,7 @@ fun ReportWeatherScreen(
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = {
                             Text(
-                                "Add any additional notes...",
+                                "Sawi belh duh i neih chuan hetah ziak rawh...",
                                 color = Color.White.copy(alpha = 0.5f)
                             )
                         },
@@ -325,7 +305,7 @@ fun ReportWeatherScreen(
                         if (userLat == null || userLon == null) {
                             Toast.makeText(
                                 context,
-                                "GPS location required to submit report",
+                                "Report thehlut turin GPS a in-on a ngai",
                                 Toast.LENGTH_SHORT
                             ).show()
                             return@Button
@@ -347,7 +327,7 @@ fun ReportWeatherScreen(
                                 onSuccess = {
                                     Toast.makeText(
                                         context,
-                                        "Ka lawm e! Report a hlawn a.",
+                                        "Ka lawm e! Report thehluh a hlawhtling.", // Fixed Mizo translation
                                         Toast.LENGTH_SHORT
                                     ).show()
                                     onBack()
@@ -355,7 +335,7 @@ fun ReportWeatherScreen(
                                 onFailure = { error ->
                                     Toast.makeText(
                                         context,
-                                        error.message ?: "Report submit a hlawh lo",
+                                        error.message ?: "Report thehluh a hlawhchham tlat",
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -381,11 +361,14 @@ fun ReportWeatherScreen(
                         Spacer(Modifier.width(8.dp))
                     }
                     Text(
-                        text = if (isSubmitting) "Submitting..." else "Submit Report",
+                        text = if (isSubmitting) "Thehlut mek..." else "Report Thehlut Rawh",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                     )
                 }
+
+                // Banner Ad
+                BannerAd(modifier = Modifier.fillMaxWidth())
 
                 Spacer(modifier = Modifier.height(32.dp))
             }
@@ -432,7 +415,7 @@ private fun SectionCard(
                 )
                 if (optional) {
                     Text(
-                        text = "Optional",
+                        text = "Dah kher a ngai lo", // Optional
                         color = Color.White.copy(alpha = 0.5f),
                         fontSize = 11.sp,
                     )
@@ -472,7 +455,7 @@ private fun LocationCard(
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Location",
+                    text = "Hmun Hming (Location)",
                     color = Color.White.copy(alpha = 0.7f),
                     fontSize = 12.sp,
                 )
@@ -485,7 +468,7 @@ private fun LocationCard(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "Detecting location...",
+                            text = "I awmna hmun zawn mek...",
                             color = Color.White.copy(alpha = 0.7f),
                             fontSize = 14.sp,
                         )
@@ -497,7 +480,7 @@ private fun LocationCard(
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = {
                             Text(
-                                "Enter location name",
+                                "Hmun hming ziak lut rawh",
                                 color = Color.White.copy(alpha = 0.5f),
                                 fontSize = 14.sp,
                             )
@@ -543,13 +526,13 @@ private fun NoLocationCard() {
             Spacer(Modifier.width(12.dp))
             Column {
                 Text(
-                    text = "GPS Required",
+                    text = "GPS On A Ngai",
                     color = Color(0xFFFF6B6B),
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp,
                 )
                 Text(
-                    text = "Please enable GPS to submit a report",
+                    text = "Report thehlut turin khawngaihin GPS on rawh",
                     color = Color.White.copy(alpha = 0.7f),
                     fontSize = 12.sp,
                 )
@@ -841,7 +824,7 @@ private fun UserProfileCard(
                     )
                 }
             }
-            
+
             // User info or Sign in prompt
             Column(
                 modifier = Modifier.weight(1f)
@@ -888,7 +871,7 @@ private fun UserProfileCard(
                     }
                 }
             }
-            
+
             // Sign in button for anonymous users
             if (isAnonymous) {
                 Button(
@@ -918,7 +901,7 @@ private fun UserProfileCard(
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            text = "Sign In",
+                            text = "Lut Rawh", // Sign In
                             color = Color.Black,
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp

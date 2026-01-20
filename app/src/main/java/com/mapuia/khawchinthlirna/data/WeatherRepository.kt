@@ -1,7 +1,9 @@
 package com.mapuia.khawchinthlirna.data
 
+import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
 import com.mapuia.khawchinthlirna.data.model.WeatherDoc
+import com.mapuia.khawchinthlirna.util.AppLog
 import kotlinx.coroutines.delay
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.firstOrNull
@@ -32,23 +34,23 @@ class WeatherRepository(
      * searches for nearest available grid point in Firestore using batch queries.
      */
     suspend fun getWeatherByGridId(gridId: String): WeatherDoc? {
-        android.util.Log.d("WeatherRepo", "getWeatherByGridId called with: $gridId")
+        AppLog.d("WeatherRepo", "getWeatherByGridId called with: $gridId")
         
         // Validate input
         if (!gridId.isValidGridId()) {
-            android.util.Log.e("WeatherRepo", "Invalid grid ID format: $gridId")
+            AppLog.e("WeatherRepo", "Invalid grid ID format: $gridId")
             throw IllegalArgumentException("Invalid grid ID format: $gridId")
         }
 
         // First try the exact grid ID
-        android.util.Log.d("WeatherRepo", "Trying exact grid ID: $gridId")
+        AppLog.d("WeatherRepo", "Trying exact grid ID: $gridId")
         val exactDoc = getWeatherWithRetry(gridId)
         if (exactDoc != null) {
-            android.util.Log.d("WeatherRepo", "Found exact document for: $gridId")
+            AppLog.d("WeatherRepo", "Found exact document for: $gridId")
             return exactDoc
         }
 
-        android.util.Log.d("WeatherRepo", "Exact doc not found, trying fallback search")
+        AppLog.d("WeatherRepo", "Exact doc not found, trying fallback search")
         // Document not found - try robust fallback search
         return findNearestAvailableWeather(gridId)
     }
@@ -66,85 +68,104 @@ class WeatherRepository(
     private suspend fun findNearestAvailableWeather(originalGridId: String): WeatherDoc? {
         val (userLat, userLon) = parseGridId(originalGridId) ?: return getCachedWeatherFallback(originalGridId)
         
-        android.util.Log.d("WeatherRepo", "Starting robust fallback search from: $originalGridId")
+        AppLog.d("WeatherRepo", "Starting robust fallback search from: $originalGridId (user: $userLat, $userLon)")
 
-        // Generate ALL possible nearby grid IDs sorted by distance
-        val candidates = generateNearbyCandidates(userLat, userLon, maxRadiusDegrees = 0.30)
-        android.util.Log.d("WeatherRepo", "Generated ${candidates.size} fallback candidates")
+        // Generate ALL possible nearby grid IDs sorted by distance (uses 0.50° radius = ~55km)
+        val candidates = generateNearbyCandidates(userLat, userLon, maxRadiusDegrees = 0.50)
+        AppLog.d("WeatherRepo", "Generated ${candidates.size} fallback candidates, first 10: ${candidates.take(10)}")
 
         // Query in batches of 10 (Firestore whereIn limit)
         val foundDocs = mutableListOf<Pair<WeatherDoc, Double>>() // doc to distance
+        var batchesQueried = 0
+        val maxBatches = 50 // Query up to 500 candidates before giving up
         
         for (batch in candidates.chunked(10)) {
             if (batch.isEmpty()) continue
+            if (batchesQueried >= maxBatches) break
+            batchesQueried++
             
             try {
-                android.util.Log.d("WeatherRepo", "Querying batch: ${batch.take(3)}...")
+                AppLog.d("WeatherRepo", "Querying batch $batchesQueried: ${batch.joinToString()}")
                 
+                // Use FieldPath.documentId() since document IDs ARE the grid IDs
                 val snapshot = db.collection(WeatherConstants.WEATHER_COLLECTION)
-                    .whereIn("grid_id", batch)
+                    .whereIn(FieldPath.documentId(), batch)
                     .get()
                     .await()
+                
+                AppLog.d("WeatherRepo", "Batch $batchesQueried returned ${snapshot.documents.size} documents")
                 
                 for (document in snapshot.documents) {
                     val doc = document.toObject(WeatherDoc::class.java)
                     if (doc != null && doc.isValid()) {
                         val distance = haversineKm(userLat, userLon, doc.lat, doc.lon)
                         foundDocs.add(Pair(doc, distance))
-                        android.util.Log.d("WeatherRepo", "Found valid doc: ${doc.gridId} at ${distance}km")
+                        AppLog.d("WeatherRepo", "Found valid doc: ${doc.gridId ?: document.id} at ${String.format("%.1f", distance)}km")
                     }
                 }
                 
-                // If we found at least one valid document in first 3 batches (closest 30 candidates), 
-                // we can stop early for efficiency
-                if (foundDocs.isNotEmpty() && candidates.indexOf(batch.first()) < 30) {
-                    android.util.Log.d("WeatherRepo", "Early exit with ${foundDocs.size} docs found")
+                // If we found any valid document, we can stop after checking a few more batches
+                // to ensure we have the closest one
+                if (foundDocs.isNotEmpty() && batchesQueried >= 5) {
+                    AppLog.d("WeatherRepo", "Found ${foundDocs.size} docs after $batchesQueried batches, selecting closest")
                     break
                 }
             } catch (e: Exception) {
-                android.util.Log.e("WeatherRepo", "Batch query failed: ${e.message}")
+                AppLog.e("WeatherRepo", "Batch $batchesQueried query failed: ${e.message}")
                 // Continue with next batch
             }
         }
         
+        AppLog.d("WeatherRepo", "Total found: ${foundDocs.size} documents after $batchesQueried batches")
+        
         // Return closest valid document
         val closest = foundDocs.minByOrNull { it.second }?.first
         if (closest != null) {
-            android.util.Log.d("WeatherRepo", "Fallback success! Using: ${closest.gridId}")
+            AppLog.d("WeatherRepo", "Fallback success! Using: ${closest.gridId} (distance: ${foundDocs.minByOrNull { it.second }?.second?.let { String.format("%.1f", it) }}km)")
             runCatching { cache?.save(gridId = originalGridId, doc = closest) }
             return closest
         }
         
-        android.util.Log.w("WeatherRepo", "No fallback documents found, trying cache")
+        AppLog.w("WeatherRepo", "No fallback documents found after $batchesQueried batches, trying cache")
         return getCachedWeatherFallback(originalGridId)
     }
 
     /**
      * Generate nearby grid ID candidates sorted by distance.
-     * Uses fine-grained search to catch all possible grid points (both coarse 0.25 and refined 0.1 grids).
+     * Uses 0.01 degree step to ensure ALL possible 2-decimal grid IDs are covered.
+     * Backend uses various grids (0.25 coarse, 0.10 refined, POI-based).
+     * 
+     * FIXED: Use finer step (0.01) and larger radius (0.50) for comprehensive coverage.
      */
     private fun generateNearbyCandidates(lat: Double, lon: Double, maxRadiusDegrees: Double): List<String> {
         val candidates = mutableSetOf<String>()
         
-        // Generate grid points in 0.01 degree increments to catch ALL possible Firebase documents
-        // Backend uses 0.25 coarse + 0.1 refined, so 0.01 step guarantees we hit every possible ID
-        var dLat = -maxRadiusDegrees
-        while (dLat <= maxRadiusDegrees) {
-            var dLon = -maxRadiusDegrees
-            while (dLon <= maxRadiusDegrees) {
+        // Use 0.01 degree step to cover ALL possible 2-decimal grid points
+        // This ensures we don't miss any grid like 23.48_93.24
+        // For 0.50° radius: generates ~10,000 candidates but Firestore batch queries handle it
+        val step = 0.01
+        val searchRadius = maxOf(maxRadiusDegrees, 0.50) // At least 0.50° (~55km) search radius
+        
+        var dLat = -searchRadius
+        while (dLat <= searchRadius) {
+            var dLon = -searchRadius
+            while (dLon <= searchRadius) {
+                // Round to 2 decimals exactly as backend stores them
                 val gLat = ((lat + dLat) * 100).roundToInt() / 100.0
                 val gLon = ((lon + dLon) * 100).roundToInt() / 100.0
                 
-                // Only add if within valid coordinate range
-                if (gLat in 20.0..26.0 && gLon in 90.0..96.0) {
+                // Only add if within valid coordinate range (Mizoram + Myanmar area)
+                if (gLat in 21.0..25.0 && gLon in 91.5..95.0) {
                     candidates.add(String.format(Locale.US, "%.2f_%.2f", gLat, gLon))
                 }
-                dLon += 0.01
+                dLon += step
             }
-            dLat += 0.01
+            dLat += step
         }
         
-        // Sort by distance from user location
+        AppLog.d("WeatherRepo", "Generated ${candidates.size} total candidates for $lat, $lon")
+        
+        // Sort by distance from user location and take reasonable limit
         return candidates
             .map { id ->
                 val parts = id.split("_")
@@ -153,6 +174,7 @@ class WeatherRepository(
                 Pair(id, haversineKm(lat, lon, gLat, gLon))
             }
             .sortedBy { it.second }
+            .take(500) // Limit to closest 500 to avoid excessive queries
             .map { it.first }
     }
 
@@ -215,8 +237,33 @@ class WeatherRepository(
     }
 
     private suspend fun getCachedWeatherFallback(gridId: String): WeatherDoc? {
-        return cache?.cachedWeather?.firstOrNull()?.takeIf { it.gridId == gridId }?.doc
-            ?: cache?.cachedWeather?.firstOrNull()?.doc
+        val cached = cache?.cachedWeather?.firstOrNull()
+        if (cached == null) return null
+        
+        // Only use cache if it matches the requested gridId OR is very close
+        // Don't use cache from unrelated locations
+        if (!cached.isExpired()) {
+            val cachedGridId = cached.gridId ?: return null
+            val (reqLat, reqLon) = parseGridId(gridId) ?: return null
+            val (cachedLat, cachedLon) = parseGridId(cachedGridId) ?: return null
+            
+            val distanceDegrees = kotlin.math.sqrt(
+                (reqLat - cachedLat) * (reqLat - cachedLat) + 
+                (reqLon - cachedLon) * (reqLon - cachedLon)
+            )
+            
+            // Only use cache if within 0.1 degrees (~11km) of requested location
+            if (distanceDegrees <= 0.1) {
+                AppLog.d("WeatherRepo", "Using cached weather from $cachedGridId for $gridId (dist: ${"%.3f".format(distanceDegrees)}°, age: ${cached.getAgeMinutes()} min)")
+                return cached.doc
+            } else {
+                AppLog.d("WeatherRepo", "Cache too far: $cachedGridId vs $gridId (dist: ${"%.3f".format(distanceDegrees)}°)")
+                return null
+            }
+        }
+        
+        AppLog.d("WeatherRepo", "Cache expired (age: ${cached.getAgeMinutes()} min > ${WeatherConstants.CACHE_EXPIRY_MINUTES} min)")
+        return null
     }
 
     /**
@@ -259,8 +306,8 @@ class WeatherRepository(
             "accuracy_m" to accuracyMeters.coerceIn(1.0, 10000.0),
             // Firestore rule expects severity to be integer
             "severity" to severityClamped,
-            // Firestore rule expects timestamp_utc field name
-            "timestamp_utc" to Instant.now().toString(),
+            // Aligned with backend schema - use 'timestamp' consistently
+            "timestamp" to Instant.now().toString(),
             "report_type" to optionMizo.sanitizeInput(),
         )
 

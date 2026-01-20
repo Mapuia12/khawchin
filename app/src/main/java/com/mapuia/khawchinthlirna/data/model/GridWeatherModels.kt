@@ -229,7 +229,7 @@ data class HourlyWeatherItem(
             uv <= 2 -> "A hniam (Low)"
             uv <= 5 -> "Moderate"
             uv <= 7 -> "A sang (High)"
-            uv <= 10 -> "A sang tak (Very High)"
+            uv <= 10 -> "Sang em em (Very High)"
             else -> "Extreme"
         }
     }
@@ -254,16 +254,17 @@ data class HourlyWeatherItem(
         val cloud = cloudCover ?: 0
         
         return when {
-            rainMm > 50 -> "Ruah vanduai"
-            rainMm > 25 -> "Ruah nasa tak"
-            rainMm > 10 -> "Ruah nasa"
-            rainMm > 2.5 -> "Ruah zau"
-            rainMm > 0.5 -> "Ruah nuam"
-            rainMm > 0 -> "Ruah fa"
-            cloud >= 80 -> "Van a dum vek"
-            cloud >= 50 -> "Van a dum zau"
-            cloud >= 20 -> "Sum leh van"
-            else -> "Van a eng"
+        rainMm > 50 -> "Ruahpui vanawn / Ruah nasa tak"  // Extreme
+        rainMm > 25 -> "Ruah sur nasa"                   // Very Heavy
+        rainMm > 10 -> "Ruah sur tam"                    // Heavy
+        rainMm > 2.5 -> "Ruah sur pangngai"              // Moderate
+        rainMm > 0.5 -> "Ruah sur cherh cherh"           // Light
+        rainMm > 0 -> "Ruah phingphisiau"                // Drizzle
+        cloud >= 80 -> "Chhumin a bawh khat"             // Overcast
+        cloud >= 50 -> "Chhum a zing nasa"               // Broken clouds
+        cloud >= 20 -> "Chhum a zing deuh"               // Partly cloudy
+        else -> "Khaw thiang"                            // Clear sky
+
         }
     }
 }

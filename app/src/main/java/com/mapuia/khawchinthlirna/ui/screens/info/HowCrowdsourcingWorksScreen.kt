@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mapuia.khawchinthlirna.ui.components.BannerAd
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,7 +67,7 @@ fun HowCrowdsourcingWorksScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "Crowdsourcing Tangkai Dan",
+                            text = "Mipui Tanhona (Crowdsourcing)",
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                         )
@@ -75,7 +76,7 @@ fun HowCrowdsourcingWorksScreen(
                         IconButton(onClick = onBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = "Kirna",
                                 tint = Color.White
                             )
                         }
@@ -97,12 +98,12 @@ fun HowCrowdsourcingWorksScreen(
                 InfoSection(
                     icon = Icons.Default.Group,
                     iconColor = Color(0xFF00D4FF),
-                    title = "Crowdsourcing chu eng nge ni?",
-                    titleEnglish = "What is Crowdsourcing?",
+                    title = "Eng nge Crowdsourcing?",
+                    titleEnglish = "Mipui Tanhona Awmzia",
                     points = listOf(
-                        "Community-based weather data collection - Mipui zawng zawng ten khawchin thu kan sawi khawm a ni",
-                        "Real weather conditions from real people in real locations - Hmun dang dang atanga mihriem ten an hmuh tak tak report an thawn a ni",
-                        "Helps improve forecast accuracy for everyone - Helpa mi zawng zawng tan khawchin thlirna a dik zawk theih nan a tangkai"
+                        "Community-based data - Mipui tangrualin khawchin kan khawnkhawmna a ni.",
+                        "Real reports - Khawchin dinhmun dik tak, a hmun ngeia awm ten an report a ni.",
+                        "Accuracy - Hei hian mi zawng zawng tana khawchin thlirlawkna (forecast) dik zawk siamna a tanpui a ni."
                     )
                 )
 
@@ -110,12 +111,12 @@ fun HowCrowdsourcingWorksScreen(
                 InfoSection(
                     icon = Icons.Default.Psychology,
                     iconColor = Color(0xFF8338EC),
-                    title = "I report tangkai dan",
-                    titleEnglish = "How Your Reports Help",
+                    title = "I Report Tangkai Dan",
+                    titleEnglish = "I Report Hlutna",
                     points = listOf(
-                        "Your reports are combined with official weather stations - I report chu official weather station data nen a inkawp a ni",
-                        "Machine learning weights reports by user reputation - AI/Machine learning in user reputation azirin report a pawimawh dan a ngaihtuah a ni",
-                        "More accurate = higher reputation = more influence - A dik zawk chuan reputation a sang zawk a, influence a nei zawk"
+                        "Combination - I report leh weather station data te kha chawhpawlh a ni.",
+                        "Machine Learning - AI hmangin user rintlak dan (reputation) a zirin report hi teh a ni.",
+                        "Influence - Report dik zawk = Reputation sang zawk = I thu a tlang zawk."
                     )
                 )
 
@@ -124,12 +125,12 @@ fun HowCrowdsourcingWorksScreen(
                     icon = Icons.Default.Star,
                     iconColor = Color(0xFFFFD166),
                     title = "Reputation System",
-                    titleEnglish = "How Reputation Works",
+                    titleEnglish = "Rintlak Lam Tehfung",
                     points = listOf(
-                        "New users start at 50% reputation - User thar te hi 50% reputation-ah an tan a ni",
-                        "Accurate reports increase reputation - Report dik thawn chuan reputation a sang a ni",
-                        "Reports matching nearby stations/users boost score - Report hnai leh user dangte nen a inang chuan score a sang a ni",
-                        "High reputation = Trust Level 4, badges, leaderboard - Reputation sang chuan Trust Level 4, badges leh leaderboard-ah i awm thei"
+                        "Start - User thar te chu 50% reputation-ah an tan ang.",
+                        "Increase - Report dik tak i thehluhin i reputation a sang zel ang.",
+                        "Verify - I report leh weather station/midang report a inmilin score a sang thin.",
+                        "Rewards - Reputation sang chuan Trust Level 4, badge leh leaderboard-ah hmun a chang thei."
                     )
                 )
 
@@ -138,11 +139,11 @@ fun HowCrowdsourcingWorksScreen(
                     icon = Icons.Default.Lock,
                     iconColor = Color(0xFF06D6A0),
                     title = "Privacy",
-                    titleEnglish = "Your Privacy Matters",
+                    titleEnglish = "Himna leh Zalenna",
                     points = listOf(
-                        "Location used only for weather mapping - I location chu khawchin mapping tan chauh a hman a ni",
-                        "No personal data shared publicly - Personal data engmah public-ah a share a ni lo",
-                        "Anonymous participation allowed - Hming lo thei chuan i tel thei bawk"
+                        "Location - I awmna (Location) hi khawchin mapping atan chauh hman a ni.",
+                        "Safe - Mimal chanchin engmah midang hmuh turin a lang lo.",
+                        "Anonymous - Hming thup (Anonymous) pawhin a tel theih."
                     )
                 )
 
@@ -150,16 +151,18 @@ fun HowCrowdsourcingWorksScreen(
                 InfoSection(
                     icon = Icons.Default.Star,
                     iconColor = Color(0xFF00D4FF),
-                    title = "Forecast Accuracy Dik Zawk",
-                    titleEnglish = "How Crowdsource Improves Forecast",
+                    title = "Forecast Dik Zawk",
+                    titleEnglish = "Mipui Report Tangkaina",
                     points = listOf(
-                        "Nowcast Correction - I report atanga current weather a dik lo chu minutes 30 chhungin a update nghal a ni",
-                        "Bias Learning - I hmun tlangval/tlangzawl emaw tui hnai etc. attribute te chu AI in a zir a, forecast a improve a ni",
-                        "Local Microclimate - Model global 25km grid a hmang a, i hmun micro-climate chu mipuite report-ah chauh ka hria a ni",
-                        "Station Weight 70% + Crowdsource 30% - I report chu ground-truth weather station nen a blend a ni",
-                        "Trust Level sang zawk = Influence sang zawk - Report dik thawn thin mi te chu forecast-ah influence an nei zawk"
+                        "Nowcast - I report atangin khawchin dik lo a awmin minute 30 chhungin siamthat a ni.",
+                        "Learning - AI chuan i awmna hmun (tlang/ruam) a zira khawchin danglam dan a zir zel.",
+                        "Microclimate - Satellite-in a hmuh phak loh, i awmna hmun bik khawchin hriat nan a tangkai.",
+                        "Blending - Station Weight 70% + Mipui Report 30% in data chawhpawlh a ni.",
+                        "Trust - Report dik thawn thin mi te chuan forecast-ah influence an nei zawk."
                     )
                 )
+
+                BannerAd(modifier = Modifier.fillMaxWidth())
 
                 Spacer(modifier = Modifier.height(32.dp))
             }
@@ -245,4 +248,3 @@ private fun InfoSection(
         }
     }
 }
-

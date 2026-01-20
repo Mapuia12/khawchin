@@ -54,6 +54,7 @@ import com.mapuia.khawchinthlirna.data.model.GridWeatherDocument
 import com.mapuia.khawchinthlirna.data.model.HourlyWeatherItem
 import com.mapuia.khawchinthlirna.data.model.MarineRiskData
 import com.mapuia.khawchinthlirna.data.model.formatTimestamp
+import com.mapuia.khawchinthlirna.ui.components.BannerAd
 import kotlin.math.roundToInt
 
 /**
@@ -182,6 +183,11 @@ fun WeatherDetailScreen(
                         generated = weatherData.generated,
                         models = weatherData.modelsUsed
                     )
+                }
+
+                // Banner Ad
+                item {
+                    BannerAd(modifier = Modifier.fillMaxWidth())
                 }
 
                 item { Spacer(Modifier.height(32.dp)) }

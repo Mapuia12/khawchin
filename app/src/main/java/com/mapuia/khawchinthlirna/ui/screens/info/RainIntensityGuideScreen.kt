@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mapuia.khawchinthlirna.data.model.RainIntensity
+import com.mapuia.khawchinthlirna.ui.components.BannerAd
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,7 +64,7 @@ fun RainIntensityGuideScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "Ruah Sur Dan Guide",
+                            text = "Ruah Sur Dan Hrilhfiahna", // Changed from Guide
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                         )
@@ -72,7 +73,7 @@ fun RainIntensityGuideScreen(
                         IconButton(onClick = onBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = "Kirna",
                                 tint = Color.White
                             )
                         }
@@ -91,7 +92,7 @@ fun RainIntensityGuideScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Ruah a sur dan level hrang hrang report nan i hman tur guide a ni e.",
+                    text = "Report i thehluh dawna ruah sur dan (Rain Intensity) level hrang hrang hrilhfiahna.",
                     color = Color.White.copy(alpha = 0.8f),
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
@@ -118,23 +119,25 @@ fun RainIntensityGuideScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Tips",
+                            text = "Thurawn (Tips)",
                             color = Color(0xFF06D6A0),
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
                         )
                         Text(
-                            text = "• I awmna hmunah ruah a sur dan in report rawh",
+                            text = "• I awmna hmuna ruah sur dan dik tak chiah report thin rawh.",
                             color = Color.White.copy(alpha = 0.8f),
                             fontSize = 13.sp,
                         )
                         Text(
-                            text = "• A dik tak report chuan i reputation a sang ang",
+                            text = "• Report dik i thehluh apiangin i 'Reputation' a sang zel ang.",
                             color = Color.White.copy(alpha = 0.8f),
                             fontSize = 13.sp,
                         )
                     }
                 }
+
+                BannerAd(modifier = Modifier.fillMaxWidth())
 
                 Spacer(modifier = Modifier.height(32.dp))
             }
@@ -241,4 +244,3 @@ private fun RainLevelCard(
         }
     }
 }
-

@@ -58,13 +58,13 @@ enum class RainIntensity(
     val description: String,
     val mmPerHour: String,
 ) {
-    NO_RAIN(0, "Ruah a sur lo", "No Rain", "Van a eng, thli a awm lo", "0 mm/hr"),
-    DRIZZLE(1, "Ruah fa", "Drizzle", "A nuam, umbrella mamawh lo", "0.1-2.5 mm/hr"),
-    LIGHT(2, "Ruah nuam", "Light Rain", "A nuam, ṭhiannu neih ṭha", "2.5-7.5 mm/hr"),
-    MODERATE(3, "Ruah zau", "Moderate", "A zau, pawnah awm ṭha lo", "7.5-25 mm/hr"),
-    HEAVY(4, "Ruah nasa", "Heavy", "A nasa, tui a lian thei", "25-50 mm/hr"),
-    VERY_HEAVY(5, "Ruah nasa tak", "Very Heavy", "Nasa tak, chhuah harsa", "50-100 mm/hr"),
-    EXTREME(6, "Ruah vanduai", "Extreme", "Vanduai ang, chhuah ngai lo", ">100 mm/hr");
+    NO_RAIN(0, "Ruah Sur Lo", "No Rain", "Khua a thiang, ruah a sur lo", "0 mm/hr"),
+    DRIZZLE(1, "Ruah Phingphisiau", "Drizzle", "Ruah mal, a hmi te te a tla", "0.1-2.5 mm/hr"),
+    LIGHT(2, "Ruah Tlem", "Light Rain", "Ruah a sur cherh cherh", "2.5-7.5 mm/hr"),
+    MODERATE(3, "Ruah Sur Pangngai", "Moderate", "Ruah a sur ve deuh, nihliap mamawh", "7.5-25 mm/hr"),
+    HEAVY(4, "Ruah Nasa", "Heavy", "Ruah a tam, tui a lian thei", "25-50 mm/hr"),
+    VERY_HEAVY(5, "Ruah Nasa Tak", "Very Heavy", "Ruah a sur buan buan, pawn chhuah a harsa", "50-100 mm/hr"),
+    EXTREME(6, "Ruahpui / Hlauhawm", "Extreme", "A hlauhawm thei, in chhungah awm rawh", ">100 mm/hr");
 
     companion object {
         fun fromLevel(level: Int): RainIntensity = entries.find { it.level == level } ?: NO_RAIN
@@ -79,11 +79,11 @@ enum class SkyCondition(
     val labelMizo: String,
     val labelEnglish: String,
 ) {
-    CLEAR(0, "Van a eng", "Clear"),
-    PARTLY_CLOUDY(1, "Sum leh van", "Partly Cloudy"),
-    MOSTLY_CLOUDY(2, "Van a dum zau", "Mostly Cloudy"),
-    OVERCAST(3, "Van a dum vek", "Overcast"),
-    FOG(4, "Mauva", "Fog");
+    CLEAR(0, "Van a thiang", "Clear"),
+    PARTLY_CLOUDY(1, "Chhum awm pheuh pheuh", "Partly Cloudy"),
+    MOSTLY_CLOUDY(2, "Chhum tam tak a awm", "Mostly Cloudy"),
+    OVERCAST(3, "Chhumin a khat vek", "Overcast"),
+    FOG(4, "Tiauchhum a zing", "Fog");
 
     companion object {
         fun fromLevel(level: Int): SkyCondition = entries.find { it.level == level } ?: CLEAR
@@ -98,11 +98,11 @@ enum class WindStrength(
     val labelMizo: String,
     val labelEnglish: String,
 ) {
-    CALM(0, "A del", "Calm"),
-    LIGHT(1, "Thli nuam", "Light"),
-    MODERATE(2, "Thli zau", "Moderate"),
-    STRONG(3, "Thli nasa", "Strong"),
-    VERY_STRONG(4, "Thli vanduai", "Very Strong");
+    CALM(0, "Thli Thaw Lo", "Calm"),
+    LIGHT(1, "Thli Thaw Heuh Heuh", "Light"),
+    MODERATE(2, "Thli Thaw Pangngai", "Moderate"),
+    STRONG(3, "Thli Na", "Strong"),
+    VERY_STRONG(4, "Thli Na Tak / Thlipui", "Very Strong");
 
     companion object {
         fun fromLevel(level: Int): WindStrength = entries.find { it.level == level } ?: CALM

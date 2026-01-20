@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mapuia.khawchinthlirna.ui.components.BannerAd
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,7 +68,7 @@ fun AppGuideScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "App Guide",
+                            text = "App Hman Dan", // App Guide
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                         )
@@ -76,7 +77,7 @@ fun AppGuideScreen(
                         IconButton(onClick = onBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = "Kirna",
                                 tint = Color.White
                             )
                         }
@@ -95,7 +96,7 @@ fun AppGuideScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "Khawchin Thlirna app hmang dan guide a ni e.",
+                    text = "Khawchin Thlirna app hman dan kaihhruaina (Guide).",
                     color = Color.White.copy(alpha = 0.8f),
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
@@ -106,12 +107,11 @@ fun AppGuideScreen(
                     number = 1,
                     icon = Icons.Default.Home,
                     iconColor = Color(0xFF00D4FF),
-                    title = "Weather en dan",
-                    titleEnglish = "Viewing Weather",
+                    title = "Khawchin En Dan",
+                    titleEnglish = "Home Screen leh Forecast",
                     steps = listOf(
-                        "Home screen-ah current weather conditions a lang a ni",
-                        "A hnuaiah scroll chuan hourly leh daily forecast i hmuh thei",
-                        "Location i thlak duh chuan location icon kha tap rawh"
+                        "Home screen-ah tun huna khawchin dinhmun a lang nghal ang.",
+                        "A hnuai lamah scroll la, darkar tin leh ni tin thlirlawkna i hmu ang."
                     )
                 )
 
@@ -120,13 +120,13 @@ fun AppGuideScreen(
                     number = 2,
                     icon = Icons.Default.Send,
                     iconColor = Color(0xFF06D6A0),
-                    title = "Report thawn dan",
-                    titleEnglish = "Submitting Reports",
+                    title = "Report Thehluh Dan",
+                    titleEnglish = "Khawchin Report Thawnna",
                     steps = listOf(
-                        "+ button emaw \"Report Weather\" kha tap rawh",
-                        "Ruah sur dan (rain intensity) select rawh - required a ni",
-                        "Sky condition, wind, notes te i duh chuan add rawh - optional",
-                        "Submit button tap rawh!"
+                        "'+' button emaw 'Report Weather' tih kha hmet rawh.",
+                        "Ruah sur dan (Rain Intensity) thlang rawh - Tih ngei ngei tur.",
+                        "Van awmdan, thli leh note te i duh chuan belh rawh - Tih kher a ngai lo.",
+                        "A tawpah 'Submit' hmet rawh le!"
                     )
                 )
 
@@ -136,11 +136,11 @@ fun AppGuideScreen(
                     icon = Icons.Default.EmojiEvents,
                     iconColor = Color(0xFFFFD166),
                     title = "Points leh Badges",
-                    titleEnglish = "Earning Rewards",
+                    titleEnglish = "Lawmman leh Chawimawina",
                     steps = listOf(
-                        "Report i thawn tunah points i hmuh ang",
-                        "Achievements hrang hrang atanga badges collect rawh",
-                        "Leaderboard-ah midang nen inelna rawh!"
+                        "Report i thehluh apiangin Points i hmu zel ang.",
+                        "Achievement hrang hrang ti hlawhtling la, Badge la khawm rawh.",
+                        "Leaderboard-ah midang nen inkhaikhin rawh u!"
                     )
                 )
 
@@ -149,14 +149,16 @@ fun AppGuideScreen(
                     number = 4,
                     icon = Icons.Default.Lightbulb,
                     iconColor = Color(0xFF8338EC),
-                    title = "Tips",
-                    titleEnglish = "Pro Tips",
+                    title = "Thurawn (Tips)",
+                    titleEnglish = "Hriat Tur Pawimawhte",
                     steps = listOf(
-                        "I awmna hmun takah report rawh - actual location atanga report i thawn ang",
-                        "Dik tak report rawh - fake reports thawn chuan reputation a tla ang",
-                        "Regular-in report thawn chuan Trust Level a sang zawk ang"
+                        "I awmna hmun tak atangin report thehlut thin rawh.",
+                        "Thu dik chiah report rawh - dawt report chuan i 'Trust Level' a ti hniam ang.",
+                        "Report i thehluh ngun chuan i 'Trust Level' a sang zel ang."
                     )
                 )
+
+                BannerAd(modifier = Modifier.fillMaxWidth())
 
                 Spacer(modifier = Modifier.height(32.dp))
             }
@@ -266,4 +268,3 @@ private fun GuideSection(
         }
     }
 }
-

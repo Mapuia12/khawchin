@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mapuia.khawchinthlirna.ui.components.BannerAd
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,7 +73,7 @@ fun InfoHubScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "Help & Information",
+                            text = "Tanpuina & Hriat Tur", // Changed from Help & Information
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                         )
@@ -100,7 +101,7 @@ fun InfoHubScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Khawchin Thlirna app chungchang leh hman dan hriat belh tur a ni.",
+                    text = "Khawchin Thlirna app hman dan leh thil pawimawh hriat tur te.", // Improved phrasing
                     color = Color.White.copy(alpha = 0.8f),
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
@@ -111,34 +112,37 @@ fun InfoHubScreen(
                 InfoMenuItem(
                     icon = Icons.AutoMirrored.Filled.Help,
                     iconColor = Color(0xFF00D4FF),
-                    title = "App Guide",
-                    subtitle = "App hmang dan guide",
+                    title = "App Hman Dan", // App Guide
+                    subtitle = "App hman dan kimchang", // App usage guide
                     onClick = onNavigateToAppGuide
                 )
 
                 InfoMenuItem(
                     icon = Icons.Default.Group,
                     iconColor = Color(0xFF8338EC),
-                    title = "How Crowdsourcing Works",
-                    subtitle = "Crowdsourcing tangkai dan",
+                    title = "Mipui Tanhona Kalhmang", // How Crowdsourcing Works
+                    subtitle = "Mipui report tangkai dan", // How public reports help
                     onClick = onNavigateToCrowdsourcing
                 )
 
                 InfoMenuItem(
                     icon = Icons.Default.WaterDrop,
                     iconColor = Color(0xFF3A86FF),
-                    title = "Rain Intensity Guide",
-                    subtitle = "Ruah sur dan level guide",
+                    title = "Ruah Sur Dan Hrilhfiahna", // Rain Intensity Guide
+                    subtitle = "Ruah sur nasat lam tehfung", // Rain intensity level guide
                     onClick = onNavigateToRainGuide
                 )
 
                 InfoMenuItem(
                     icon = Icons.Default.Cloud,
                     iconColor = Color(0xFF06D6A0),
-                    title = "Weather Data Explained",
-                    subtitle = "Weather data hrang hrang chungchang",
+                    title = "Khawchin Data Hrilhfiahna", // Weather Data Explained
+                    subtitle = "Khawchin thumal hrang hrangte", // Various weather terms
                     onClick = onNavigateToWeatherData
                 )
+
+                // Banner Ad
+                BannerAd(modifier = Modifier.fillMaxWidth())
 
                 Spacer(modifier = Modifier.height(32.dp))
             }
@@ -199,11 +203,10 @@ private fun InfoMenuItem(
             }
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = "Go",
+                contentDescription = "Kalna",
                 tint = Color.White.copy(alpha = 0.5f),
                 modifier = Modifier.size(20.dp)
             )
         }
     }
 }
-

@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mapuia.khawchinthlirna.ui.components.BannerAd
 
 // Premium color palette
 private val PremiumGradient = Brush.verticalGradient(
@@ -288,6 +289,11 @@ fun SettingsScreen(
                             accentColor = AccentRed
                         )
                     }
+                }
+
+                // Banner Ad
+                item {
+                    BannerAd(modifier = Modifier.fillMaxWidth())
                 }
 
                 // Bottom spacing

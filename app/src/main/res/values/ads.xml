@@ -4,8 +4,9 @@
       Production: replace with your real AdMob IDs.
       These are currently Google test IDs.
     -->
-    <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
-    <string name="admob_banner_unit_id">ca-app-pub-3940256099942544/6300978111</string>
-    <string name="admob_native_unit_id">ca-app-pub-3940256099942544/2247696110</string>
+    <string name="admob_app_id">ca-app-pub-1581460583572879~6879122088</string>
+    <string name="admob_banner_unit_id">ca-app-pub-1581460583572879/9352601550</string>
+    <string name="admob_native_unit_id">ca-app-pub-1581460583572879/2208608701</string>
+    <string name="admob_interstitial_unit_id">ca-app-pub-1581460583572879/1626795402</string>
 </resources>
 

@@ -51,7 +51,7 @@ class CrowdsourceRepository(
             "lon" to lon,
             "rain_intensity" to rainIntensity,
             "accuracy_m" to accuracyMeters.coerceIn(1.0, 10000.0),
-            "timestamp_auto" to Instant.now().toString(),
+            "timestamp" to Instant.now().toString(),  // Aligned with backend schema
         )
 
         // Optional fields
@@ -127,7 +127,7 @@ class CrowdsourceRepository(
             val snapshot = db.collection(REPORTS_COLLECTION)
                 .whereGreaterThanOrEqualTo("lat", minLat)
                 .whereLessThanOrEqualTo("lat", maxLat)
-                .whereGreaterThanOrEqualTo("timestamp_auto", threshold)
+                .whereGreaterThanOrEqualTo("timestamp", threshold)  // Aligned with backend schema
                 .limit(100)
                 .get()
                 .await()
@@ -152,7 +152,7 @@ class CrowdsourceRepository(
                         skyCondition = doc.getLong("sky_condition")?.toInt(),
                         windStrength = doc.getLong("wind_strength")?.toInt(),
                         locationName = doc.getString("location_name"),
-                        timestampAuto = doc.getString("timestamp_auto") ?: "",
+                        timestampAuto = doc.getString("timestamp") ?: "",  // Read from 'timestamp'
                         userReputation = doc.getDouble("user_reputation"),
                         distanceKm = distance,
                     )
