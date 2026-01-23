@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.mapuia.khawchinthlirna.baselineprofile-mergeBenchmarkReleaseResources-16:/values-ca/values-ca.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\Mapuia\\.gradle\\caches\\8.13\\transforms\\ebca3ddbf498cbebaa5adae71a5e5bb8\\transformed\\core-1.9.0\\res\\values-ca\\values-ca.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "100",
+                        "endOffsets": "151"
+                    }
+                }
+            ]
+        }
+    ]
+}

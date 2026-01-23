@@ -12,7 +12,20 @@
           "package_name": "com.mapuia.khawchinthlirna"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "88630222212-4qp2nrds84ti0qril19u29nhopq2p8qo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mapuia.khawchinthlirna",
+            "certificate_hash": "6b114b171a40e0f0c7997092746babe4cf7aeb42"
+          }
+        },
+        {
+          "client_id": "88630222212-ndtudd79n92emt0ptged8cnffdcp60gb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDBcP3D5YZlxy6Qkjn5juj09qhbpqyL1XM"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "88630222212-ndtudd79n92emt0ptged8cnffdcp60gb.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

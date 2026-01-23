@@ -273,10 +273,10 @@ data class WeatherDoc(
                     wind = h.windSpeedKmh ?: h.wind,
                     apparentTemperature = h.apparentTemperatureC ?: h.apparentTemperature,
                     windGust = h.windGustKmh ?: h.windGust,
-                    humidity = h.relativeHumidity?.map { it.toInt() } ?: h.humidity,
+                    humidity = h.relativeHumidity?.mapNotNull { it?.toInt() } ?: h.humidity,
                     pressure = h.pressureHpa ?: h.pressure,
-                    cloudCover = h.cloudCoverPercent?.map { it.toInt() } ?: h.cloudCover,
-                    visibility = h.visibilityM?.map { it.toInt() } ?: h.visibility,
+                    cloudCover = h.cloudCoverPercent?.mapNotNull { it?.toInt() } ?: h.cloudCover,
+                    visibility = h.visibilityM?.mapNotNull { it?.toInt() } ?: h.visibility,
                     dewpoint = h.dewpointC ?: h.dewpoint,
                 )
             }
@@ -432,29 +432,29 @@ data class AlertBlock(
 data class HourlyArrays(
     val time: List<String> = emptyList(),
     
-    // Legacy field name
-    val temp: List<Double> = emptyList(),
+    // Legacy field name - Firestore may deserialize with null values in the list
+    val temp: List<Double?> = emptyList(),
     
     // Backend v69 field name: temperature_c
     @get:PropertyName("temperature_c")
     @set:PropertyName("temperature_c")
-    var temperatureC: List<Double>? = null,
+    var temperatureC: List<Double?>? = null,
 
     @get:PropertyName("rain_mm")
     @set:PropertyName("rain_mm")
-    var rainMm: List<Double> = emptyList(),
+    var rainMm: List<Double?> = emptyList(),
     
     // Backend v69 field name: precipitation_mm
     @get:PropertyName("precipitation_mm")
     @set:PropertyName("precipitation_mm")
-    var precipitationMm: List<Double>? = null,
+    var precipitationMm: List<Double?>? = null,
 
-    val wind: List<Double> = emptyList(),
+    val wind: List<Double?> = emptyList(),
     
     // Backend v69 field name: wind_speed_kmh
     @get:PropertyName("wind_speed_kmh")
     @set:PropertyName("wind_speed_kmh")
-    var windSpeedKmh: List<Double>? = null,
+    var windSpeedKmh: List<Double?>? = null,
 
     /** Optional wind direction per hour if backend provides it. */
     @get:PropertyName("wind_dir")
@@ -468,70 +468,70 @@ data class HourlyArrays(
 
     @get:PropertyName("weather_code")
     @set:PropertyName("weather_code")
-    var weatherCode: List<Int> = emptyList(),
+    var weatherCode: List<Int?> = emptyList(),
 
     // Backend v69 field name: apparent_temperature_c
     @get:PropertyName("apparent_temperature")
     @set:PropertyName("apparent_temperature")
-    var apparentTemperature: List<Double>? = null,
+    var apparentTemperature: List<Double?>? = null,
     
     @get:PropertyName("apparent_temperature_c")
     @set:PropertyName("apparent_temperature_c")
-    var apparentTemperatureC: List<Double>? = null,
+    var apparentTemperatureC: List<Double?>? = null,
 
     // Backend v69 field name: wind_gust_kmh
     @get:PropertyName("wind_gust")
     @set:PropertyName("wind_gust")
-    var windGust: List<Double>? = null,
+    var windGust: List<Double?>? = null,
     
     @get:PropertyName("wind_gust_kmh")
     @set:PropertyName("wind_gust_kmh")
-    var windGustKmh: List<Double>? = null,
+    var windGustKmh: List<Double?>? = null,
 
-    val humidity: List<Int>? = null,
+    val humidity: List<Int?>? = null,
     
     // Backend v69 field name: relative_humidity
     @get:PropertyName("relative_humidity")
     @set:PropertyName("relative_humidity")
-    var relativeHumidity: List<Double>? = null,
+    var relativeHumidity: List<Double?>? = null,
 
-    val pressure: List<Double>? = null,
+    val pressure: List<Double?>? = null,
     
     // Backend v69 field name: pressure_hpa
     @get:PropertyName("pressure_hpa")
     @set:PropertyName("pressure_hpa")
-    var pressureHpa: List<Double>? = null,
+    var pressureHpa: List<Double?>? = null,
 
     // Backend v69 field name: cloud_cover_percent
     @get:PropertyName("cloud_cover")
     @set:PropertyName("cloud_cover")
-    var cloudCover: List<Int>? = null,
+    var cloudCover: List<Int?>? = null,
     
     @get:PropertyName("cloud_cover_percent")
     @set:PropertyName("cloud_cover_percent")
-    var cloudCoverPercent: List<Double>? = null,
+    var cloudCoverPercent: List<Double?>? = null,
 
-    val visibility: List<Int>? = null,
+    val visibility: List<Int?>? = null,
     
     // Backend v69 field name: visibility_m
     @get:PropertyName("visibility_m")
     @set:PropertyName("visibility_m")
-    var visibilityM: List<Double>? = null,
+    var visibilityM: List<Double?>? = null,
 
     @get:PropertyName("uv_index")
     @set:PropertyName("uv_index")
-    var uvIndex: List<Double>? = null,
+    var uvIndex: List<Double?>? = null,
 
-    val dewpoint: List<Double>? = null,
+    val dewpoint: List<Double?>? = null,
     
     // Backend v69 field name: dewpoint_c
     @get:PropertyName("dewpoint_c")
     @set:PropertyName("dewpoint_c")
-    var dewpointC: List<Double>? = null,
+    var dewpointC: List<Double?>? = null,
 
     @get:PropertyName("precipitation_probability")
     @set:PropertyName("precipitation_probability")
-    var precipitationProbability: List<Int>? = null,
+    var precipitationProbability: List<Int?>? = null,
     
     // Ensemble uncertainty data (backend v86+)
     @get:PropertyName("precipitation_ensemble")
@@ -557,26 +557,26 @@ data class DailyArrays(
 
     @get:PropertyName("temp_max")
     @set:PropertyName("temp_max")
-    var tempMax: List<Double> = emptyList(),
+    var tempMax: List<Double?> = emptyList(),
 
     @get:PropertyName("temp_min")
     @set:PropertyName("temp_min")
-    var tempMin: List<Double> = emptyList(),
+    var tempMin: List<Double?> = emptyList(),
 
     val sunrise: List<String> = emptyList(),
     val sunset: List<String> = emptyList(),
 
     @get:PropertyName("rain_prob")
     @set:PropertyName("rain_prob")
-    var rainProb: List<Int> = emptyList(),
+    var rainProb: List<Int?> = emptyList(),
     
     @get:PropertyName("precipitation_sum")
     @set:PropertyName("precipitation_sum")
-    var precipitationSum: List<Double> = emptyList(),
+    var precipitationSum: List<Double?> = emptyList(),
     
     @get:PropertyName("weather_code")
     @set:PropertyName("weather_code")
-    var weatherCode: List<Int> = emptyList(),
+    var weatherCode: List<Int?> = emptyList(),
     
     // Forecast confidence per day (backend v86+)
     // Values: 0.95 (day 1-2), 0.85 (day 3), 0.75 (day 4), 0.60 (day 5), etc.
@@ -657,9 +657,14 @@ data class ClimatologyData(
     @get:PropertyName("rain_days")
     @set:PropertyName("rain_days")
     var rainDays: Int = 0,
+    
+    // NEW: Humidity percentage (backend v86+)
+    @get:PropertyName("avg_humidity_percent")
+    @set:PropertyName("avg_humidity_percent")
+    var avgHumidityPercent: Int = 0,
 )
 
-/** Current month outlook */
+/** Current month outlook - Enhanced with comparisons (backend v86+) */
 @IgnoreExtraProperties
 data class MonthOutlook(
     val month: Int = 0,
@@ -672,9 +677,160 @@ data class MonthOutlook(
     val level: String = "",
     val season: String? = null,
     val climatology: ClimatologyData? = null,
+    
+    // NEW: Enhanced comparison fields for user-friendly display
+    @get:PropertyName("temperature_comparison")
+    @set:PropertyName("temperature_comparison")
+    var temperatureComparison: String? = null,  // COLD, COOL, WARM, HOT, VERY_HOT, PLEASANT, etc.
+    
+    @get:PropertyName("rainfall_comparison")
+    @set:PropertyName("rainfall_comparison")
+    var rainfallComparison: String? = null,  // MORE_RAIN, NORMAL, LESS_RAIN
+    
+    @get:PropertyName("temperature_trend")
+    @set:PropertyName("temperature_trend")
+    var temperatureTrend: String? = null,  // ↑ (warming), ↓ (cooling), → (stable)
+    
+    @get:PropertyName("outlook_text_mz")
+    @set:PropertyName("outlook_text_mz")
+    var outlookTextMz: String? = null,  // Short summary in Mizo
+    
+    @get:PropertyName("outlook_text_en")
+    @set:PropertyName("outlook_text_en")
+    var outlookTextEn: String? = null,  // Short summary in English
+    
+    // NEW: Seasonal forecast from Open-Meteo SEAS5 API
+    @get:PropertyName("seasonal_forecast")
+    @set:PropertyName("seasonal_forecast")
+    var seasonalForecast: SeasonalForecastData? = null,
 )
 
-/** Upcoming season outlook */
+/** Seasonal forecast data from ECMWF SEAS5 model */
+@IgnoreExtraProperties
+data class SeasonalForecastData(
+    // Predicted values from SEAS5 model
+    @get:PropertyName("predicted_temp_mean")
+    @set:PropertyName("predicted_temp_mean")
+    var predictedTempMean: Double? = null,
+    
+    @get:PropertyName("predicted_temp_max")
+    @set:PropertyName("predicted_temp_max")
+    var predictedTempMax: Double? = null,
+    
+    @get:PropertyName("predicted_temp_min")
+    @set:PropertyName("predicted_temp_min")
+    var predictedTempMin: Double? = null,
+    
+    @get:PropertyName("predicted_rain_mm")
+    @set:PropertyName("predicted_rain_mm")
+    var predictedRainMm: Double? = null,
+    
+    // Anomalies (difference from model climatology)
+    @get:PropertyName("temp_anomaly_c")
+    @set:PropertyName("temp_anomaly_c")
+    var tempAnomalyC: Double? = null,  // +/- degrees from normal
+    
+    @get:PropertyName("precip_anomaly_mm")
+    @set:PropertyName("precip_anomaly_mm")
+    var precipAnomalyMm: Double? = null,  // +/- mm from normal
+    
+    @get:PropertyName("precip_pct_change")
+    @set:PropertyName("precip_pct_change")
+    var precipPctChange: Double? = null,  // % change from normal
+    
+    // Outlook strings (e.g., "WARMER", "MUCH_WETTER")
+    @get:PropertyName("temp_outlook")
+    @set:PropertyName("temp_outlook")
+    var tempOutlook: String? = null,
+    
+    @get:PropertyName("temp_outlook_mz")
+    @set:PropertyName("temp_outlook_mz")
+    var tempOutlookMz: String? = null,
+    
+    @get:PropertyName("temp_outlook_en")
+    @set:PropertyName("temp_outlook_en")
+    var tempOutlookEn: String? = null,
+    
+    @get:PropertyName("precip_outlook")
+    @set:PropertyName("precip_outlook")
+    var precipOutlook: String? = null,
+    
+    @get:PropertyName("precip_outlook_mz")
+    @set:PropertyName("precip_outlook_mz")
+    var precipOutlookMz: String? = null,
+    
+    @get:PropertyName("precip_outlook_en")
+    @set:PropertyName("precip_outlook_en")
+    var precipOutlookEn: String? = null,
+)
+
+/** Monthly forecast from seasonal API (for 6-month outlook) */
+@IgnoreExtraProperties
+data class MonthlyForecast(
+    val year: Int = 0,
+    val month: Int = 0,
+    
+    @get:PropertyName("month_name")
+    @set:PropertyName("month_name")
+    var monthName: String = "",
+    
+    // Predicted values
+    @get:PropertyName("predicted_temp_mean")
+    @set:PropertyName("predicted_temp_mean")
+    var predictedTempMean: Double? = null,
+    
+    @get:PropertyName("predicted_temp_max")
+    @set:PropertyName("predicted_temp_max")
+    var predictedTempMax: Double? = null,
+    
+    @get:PropertyName("predicted_temp_min")
+    @set:PropertyName("predicted_temp_min")
+    var predictedTempMin: Double? = null,
+    
+    @get:PropertyName("predicted_rain_mm")
+    @set:PropertyName("predicted_rain_mm")
+    var predictedRainMm: Double? = null,
+    
+    // Anomalies
+    @get:PropertyName("temp_anomaly_c")
+    @set:PropertyName("temp_anomaly_c")
+    var tempAnomalyC: Double? = null,
+    
+    @get:PropertyName("precip_anomaly_mm")
+    @set:PropertyName("precip_anomaly_mm")
+    var precipAnomalyMm: Double? = null,
+    
+    @get:PropertyName("precip_pct_change")
+    @set:PropertyName("precip_pct_change")
+    var precipPctChange: Double? = null,
+    
+    // Outlooks
+    @get:PropertyName("temp_outlook")
+    @set:PropertyName("temp_outlook")
+    var tempOutlook: String? = null,
+    
+    @get:PropertyName("temp_outlook_mz")
+    @set:PropertyName("temp_outlook_mz")
+    var tempOutlookMz: String? = null,
+    
+    @get:PropertyName("temp_outlook_en")
+    @set:PropertyName("temp_outlook_en")
+    var tempOutlookEn: String? = null,
+    
+    @get:PropertyName("precip_outlook")
+    @set:PropertyName("precip_outlook")
+    var precipOutlook: String? = null,
+    
+    @get:PropertyName("precip_outlook_mz")
+    @set:PropertyName("precip_outlook_mz")
+    var precipOutlookMz: String? = null,
+    
+    @get:PropertyName("precip_outlook_en")
+    @set:PropertyName("precip_outlook_en")
+    var precipOutlookEn: String? = null,
+)
+
+/** Upcoming season outlook - Enhanced with detailed forecasts (backend v86+) */
 @IgnoreExtraProperties
 data class SeasonOutlook(
     val season: String = "",
@@ -684,6 +840,15 @@ data class SeasonOutlook(
     @get:PropertyName("months_away")
     @set:PropertyName("months_away")
     var monthsAway: Int = 0,
+    
+    // NEW: Enhanced outlook details
+    @get:PropertyName("rainfall_outlook")
+    @set:PropertyName("rainfall_outlook")
+    var rainfallOutlook: String? = null,  // Narrative about expected rainfall
+    
+    @get:PropertyName("wind_outlook")
+    @set:PropertyName("wind_outlook")
+    var windOutlook: String? = null,  // Narrative about expected winds
 )
 
 /** Enhanced seasonal outlook from backend v86+ */
@@ -711,6 +876,23 @@ data class SeasonalOutlook(
     @get:PropertyName("generated_at")
     @set:PropertyName("generated_at")
     var generatedAt: String? = null,
+    
+    // NEW: 6-month seasonal forecast from ECMWF SEAS5
+    @get:PropertyName("monthly_forecasts")
+    @set:PropertyName("monthly_forecasts")
+    var monthlyForecasts: List<MonthlyForecast>? = null,
+    
+    @get:PropertyName("forecast_model")
+    @set:PropertyName("forecast_model")
+    var forecastModel: String? = null,  // e.g., "ECMWF SEAS5"
+    
+    @get:PropertyName("note_mz")
+    @set:PropertyName("note_mz")
+    var noteMz: String? = null,
+    
+    @get:PropertyName("note_en")
+    @set:PropertyName("note_en")
+    var noteEn: String? = null,
 )
 
 data class SeasonalOutlookMonthly(

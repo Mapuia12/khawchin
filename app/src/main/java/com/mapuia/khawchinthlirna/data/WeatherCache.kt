@@ -74,5 +74,27 @@ data class CachedWeather(
     fun getAgeMinutes(): Long {
         return (System.currentTimeMillis() - fetchedAtEpochMs) / (60 * 1000)
     }
+    
+    /**
+     * Check if the weather data itself is stale (backend hasn't updated).
+     * Uses the 'generated' field from the document.
+     * Returns hours since data was generated, or null if can't determine.
+     */
+    fun getDataAgeHours(): Long? {
+        val generated = doc.generated ?: return null
+        return try {
+            val instant = java.time.Instant.parse(generated)
+            java.time.Duration.between(instant, java.time.Instant.now()).toHours()
+        } catch (_: Exception) { null }
+    }
+    
+    /**
+     * Check if backend data is stale (more than 12 hours old).
+     * This indicates the EC2 cron job may not be running.
+     */
+    fun isDataStale(): Boolean {
+        val ageHours = getDataAgeHours() ?: return false
+        return ageHours > 12 // Backend should update at least twice per day
+    }
 }
 

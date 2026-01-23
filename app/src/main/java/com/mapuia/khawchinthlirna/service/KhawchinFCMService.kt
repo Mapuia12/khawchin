@@ -5,7 +5,10 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessagingService
@@ -21,12 +24,35 @@ import kotlinx.coroutines.launch
 
 /**
  * Firebase Cloud Messaging service for handling push notifications.
- * Handles weather alerts, report verifications, and badge notifications.
+ * 
+ * IMPORTANT: This service handles DATA messages, which are delivered even when
+ * the app is in the background or killed. This is critical for weather alerts.
+ * 
+ * Notification messages are handled by the system when app is in background,
+ * but DATA messages always come to this service.
+ * 
+ * Backend should send DATA-only messages for weather alerts:
+ * {
+ *   "to": "/topics/severe_weather",
+ *   "data": {
+ *     "type": "severe_weather",
+ *     "title": "⚠️ Cyclone Warning",
+ *     "body": "Cyclone approaching Mizoram..."
+ *   }
+ * }
  */
 class KhawchinFCMService : FirebaseMessagingService() {
 
     private val job = SupervisorJob()
     private val scope = CoroutineScope(Dispatchers.IO + job)
+
+    companion object {
+        private const val TAG = "KhawchinFCM"
+        private const val WEATHER_ALERT_ID = 1001
+        private const val SEVERE_WEATHER_ID = 1002
+        private const val REPORT_VERIFIED_ID = 1003
+        private const val UPVOTE_ID = 1004
+    }
 
     override fun onDestroy() {
         super.onDestroy()
@@ -35,6 +61,7 @@ class KhawchinFCMService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
+        Log.d(TAG, "New FCM token received")
         // Update token in Firestore
         scope.launch {
             updateFCMToken(token)
@@ -43,6 +70,9 @@ class KhawchinFCMService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
+        
+        Log.d(TAG, "Message received from: ${message.from}")
+        Log.d(TAG, "Data payload: ${message.data}")
 
         val data = message.data
         val notificationType = data["type"] ?: "general"
@@ -53,9 +83,12 @@ class KhawchinFCMService : FirebaseMessagingService() {
         }
 
         // Show notification based on type
+        // This works even when app is in background/killed because we use DATA messages
         when (notificationType) {
             "weather_alert" -> showWeatherAlert(message)
             "severe_weather" -> showSevereWeatherAlert(message)
+            "cyclone_warning" -> showCycloneWarning(message)
+            "flood_warning" -> showFloodWarning(message)
             "report_verified" -> showReportVerified(message)
             "badge_earned" -> showBadgeEarned(message)
             "upvote" -> showUpvoteNotification(message)
@@ -89,7 +122,44 @@ class KhawchinFCMService : FirebaseMessagingService() {
             title = title,
             body = body,
             priority = NotificationCompat.PRIORITY_MAX,
-            extraData = mapOf("gridId" to gridId)
+            extraData = mapOf("gridId" to gridId),
+            playSound = true,
+            vibrate = true
+        )
+    }
+    
+    private fun showCycloneWarning(message: RemoteMessage) {
+        val cycloneName = message.data["cyclone_name"] ?: ""
+        val title = message.data["title"] ?: "🌀 Cyclone Warning: $cycloneName"
+        val body = message.data["body"] ?: ""
+        val gridId = message.data["gridId"]
+
+        showNotification(
+            channelId = NotificationChannels.SEVERE_WEATHER,
+            notificationId = SEVERE_WEATHER_ID,
+            title = title,
+            body = body,
+            priority = NotificationCompat.PRIORITY_MAX,
+            extraData = mapOf("gridId" to gridId, "cyclone_name" to cycloneName),
+            playSound = true,
+            vibrate = true
+        )
+    }
+    
+    private fun showFloodWarning(message: RemoteMessage) {
+        val title = message.data["title"] ?: "🌊 Flood Warning"
+        val body = message.data["body"] ?: ""
+        val gridId = message.data["gridId"]
+
+        showNotification(
+            channelId = NotificationChannels.SEVERE_WEATHER,
+            notificationId = SEVERE_WEATHER_ID + 1,
+            title = title,
+            body = body,
+            priority = NotificationCompat.PRIORITY_MAX,
+            extraData = mapOf("gridId" to gridId),
+            playSound = true,
+            vibrate = true
         )
     }
 
@@ -153,7 +223,9 @@ class KhawchinFCMService : FirebaseMessagingService() {
         title: String,
         body: String,
         priority: Int,
-        extraData: Map<String, String?> = emptyMap()
+        extraData: Map<String, String?> = emptyMap(),
+        playSound: Boolean = false,
+        vibrate: Boolean = false
     ) {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -171,7 +243,7 @@ class KhawchinFCMService : FirebaseMessagingService() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val notification = NotificationCompat.Builder(this, channelId)
+        val builder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(title)
             .setContentText(body)
@@ -179,7 +251,20 @@ class KhawchinFCMService : FirebaseMessagingService() {
             .setPriority(priority)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
-            .build()
+        
+        // For severe weather alerts - use default alarm sound and long vibration
+        if (playSound) {
+            val alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            builder.setSound(alarmSound)
+        }
+        
+        if (vibrate) {
+            // Long vibration pattern for urgent alerts
+            builder.setVibrate(longArrayOf(0, 500, 200, 500, 200, 500))
+        }
+        
+        val notification = builder.build()
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(notificationId, notification)
@@ -213,13 +298,6 @@ class KhawchinFCMService : FirebaseMessagingService() {
         } catch (e: Exception) {
             e.printStackTrace()
         }
-    }
-
-    companion object {
-        private const val WEATHER_ALERT_ID = 1001
-        private const val SEVERE_WEATHER_ID = 1002
-        private const val REPORT_VERIFIED_ID = 1003
-        private const val UPVOTE_ID = 1004
     }
 }
 

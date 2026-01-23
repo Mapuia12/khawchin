@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.baselineprofile)
     id("com.google.devtools.ksp") version "2.0.21-1.0.27"
 }
 
@@ -16,19 +17,26 @@ android {
         applicationId = "com.mapuia.khawchinthlirna"
         minSdk = 28
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2  // Increment for each Play Store release
+        versionName = "1.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
-        release {
+        debug {
             isMinifyEnabled = false
+            isDebuggable = true
+        }
+        release {
+            isMinifyEnabled = true  // Enable for production APK size reduction & security
+            isShrinkResources = true  // Remove unused resources
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Enable for better crash reports in production
+            // signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
@@ -41,6 +49,19 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+    
+    // Bundle configuration for Play Store
+    bundle {
+        language {
+            enableSplit = true
+        }
+        density {
+            enableSplit = true
+        }
+        abi {
+            enableSplit = true
+        }
     }
 }
 
@@ -109,4 +130,8 @@ dependencies {
     // Glance (App Widgets)
     implementation("androidx.glance:glance-appwidget:1.1.1")
     implementation("androidx.glance:glance-material3:1.1.1")
+
+    // Baseline Profile
+    implementation(libs.androidx.profileinstaller)
+    "baselineProfile"(project(":baselineprofile"))
 }

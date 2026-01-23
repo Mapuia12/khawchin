@@ -39,6 +39,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -50,6 +51,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -113,6 +115,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import coil.compose.AsyncImage
 import coil.decode.SvgDecoder
 import coil.request.ImageRequest
@@ -346,6 +351,41 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
         ) == PackageManager.PERMISSION_GRANTED
 
         if (granted) vm.onLocationPermissionGranted() else permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+    }
+    
+    // Auto-refresh every 30 minutes (background refresh, non-intrusive)
+    // Uses lifecycle awareness to pause when app is in background
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var isAppInForeground by remember { mutableStateOf(true) }
+    
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            isAppInForeground = event == Lifecycle.Event.ON_RESUME || event == Lifecycle.Event.ON_START
+            if (event == Lifecycle.Event.ON_RESUME) {
+                // Reset session tracking for interstitial ads
+                com.mapuia.khawchinthlirna.util.InterstitialAdManager.onSessionStart()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+    
+    LaunchedEffect(Unit) {
+        val autoRefreshIntervalMs = 30 * 60 * 1000L // 30 minutes
+        while (true) {
+            kotlinx.coroutines.delay(autoRefreshIntervalMs)
+            // Only refresh if app is in foreground to save battery
+            if (isAppInForeground) {
+                // Silent background refresh
+                vm.refresh(isUserInitiated = false)
+                // Check if interstitial ad should be shown (respects internal cooldown)
+                (context as? Activity)?.let { activity ->
+                    com.mapuia.khawchinthlirna.util.InterstitialAdManager.checkAutoTrigger(activity)
+                }
+            }
+        }
     }
 
     var showReport by remember { mutableStateOf(false) }
@@ -1006,16 +1046,22 @@ private fun HourlyForecast(weather: WeatherDoc, isDay: Boolean) {
         // Get precipitation probability if available
         val precipProb = hourly.precipitationProbability ?: emptyList()
 
-        val rows = (currentHourIdx until endIdx).map { idx ->
+        val rows = (currentHourIdx until endIdx).mapNotNull { idx ->
+            // Safely get temperature - skip if null
+            val tempValue = hourly.temp.getOrNull(idx) ?: return@mapNotNull null
+            
             HourlyData(
                 time = hourly.time[idx],
-                temp = hourly.temp[idx],
-                weatherCode = hourly.weatherCode.getOrElse(idx) { 0 },
-                rainMm = hourly.rainMm.getOrElse(idx) { 0.0 },
-                rainProb = precipProb.getOrElse(idx) { 0 },
-                wind = hourly.wind.getOrElse(idx) { 0.0 },
+                temp = tempValue,
+                weatherCode = hourly.weatherCode.getOrNull(idx) ?: 0,
+                rainMm = hourly.rainMm.getOrNull(idx) ?: 0.0,
+                rainProb = precipProb.getOrNull(idx) ?: 0,
+                wind = hourly.wind.getOrNull(idx) ?: 0.0,
             )
         }
+        
+        // If no valid rows, don't show
+        if (rows.isEmpty()) return@GlassCard
         
         // First item data for sticky "Now" pill
         val nowItem = rows.firstOrNull()
@@ -1288,7 +1334,7 @@ private fun CurrentConditionsGrid(weather: WeatherDoc, isDay: Boolean = true) {
                 windDirLabel = windDir,
             )
 
-            // Row 2: Rainfall, Pressure & Humidity
+            // Row 2: Rainfall + Humidity
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 // Rainfall Card
                 PremiumMetricCard(
@@ -1300,19 +1346,6 @@ private fun CurrentConditionsGrid(weather: WeatherDoc, isDay: Boolean = true) {
                     modifier = Modifier.weight(1f),
                 )
                 
-                // Pressure Card
-                PremiumMetricCard(
-                    title = "PRESSURE",
-                    value = pressure?.let { "${"%.0f".format(it)}" } ?: "--",
-                    unit = "hPa",
-                    iconRes = R.drawable.ic_pressure,
-                    gradientColors = listOf(Color(0xFFFF006E), Color(0xFFD6336C)),
-                    modifier = Modifier.weight(1f),
-                )
-            }
-
-            // Row 3: Humidity & Visibility
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 // Humidity Card
                 PremiumMetricCard(
                     title = "HUMIDITY",
@@ -1320,6 +1353,19 @@ private fun CurrentConditionsGrid(weather: WeatherDoc, isDay: Boolean = true) {
                     unit = "%",
                     iconRes = R.drawable.ic_humidity_drop,
                     gradientColors = listOf(Color(0xFF06D6A0), Color(0xFF00B894)),
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            // Row 3: Pressure + Visibility
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Pressure Card
+                PremiumMetricCard(
+                    title = "PRESSURE",
+                    value = pressure?.let { "${"%.0f".format(it)}" } ?: "--",
+                    unit = "hPa",
+                    iconRes = R.drawable.ic_pressure,
+                    gradientColors = listOf(Color(0xFFFF006E), Color(0xFFD6336C)),
                     modifier = Modifier.weight(1f),
                 )
                 
@@ -1334,42 +1380,24 @@ private fun CurrentConditionsGrid(weather: WeatherDoc, isDay: Boolean = true) {
                 )
             }
 
-            // Row 4: Dewpoint & UV Index (if available)
-            if (dewpoint != null || uvIndex != null) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    // Dewpoint Card
-                    if (dewpoint != null) {
-                        PremiumMetricCard(
-                            title = "DEWPOINT",
-                            value = "${dewpoint.toInt()}",
-                            unit = "°C",
-                            iconRes = R.drawable.ic_dewpoint,
-                            gradientColors = listOf(Color(0xFF1ABC9C), Color(0xFF16A085)),
-                            modifier = Modifier.weight(1f),
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-                    // UV Index Card
-                    if (uvIndex != null && uvIndex > 0) {
-                        PremiumMetricCard(
-                            title = "UV INDEX",
-                            value = "${"%.1f".format(uvIndex)}",
-                            unit = getUvLevel(uvIndex),
-                            iconRes = R.drawable.ic_sun,
-                            gradientColors = getUvGradientColors(uvIndex),
-                            modifier = Modifier.weight(1f),
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
+            // Row 4: Dewpoint + Cloud Cover
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Dewpoint Card
+                if (dewpoint != null) {
+                    PremiumMetricCard(
+                        title = "DEWPOINT",
+                        value = "${dewpoint.toInt()}",
+                        unit = "°C",
+                        iconRes = R.drawable.ic_dewpoint,
+                        gradientColors = listOf(Color(0xFF1ABC9C), Color(0xFF16A085)),
+                        modifier = Modifier.weight(1f),
+                    )
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
-            }
-            
-            // Row 5: Cloud Cover & Feels Like (if available)
-            if (cloudCover != null) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    // Cloud Cover Card
+                
+                // Cloud Cover Card
+                if (cloudCover != null) {
                     PremiumMetricCard(
                         title = "CLOUD COVER",
                         value = "$cloudCover",
@@ -1378,17 +1406,24 @@ private fun CurrentConditionsGrid(weather: WeatherDoc, isDay: Boolean = true) {
                         gradientColors = listOf(Color(0xFF78909C), Color(0xFF546E7A)),
                         modifier = Modifier.weight(1f),
                     )
-                    // Feels Like Card
-                    current?.feelsLike?.let { feelsLike ->
-                        PremiumMetricCard(
-                            title = "FEELS LIKE",
-                            value = "${feelsLike.toInt()}",
-                            unit = "°C",
-                            iconRes = R.drawable.ic_thermometer,
-                            gradientColors = listOf(Color(0xFFFF7043), Color(0xFFE64A19)),
-                            modifier = Modifier.weight(1f),
-                        )
-                    } ?: Spacer(modifier = Modifier.weight(1f))
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+            
+            // Row 5: UV Index (when available - important for daytime)
+            if (uvIndex != null && uvIndex > 0) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    PremiumMetricCard(
+                        title = "UV INDEX",
+                        value = "${"%.1f".format(uvIndex)}",
+                        unit = getUvLevel(uvIndex),
+                        iconRes = R.drawable.ic_sun,
+                        gradientColors = getUvGradientColors(uvIndex),
+                        modifier = Modifier.weight(1f),
+                    )
+                    // Spacer for balanced layout
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -2072,14 +2107,16 @@ private fun DailyForecastCard(weather: WeatherDoc, isDay: Boolean) {
                 val confData = confidenceData.getOrNull(i)
                 val confidence = confData?.overall ?: getDefaultConfidence(i)
                 val confidenceLabel = confData?.label ?: getConfidenceLabel(confidence)
-                val rainMm = daily.precipitationSum.getOrElse(i) { 0.0 }
+                val rainMm = daily.precipitationSum.getOrNull(i) ?: 0.0
+                val maxTemp = daily.tempMax.getOrNull(i) ?: continue
+                val minTemp = daily.tempMin.getOrNull(i) ?: continue
                 PremiumForecastRow(
                     dateIso = daily.time[i],
-                    max = daily.tempMax[i],
-                    min = daily.tempMin[i],
-                    rainProb = daily.rainProb.getOrElse(i) { 0 },
+                    max = maxTemp,
+                    min = minTemp,
+                    rainProb = daily.rainProb.getOrNull(i) ?: 0,
                     rainMm = rainMm,
-                    iconCode = daily.weatherCode.getOrElse(i) { 0 },
+                    iconCode = daily.weatherCode.getOrNull(i) ?: 0,
                     confidence = confidence,
                     confidenceLabel = confidenceLabel,
                 )
@@ -2405,7 +2442,7 @@ private fun PremiumForecastRow(
     }
 }
 
-// Enhanced Seasonal Outlook Section with next month predictions
+// Enhanced Seasonal Outlook Section - REDESIGNED for clarity
 @Composable
 private fun SeasonalForecastSection(weather: WeatherDoc, isDay: Boolean) {
     val seasonal = weather.seasonalOutlook
@@ -2413,322 +2450,601 @@ private fun SeasonalForecastSection(weather: WeatherDoc, isDay: Boolean) {
     // Check if we have enhanced seasonal data (backend v86+)
     val currentMonth = seasonal?.currentMonth
     val nextMonth = seasonal?.nextMonth
-    val upcomingSeason = seasonal?.upcomingSeason
+    val monthlyForecasts = seasonal?.monthlyForecasts
     
     // If no seasonal data at all, don't show
     if (currentMonth == null && nextMonth == null && seasonal?.text.isNullOrBlank()) {
         return
     }
     
-    val shape = RoundedCornerShape(24.dp)
+    val shape = RoundedCornerShape(28.dp)
+    
+    // Premium gradient colors
+    val primaryGradient = listOf(
+        Color(0xFF1a1a2e),
+        Color(0xFF16213e),
+        Color(0xFF0f3460)
+    )
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(
-                elevation = 12.dp,
+                elevation = 20.dp,
                 shape = shape,
-                spotColor = Color(0xFFFF6B6B).copy(alpha = 0.2f),
+                spotColor = Color(0xFF6366F1).copy(alpha = 0.4f),
+                ambientColor = Color(0xFF8B5CF6).copy(alpha = 0.2f),
             )
             .clip(shape)
             .background(
-                Brush.verticalGradient(
-                    listOf(
-                        Color(0xFF667eea).copy(alpha = 0.2f),
-                        Color(0xFF764ba2).copy(alpha = 0.15f),
-                    )
+                Brush.linearGradient(
+                    colors = primaryGradient,
+                    start = Offset(0f, 0f),
+                    end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
                 )
             )
             .border(
-                width = 1.dp,
+                width = 1.5.dp,
                 brush = Brush.linearGradient(
                     listOf(
-                        Color(0xFF667eea).copy(alpha = 0.4f),
-                        Color(0xFF764ba2).copy(alpha = 0.3f),
+                        Color(0xFF6366F1).copy(alpha = 0.6f),
+                        Color(0xFF8B5CF6).copy(alpha = 0.4f),
+                        Color(0xFFEC4899).copy(alpha = 0.3f),
                     )
                 ),
                 shape = shape
             )
-            .padding(16.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            // Header
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "🗓️",
-                    fontSize = 18.sp,
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = "Khawchin Hma Hun Thlirna",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                )
-            }
-            
-            // Current month
-            currentMonth?.let { month ->
-                SeasonalMonthCard(
-                    emoji = "📅",
-                    title = month.monthName,
-                    subtitle = "Tun Thla",
-                    text = month.text,
-                    climatology = month.climatology,
-                    level = month.level,
-                )
-            }
-            
-            // Next month outlook
-            nextMonth?.let { month ->
-                SeasonalMonthCard(
-                    emoji = "🔮",
-                    title = month.monthName,
-                    subtitle = "Hma Thla",
-                    text = month.text,
-                    climatology = month.climatology,
-                    level = month.level,
-                    highlight = true,
-                )
-            }
-            
-            // Upcoming season
-            upcomingSeason?.let { season ->
-                if (season.text.isNotBlank()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.White.copy(alpha = 0.08f))
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(text = "🌤️", fontSize = 14.sp)
-                        Spacer(Modifier.width(8.dp))
-                        Column {
-                            Text(
-                                text = "Hun Lo Thleng Tur",
-                                color = Color.White.copy(alpha = 0.7f),
-                                fontSize = 11.sp,
-                            )
-                            Text(
-                                text = season.text,
-                                color = Color.White.copy(alpha = 0.9f),
-                                fontSize = 12.sp,
-                                lineHeight = 16.sp,
-                            )
-                        }
-                    }
-                }
-            }
-            
-            // Fallback: legacy text if no enhanced data
-            if (currentMonth == null && nextMonth == null) {
-                val legacyText = seasonal?.text 
-                    ?: weather.seasonalOutlookMonthly?.text
-                    ?: weather.seasonalOutlookMonthly?.months?.joinToString("\n")
-                if (!legacyText.isNullOrBlank()) {
-                    Text(
-                        text = legacyText,
-                        color = Color.White.copy(alpha = 0.85f),
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp,
+        // Decorative glow effect
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(120.dp)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color(0xFF6366F1).copy(alpha = 0.15f),
+                            Color.Transparent
+                        )
                     )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SeasonalMonthCard(
-    emoji: String,
-    title: String,
-    subtitle: String,
-    text: String,
-    climatology: com.mapuia.khawchinthlirna.data.model.ClimatologyData?,
-    level: String,
-    highlight: Boolean = false,
-) {
-    val bgColor = if (highlight) Color.White.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.06f)
-    
-    // Responsive sizing
-    val configuration = LocalConfiguration.current
-    val screenWidthDp = configuration.screenWidthDp
-    val isSmallScreen = screenWidthDp < 360
-    
-    val titleFontSize = if (isSmallScreen) 11.sp else 13.sp
-    val subtitleFontSize = if (isSmallScreen) 9.sp else 10.sp
-    val chipFontSize = if (isSmallScreen) 10.sp else 12.sp
-    val emojiFontSize = if (isSmallScreen) 12.sp else 14.sp
-    val textFontSize = if (isSmallScreen) 10.sp else 12.sp
-    val chipPadding = if (isSmallScreen) 6.dp else 8.dp
-    
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(bgColor)
-            .then(
-                if (highlight) Modifier.border(
-                    1.dp,
-                    Color(0xFF64FFDA).copy(alpha = 0.3f),
-                    RoundedCornerShape(12.dp)
-                ) else Modifier
-            )
-            .padding(if (isSmallScreen) 10.dp else 12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        // Use Column for small screens, Row for larger screens
-        if (isSmallScreen) {
-            // Stack layout for small screens
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(text = emoji, fontSize = emojiFontSize)
-                Spacer(Modifier.width(6.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = subtitle,
-                        color = Color.White.copy(alpha = 0.6f),
-                        fontSize = subtitleFontSize,
-                    )
-                    Text(
-                        text = title,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = titleFontSize,
-                    )
-                }
-            }
-            // Climatology chips on separate row for small screens
-            climatology?.let { clim ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    // Rain chip
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFF3A86FF).copy(alpha = 0.25f))
-                            .padding(horizontal = chipPadding, vertical = 4.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "🌧️", fontSize = chipFontSize)
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = "${clim.avgRainMm}mm",
-                                color = Color(0xFF64B5F6),
-                                fontSize = chipFontSize,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
-                    }
-                    // Temp chip
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFFF6B6B).copy(alpha = 0.25f))
-                            .padding(horizontal = chipPadding, vertical = 4.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "🌡️", fontSize = chipFontSize)
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = "${clim.avgTempMax}°",
-                                color = Color(0xFFFF8A80),
-                                fontSize = chipFontSize,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
-                    }
-                }
-            }
-        } else {
-            // Original row layout for larger screens
+                )
+        )
+        
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Premium Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = emoji, fontSize = emojiFontSize)
-                    Spacer(Modifier.width(6.dp))
+                    // Animated icon container
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(
+                                        Color(0xFF6366F1),
+                                        Color(0xFF8B5CF6)
+                                    )
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "📅", fontSize = 20.sp)
+                    }
+                    Spacer(Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = subtitle,
-                            color = Color.White.copy(alpha = 0.6f),
-                            fontSize = subtitleFontSize,
-                        )
-                        Text(
-                            text = title,
+                            text = "Seasonal Outlook",
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
-                            fontSize = titleFontSize,
+                            fontSize = 18.sp,
+                            letterSpacing = (-0.3).sp,
+                        )
+                        Text(
+                            text = "Past vs Upcoming",
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 12.sp,
                         )
                     }
                 }
-                
-                // Climatology summary - more visible chips
-                climatology?.let { clim ->
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                // Model badge
+                seasonal?.forecastModel?.let { model ->
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        Color(0xFF10B981).copy(alpha = 0.3f),
+                                        Color(0xFF059669).copy(alpha = 0.2f)
+                                    )
+                                )
+                            )
+                            .border(
+                                1.dp,
+                                Color(0xFF10B981).copy(alpha = 0.5f),
+                                RoundedCornerShape(20.dp)
+                            )
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
                     ) {
-                        // Rain chip with background
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFF3A86FF).copy(alpha = 0.25f))
-                                .padding(horizontal = chipPadding, vertical = 4.dp)
+                        Text(
+                            text = model,
+                            color = Color(0xFF34D399),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+            }
+            
+            // Current & Next Month Comparison Cards
+            currentMonth?.let { month ->
+                PremiumMonthComparisonCard(
+                    title = month.monthName,
+                    climatology = month.climatology,
+                    seasonalForecast = month.seasonalForecast,
+                    season = month.season,
+                    isCurrent = true,
+                )
+            }
+            
+            nextMonth?.let { month ->
+                PremiumMonthComparisonCard(
+                    title = month.monthName,
+                    climatology = month.climatology,
+                    seasonalForecast = month.seasonalForecast,
+                    season = null,
+                    isCurrent = false,
+                )
+            }
+            
+            // 6-Month Forecast Grid
+            if (!monthlyForecasts.isNullOrEmpty() && monthlyForecasts.size > 2) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Section header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFFF59E0B).copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = "📊", fontSize = 14.sp)
+                            }
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                text = "6-Month Outlook",
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp,
+                            )
+                        }
+                        // Legend
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(text = "🌧️", fontSize = chipFontSize)
-                                Spacer(Modifier.width(4.dp))
-                                Text(
-                                    text = "${clim.avgRainMm}mm",
-                                    color = Color(0xFF64B5F6),
-                                    fontSize = chipFontSize,
-                                    fontWeight = FontWeight.Bold,
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFF97316))
                                 )
+                                Spacer(Modifier.width(4.dp))
+                                Text("°C", color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp)
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF3B82F6))
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text("mm", color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp)
                             }
                         }
-                        // Temp chip with background
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFFFF6B6B).copy(alpha = 0.25f))
-                                .padding(horizontal = chipPadding, vertical = 4.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(text = "🌡️", fontSize = chipFontSize)
-                                Spacer(Modifier.width(4.dp))
-                                Text(
-                                    text = "${clim.avgTempMax}°",
-                                    color = Color(0xFFFF8A80),
-                                    fontSize = chipFontSize,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                            }
+                    }
+                    
+                    // Premium horizontal scroll cards
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(horizontal = 2.dp)
+                    ) {
+                        items(monthlyForecasts.drop(2)) { forecast ->
+                            PremiumMonthlyMiniCard(forecast = forecast)
                         }
                     }
                 }
             }
         }
-        
-        // Main outlook text
-        if (text.isNotBlank()) {
-            Text(
-                text = text,
-                color = Color.White.copy(alpha = 0.85f),
-                fontSize = textFontSize,
-                lineHeight = if (isSmallScreen) 14.sp else 16.sp,
+    }
+}
+
+/** Premium Month Comparison Card - Shows clear Past vs Forecast with inline differences */
+@Composable
+private fun PremiumMonthComparisonCard(
+    title: String,
+    climatology: com.mapuia.khawchinthlirna.data.model.ClimatologyData?,
+    seasonalForecast: com.mapuia.khawchinthlirna.data.model.SeasonalForecastData? = null,
+    season: String? = null,
+    isCurrent: Boolean = false,
+) {
+    val cardGradient = if (isCurrent) {
+        listOf(
+            Color(0xFF1E3A5F).copy(alpha = 0.9f),
+            Color(0xFF0D2137).copy(alpha = 0.7f)
+        )
+    } else {
+        listOf(
+            Color(0xFF2D1B4E).copy(alpha = 0.9f),
+            Color(0xFF1A0F2E).copy(alpha = 0.7f)
+        )
+    }
+    
+    val accentColor = if (isCurrent) Color(0xFF3B82F6) else Color(0xFF8B5CF6)
+    
+    // Calculate differences for comparison
+    val avgTemp = climatology?.avgTempMax
+    val forecastTemp = seasonalForecast?.predictedTempMax?.toInt()
+    val tempDiff = if (avgTemp != null && forecastTemp != null) forecastTemp - avgTemp else null
+    
+    val avgRain = climatology?.avgRainMm
+    val forecastRain = seasonalForecast?.predictedRainMm?.toInt()
+    val rainDiff = if (avgRain != null && avgRain > 0 && forecastRain != null) {
+        ((forecastRain - avgRain) * 100 / avgRain)
+    } else null
+    
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(Brush.linearGradient(cardGradient))
+            .border(
+                1.dp,
+                accentColor.copy(alpha = 0.4f),
+                RoundedCornerShape(20.dp)
             )
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Header row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.radialGradient(
+                                listOf(accentColor, accentColor.copy(alpha = 0.4f))
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (isCurrent) "📅" else "🔮",
+                        fontSize = 14.sp,
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = title,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                    )
+                    Text(
+                        text = if (isCurrent) "Current Month" else "Next Month",
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontSize = 10.sp,
+                    )
+                }
+            }
+            season?.let { s ->
+                val (seasonEmoji, seasonColor) = when (s.uppercase()) {
+                    "DRY" -> Pair("❄️", Color(0xFF60A5FA))
+                    "MONSOON", "MONSOON_PEAK" -> Pair("🌧️", Color(0xFF38BDF8))
+                    "PRE_MONSOON", "WARMING" -> Pair("☀️", Color(0xFFFBBF24))
+                    "POST_MONSOON", "MONSOON_RETREAT" -> Pair("🍂", Color(0xFF4ADE80))
+                    else -> Pair("🌤️", Color.White.copy(alpha = 0.7f))
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(seasonColor.copy(alpha = 0.15f))
+                        .border(1.dp, seasonColor.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(text = seasonEmoji, fontSize = 14.sp)
+                }
+            }
+        }
+        
+        // Temperature Comparison Row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(Color(0xFFFB923C).copy(alpha = 0.1f))
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            // Label
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = "🌡️", fontSize = 16.sp)
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = "Temp",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+            
+            // Values: Average → Forecast (diff)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End,
+            ) {
+                // Average
+                Text(
+                    text = "${avgTemp ?: "--"}°",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                )
+                
+                // Arrow
+                Text(
+                    text = " → ",
+                    color = Color.White.copy(alpha = 0.4f),
+                    fontSize = 14.sp,
+                )
+                
+                // Forecast with inline difference
+                val tempColor = when {
+                    (tempDiff ?: 0) >= 2 -> Color(0xFFFF7043)
+                    (tempDiff ?: 0) <= -2 -> Color(0xFF4FC3F7)
+                    else -> Color(0xFF4ADE80)
+                }
+                
+                Text(
+                    text = "${forecastTemp ?: "--"}°",
+                    color = tempColor,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 22.sp,
+                )
+                
+                // Difference badge inline
+                tempDiff?.let { diff ->
+                    Spacer(Modifier.width(6.dp))
+                    val sign = if (diff >= 0) "+" else ""
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(tempColor.copy(alpha = 0.25f))
+                            .padding(horizontal = 6.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = "$sign$diff°",
+                            color = tempColor,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+        }
+        
+        // Rain Comparison Row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(Color(0xFF3B82F6).copy(alpha = 0.1f))
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            // Label
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = "💧", fontSize = 16.sp)
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = "Rain",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+            
+            // Values: Average → Forecast (diff%)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End,
+            ) {
+                // Average
+                Text(
+                    text = "${avgRain ?: "--"}mm",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                )
+                
+                // Arrow
+                Text(
+                    text = " → ",
+                    color = Color.White.copy(alpha = 0.4f),
+                    fontSize = 14.sp,
+                )
+                
+                // Forecast with inline difference
+                val rainColor = when {
+                    (rainDiff ?: 0) >= 20 -> Color(0xFF38BDF8)
+                    (rainDiff ?: 0) <= -20 -> Color(0xFFFBBF24)
+                    else -> Color(0xFF4ADE80)
+                }
+                
+                Text(
+                    text = "${forecastRain ?: "--"}mm",
+                    color = rainColor,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 20.sp,
+                )
+                
+                // Difference badge inline (percentage)
+                rainDiff?.let { diff ->
+                    Spacer(Modifier.width(6.dp))
+                    val sign = if (diff >= 0) "+" else ""
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(rainColor.copy(alpha = 0.25f))
+                            .padding(horizontal = 6.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = "$sign$diff%",
+                            color = rainColor,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Premium Mini Card for 6-month forecast - shows value with inline diff */
+@Composable
+private fun PremiumMonthlyMiniCard(forecast: com.mapuia.khawchinthlirna.data.model.MonthlyForecast) {
+    // Temperature color based on anomaly
+    val tempAnom = forecast.tempAnomalyC ?: 0.0
+    val tempColor = when {
+        tempAnom >= 2.0 -> Color(0xFFFF7043)
+        tempAnom >= 1.0 -> Color(0xFFFFA726)
+        tempAnom <= -2.0 -> Color(0xFF4FC3F7)
+        tempAnom <= -1.0 -> Color(0xFF81D4FA)
+        else -> Color(0xFF4ADE80)
+    }
+    
+    // Rain color based on change
+    val rainPct = forecast.precipPctChange ?: 0.0
+    val rainColor = when {
+        rainPct >= 30 -> Color(0xFF42A5F5)
+        rainPct >= 15 -> Color(0xFF64B5F6)
+        rainPct <= -30 -> Color(0xFFFFA726)
+        rainPct <= -15 -> Color(0xFFFFCC80)
+        else -> Color(0xFF4ADE80)
+    }
+    
+    Column(
+        modifier = Modifier
+            .widthIn(min = 82.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color.White.copy(alpha = 0.12f),
+                        Color.White.copy(alpha = 0.05f)
+                    )
+                )
+            )
+            .border(
+                1.dp,
+                Color.White.copy(alpha = 0.15f),
+                RoundedCornerShape(16.dp)
+            )
+            .padding(10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        // Month name
+        Text(
+            text = forecast.monthName.take(3),
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp,
+        )
+        
+        // Temperature with inline diff
+        forecast.predictedTempMax?.let { temp ->
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "${temp.toInt()}°",
+                    color = tempColor,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 22.sp,
+                )
+                forecast.tempAnomalyC?.let { anom ->
+                    val sign = if (anom >= 0) "+" else ""
+                    Text(
+                        text = "(${sign}${anom.toInt()}°)",
+                        color = tempColor.copy(alpha = 0.8f),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+        }
+        
+        // Rain with inline diff %
+        forecast.predictedRainMm?.let { rain ->
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(rainColor.copy(alpha = 0.15f))
+                    .padding(horizontal = 6.dp, vertical = 5.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "💧", fontSize = 9.sp)
+                    Spacer(Modifier.width(2.dp))
+                    Text(
+                        text = "${rain.toInt()}mm",
+                        color = rainColor,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                    )
+                }
+                forecast.precipPctChange?.let { pct ->
+                    val sign = if (pct >= 0) "+" else ""
+                    Text(
+                        text = "(${sign}${pct.toInt()}%)",
+                        color = rainColor.copy(alpha = 0.8f),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+            }
         }
     }
 }
@@ -2740,6 +3056,18 @@ private fun DataSourceInfo(weather: WeatherDoc, isDay: Boolean) {
     val modelsUsed = weather.modelsUsed
     val generated = weather.generated
     
+    // Calculate data freshness
+    val dataAgeHours = remember(generated) {
+        try {
+            if (generated != null) {
+                val instant = java.time.Instant.parse(generated)
+                val hours = java.time.Duration.between(instant, java.time.Instant.now()).toHours()
+                hours
+            } else null
+        } catch (_: Exception) { null }
+    }
+    val isStale = dataAgeHours != null && dataAgeHours > 6 // More than 6 hours old
+    
     // If no model info, don't show
     if (modelsUsed.isNullOrEmpty() && modelWeights.isNullOrEmpty()) return
     
@@ -2749,37 +3077,37 @@ private fun DataSourceInfo(weather: WeatherDoc, isDay: Boolean) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(Color(0xFF1A1A2E).copy(alpha = 0.6f))
+            .background(Color(0xFF1A1A2E).copy(alpha = 0.7f))
             .border(
                 width = 1.dp,
-                color = Color.White.copy(alpha = 0.1f),
+                color = Color.White.copy(alpha = 0.15f),
                 shape = shape
             )
-            .padding(12.dp)
+            .padding(14.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            // Header
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Header - bigger and clearer
             Row(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = "📡",
-                    fontSize = 12.sp,
+                    fontSize = 14.sp,
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
                     text = "Data Source",
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 11.sp,
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
                 )
             }
             
-            // Model weights visualization
+            // Model weights visualization - BIGGER and CLEARER
             if (modelWeights != null && modelWeights.isNotEmpty()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     modelWeights.forEach { (model, weightAny) ->
@@ -2791,27 +3119,43 @@ private fun DataSourceInfo(weather: WeatherDoc, isDay: Boolean) {
                             else -> model.uppercase()
                         }
                         val color = when (model.lowercase()) {
-                            "ecmwf" -> Color(0xFF4CAF50) // Green - primary model
-                            "gfs" -> Color(0xFF2196F3)   // Blue
-                            "icon" -> Color(0xFFFF9800)  // Orange
+                            "ecmwf" -> Color(0xFF66BB6A) // Green - primary model (brighter)
+                            "gfs" -> Color(0xFF42A5F5)   // Blue (brighter)
+                            "icon" -> Color(0xFFFFB74D)  // Orange (brighter)
                             else -> Color.White
                         }
                         val percentage = (weight * 100).toInt()
                         
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
+                        // Model chip with background
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(color.copy(alpha = 0.2f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .background(color, CircleShape)
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = "$displayName $percentage%",
-                                color = Color.White.copy(alpha = 0.6f),
-                                fontSize = 10.sp,
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .background(color, CircleShape)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = "$displayName",
+                                    color = color,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    text = "$percentage%",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 13.sp,
+                                )
+                            }
                         }
                     }
                 }
@@ -2819,28 +3163,59 @@ private fun DataSourceInfo(weather: WeatherDoc, isDay: Boolean) {
                 // Fallback to just showing model names
                 Text(
                     text = modelsUsed.joinToString(" • ") { it.uppercase() },
-                    color = Color.White.copy(alpha = 0.5f),
-                    fontSize = 10.sp,
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
                 )
             }
             
-            // Generation time
+            // Generation time - convert to local timezone
             if (generated != null) {
                 val timeStr = try {
-                    // Parse ISO timestamp and format nicely
-                    val parts = generated.split("T")
-                    if (parts.size >= 2) {
-                        val time = parts[1].take(5)
-                        val date = parts[0].takeLast(5).replace("-", "/")
-                        "$date $time UTC"
-                    } else generated
-                } catch (_: Exception) { generated }
+                    // Parse ISO timestamp and convert to local timezone
+                    val utcOffsetSeconds = weather.utcOffsetSeconds ?: (5 * 3600 + 30 * 60) // Default IST +5:30
+                    val instant = java.time.Instant.parse(generated)
+                    val localTime = instant.plusSeconds(utcOffsetSeconds.toLong())
+                    val formatter = java.time.format.DateTimeFormatter.ofPattern("MM/dd HH:mm")
+                        .withZone(java.time.ZoneOffset.UTC)
+                    formatter.format(localTime)
+                } catch (_: Exception) {
+                    // Fallback: simple parse
+                    try {
+                        val parts = generated.split("T")
+                        if (parts.size >= 2) {
+                            val time = parts[1].take(5)
+                            val date = parts[0].takeLast(5).replace("-", "/")
+                            "$date $time"
+                        } else generated
+                    } catch (_: Exception) { generated }
+                }
                 
-                Text(
-                    text = "Updated: $timeStr",
-                    color = Color.White.copy(alpha = 0.4f),
-                    fontSize = 9.sp,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // Staleness warning indicator
+                    if (isStale) {
+                        Text(
+                            text = "⚠️",
+                            fontSize = 10.sp,
+                        )
+                    }
+                    Text(
+                        text = if (isStale) "Hlui: $timeStr" else "Updated: $timeStr",
+                        color = if (isStale) Color(0xFFFFB74D) else Color.White.copy(alpha = 0.4f),
+                        fontSize = 9.sp,
+                        fontWeight = if (isStale) FontWeight.Medium else FontWeight.Normal,
+                    )
+                    if (isStale && dataAgeHours != null) {
+                        Text(
+                            text = "(${dataAgeHours}h hlui)",
+                            color = Color(0xFFFFB74D).copy(alpha = 0.7f),
+                            fontSize = 8.sp,
+                        )
+                    }
+                }
             }
             
             // Confidence legend
