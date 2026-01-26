@@ -2,6 +2,7 @@ package com.mapuia.khawchinthlirna
 
 import android.app.Application
 import com.google.android.gms.ads.MobileAds
+import com.google.android.gms.ads.RequestConfiguration
 import com.mapuia.khawchinthlirna.di.appModule
 import com.mapuia.khawchinthlirna.service.NotificationChannels
 import com.mapuia.khawchinthlirna.util.InterstitialAdManager
@@ -14,7 +15,12 @@ class KhawchinThlirnaApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        // Ads SDK init (safe to call once; required for consistent ad loading).
+        // Initialize Ads SDK (no test device IDs for production release)
+        // To add test devices during development, uncomment below:
+        // val testDeviceIds = listOf("YOUR_DEVICE_ID_HERE")
+        // MobileAds.setRequestConfiguration(
+        //     RequestConfiguration.Builder().setTestDeviceIds(testDeviceIds).build()
+        // )
         MobileAds.initialize(this) {}
         
         // Initialize interstitial ads (preload first ad)

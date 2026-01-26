@@ -1,17 +1,26 @@
 package com.mapuia.khawchinthlirna.data.network
 
+import com.mapuia.khawchinthlirna.BuildConfig
+
 /**
  * API Configuration for Khawchin Weather App
  * 
  * ARCHITECTURE OVERVIEW:
  * ┌─────────────────────────────────────────────────────────────┐
  * │  Weather Data:  EC2 Backend → Firebase → Android App       │
- * │  Crowdsource:   Android App → EC2 API (direct)             │
+ * │  Crowdsource:   Android App → Firebase (direct)            │
  * └─────────────────────────────────────────────────────────────┘
  * 
  * Weather data flows through Firebase (no direct EC2 calls needed).
- * Crowdsource features (reports, badges, leaderboard) call EC2 directly.
+ * Crowdsource reports are also stored in Firebase directly from the app.
+ * 
+ * NOTE: This config is currently UNUSED. All data flows through Firebase.
+ * Keeping for potential future EC2 API integration (gamification, etc.)
+ * 
+ * @deprecated Currently unused - all features use Firebase directly.
+ *             Remove or implement when EC2 crowdsource API is needed.
  */
+@Deprecated("Currently unused - all features use Firebase directly")
 object ApiConfig {
     
     // ═══════════════════════════════════════════════════════════════
@@ -21,16 +30,19 @@ object ApiConfig {
     /**
      * EC2 Crowdsource API Base URL
      * 
-     * Replace "YOUR-ELASTIC-IP" with your actual AWS Elastic IP address.
-     * Example: "http://13.234.56.78:8080"
+     * SECURITY: URL is configured via BuildConfig to avoid hardcoding in source.
+     * Set in local.properties (git-ignored):
+     *   CROWDSOURCE_API_URL=https://your-domain.com:8080
      * 
-     * To get your Elastic IP:
-     * 1. Go to AWS EC2 Console → Elastic IPs
-     * 2. Allocate new Elastic IP
-     * 3. Associate with your instance
-     * 4. Replace the placeholder below
+     * For HTTPS (recommended for production):
+     * - Use AWS ACM + ALB or Let's Encrypt on EC2
+     * - Never use HTTP in production
      */
-    const val CROWDSOURCE_BASE_URL = "http://13.234.127.71:8080"
+    val CROWDSOURCE_BASE_URL: String
+        get() = BuildConfig.CROWDSOURCE_API_URL.ifEmpty { 
+            // Fallback for development only
+            if (BuildConfig.DEBUG) "http://10.0.2.2:8080" else ""
+        }
     
     /**
      * API Version prefix for all crowdsource endpoints
@@ -74,13 +86,16 @@ object ApiConfig {
      * Build full URL for an endpoint
      */
     fun buildUrl(endpoint: String): String {
+        require(isConfigured()) { "Crowdsource API URL not configured" }
         return "$CROWDSOURCE_BASE_URL$endpoint"
     }
     
     /**
-     * Check if the API is configured (Elastic IP has been set)
+     * Check if the API is configured with a valid URL
      */
     fun isConfigured(): Boolean {
-        return !CROWDSOURCE_BASE_URL.contains("13.234.127.71")
+        return CROWDSOURCE_BASE_URL.isNotEmpty() && 
+               CROWDSOURCE_BASE_URL.startsWith("http") &&
+               !CROWDSOURCE_BASE_URL.contains("10.0.2.2") // Exclude emulator localhost
     }
 }

@@ -15,8 +15,8 @@ class ReportVerificationService(
 
     companion object {
         private const val USERS_COLLECTION = "users"
-        // Use centralized constant for reports collection
-        private const val REPORTS_COLLECTION = "crowdsource_reports"
+        // Must match Firestore security rules: match /crowd_reports/{reportId}
+        private const val REPORTS_COLLECTION = "crowd_reports"
         private const val WEATHER_GRID_COLLECTION = "weather_v69_grid"
         
         // Tolerance thresholds

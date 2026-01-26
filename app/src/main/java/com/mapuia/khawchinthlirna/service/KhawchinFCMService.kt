@@ -8,8 +8,8 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.os.Build
-import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -17,6 +17,7 @@ import com.mapuia.khawchinthlirna.MainActivity
 import com.mapuia.khawchinthlirna.R
 import com.mapuia.khawchinthlirna.data.local.KhawchinDatabase
 import com.mapuia.khawchinthlirna.data.local.NotificationEntity
+import com.mapuia.khawchinthlirna.util.AppLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -61,7 +62,7 @@ class KhawchinFCMService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d(TAG, "New FCM token received")
+        AppLog.d(TAG, "New FCM token received")
         // Update token in Firestore
         scope.launch {
             updateFCMToken(token)
@@ -71,8 +72,8 @@ class KhawchinFCMService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
         
-        Log.d(TAG, "Message received from: ${message.from}")
-        Log.d(TAG, "Data payload: ${message.data}")
+        AppLog.d(TAG, "Message received from: ${message.from}")
+        AppLog.d(TAG, "Data payload: ${message.data}")
 
         val data = message.data
         val notificationType = data["type"] ?: "general"
@@ -288,15 +289,18 @@ class KhawchinFCMService : FirebaseMessagingService() {
 
     private suspend fun updateFCMToken(token: String) {
         try {
-            val prefs = getSharedPreferences("khawchin_prefs", Context.MODE_PRIVATE)
-            val userId = prefs.getString("user_id", null) ?: return
+            // Use FirebaseAuth for reliable user identification
+            // This ensures we always get the correct user, regardless of local storage state
+            val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
 
             FirebaseFirestore.getInstance()
                 .collection("users")
                 .document(userId)
                 .update("fcm_token", token)
+                
+            AppLog.d(TAG, "FCM token updated for user")
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "Failed to update FCM token", e)
         }
     }
 }

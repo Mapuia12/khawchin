@@ -3049,7 +3049,7 @@ private fun PremiumMonthlyMiniCard(forecast: com.mapuia.khawchinthlirna.data.mod
     }
 }
 
-/** Data source and accuracy info section */
+/** Data source and accuracy info section - Redesigned compact version */
 @Composable
 private fun DataSourceInfo(weather: WeatherDoc, isDay: Boolean) {
     val modelWeights = weather.meta?.modelWeights
@@ -3071,91 +3071,149 @@ private fun DataSourceInfo(weather: WeatherDoc, isDay: Boolean) {
     // If no model info, don't show
     if (modelsUsed.isNullOrEmpty() && modelWeights.isNullOrEmpty()) return
     
-    val shape = RoundedCornerShape(16.dp)
-    
+    val shape = RoundedCornerShape(20.dp)
+
+    // Modern glass card design
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(Color(0xFF1A1A2E).copy(alpha = 0.7f))
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFF1E1E3F).copy(alpha = 0.85f),
+                        Color(0xFF12122A).copy(alpha = 0.9f)
+                    )
+                )
+            )
             .border(
                 width = 1.dp,
-                color = Color.White.copy(alpha = 0.15f),
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.12f),
+                        Color.White.copy(alpha = 0.05f)
+                    )
+                ),
                 shape = shape
             )
-            .padding(14.dp)
+            .padding(16.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // Header - bigger and clearer
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Header row with icon and title
             Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = "📡",
-                    fontSize = 14.sp,
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    text = "Data Source",
-                    color = Color.White.copy(alpha = 0.9f),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Animated satellite icon
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF6366F1).copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "🛰️", fontSize = 14.sp)
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Data Source",
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp,
+                        )
+                        // Updated time inline
+                        if (generated != null) {
+                            val timeStr = formatGeneratedTime(generated, weather.utcOffsetSeconds)
+                            Text(
+                                text = if (isStale) "⚠️ $timeStr" else "Updated $timeStr",
+                                color = if (isStale) Color(0xFFFFB74D) else Color.White.copy(alpha = 0.5f),
+                                fontSize = 10.sp,
+                                fontWeight = if (isStale) FontWeight.Medium else FontWeight.Normal,
+                            )
+                        }
+                    }
+                }
+
+                // Freshness badge
+                if (isStale && dataAgeHours != null) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFFFFB74D).copy(alpha = 0.2f))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "${dataAgeHours}h hlui",
+                            color = Color(0xFFFFB74D),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
             }
             
-            // Model weights visualization - BIGGER and CLEARER
+            // Model weights visualization - Modern pill design
             if (modelWeights != null && modelWeights.isNotEmpty()) {
+                // Sort by weight descending
+                val sortedWeights = modelWeights.entries
+                    .sortedByDescending { (it.value as? Number)?.toDouble() ?: 0.0 }
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    modelWeights.forEach { (model, weightAny) ->
+                    sortedWeights.forEach { (model, weightAny) ->
                         val weight = (weightAny as? Number)?.toDouble() ?: 0.0
                         val displayName = when (model.lowercase()) {
-                            "ecmwf" -> "ECMWF"
-                            "gfs" -> "GFS"
+                            "ecmwf", "ecmwf_ifs" -> "ECMWF"
+                            "gfs", "gfs_seamless" -> "GFS"
                             "icon" -> "ICON"
-                            else -> model.uppercase()
+                            else -> model.uppercase().take(6)
                         }
-                        val color = when (model.lowercase()) {
-                            "ecmwf" -> Color(0xFF66BB6A) // Green - primary model (brighter)
-                            "gfs" -> Color(0xFF42A5F5)   // Blue (brighter)
-                            "icon" -> Color(0xFFFFB74D)  // Orange (brighter)
-                            else -> Color.White
+                        val (color, bgColor) = when (model.lowercase()) {
+                            "ecmwf", "ecmwf_ifs" -> Color(0xFF10B981) to Color(0xFF10B981).copy(alpha = 0.15f)
+                            "gfs", "gfs_seamless" -> Color(0xFF3B82F6) to Color(0xFF3B82F6).copy(alpha = 0.15f)
+                            "icon" -> Color(0xFFF59E0B) to Color(0xFFF59E0B).copy(alpha = 0.15f)
+                            else -> Color.White to Color.White.copy(alpha = 0.1f)
                         }
                         val percentage = (weight * 100).toInt()
                         
-                        // Model chip with background
-                        Box(
+                        // Modern pill chip
+                        Row(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(color.copy(alpha = 0.2f))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(bgColor)
+                                .border(
+                                    width = 1.dp,
+                                    color = color.copy(alpha = 0.3f),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .background(color, CircleShape)
-                                )
-                                Spacer(Modifier.width(6.dp))
-                                Text(
-                                    text = "$displayName",
-                                    color = color,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                )
-                                Spacer(Modifier.width(4.dp))
-                                Text(
-                                    text = "$percentage%",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 13.sp,
-                                )
-                            }
+                            // Colored dot indicator
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .background(color, CircleShape)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = displayName,
+                                color = color,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 11.sp,
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = "$percentage%",
+                                color = Color.White.copy(alpha = 0.9f),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                            )
                         }
                     }
                 }
@@ -3169,65 +3227,41 @@ private fun DataSourceInfo(weather: WeatherDoc, isDay: Boolean) {
                 )
             }
             
-            // Generation time - convert to local timezone
-            if (generated != null) {
-                val timeStr = try {
-                    // Parse ISO timestamp and convert to local timezone
-                    val utcOffsetSeconds = weather.utcOffsetSeconds ?: (5 * 3600 + 30 * 60) // Default IST +5:30
-                    val instant = java.time.Instant.parse(generated)
-                    val localTime = instant.plusSeconds(utcOffsetSeconds.toLong())
-                    val formatter = java.time.format.DateTimeFormatter.ofPattern("MM/dd HH:mm")
-                        .withZone(java.time.ZoneOffset.UTC)
-                    formatter.format(localTime)
-                } catch (_: Exception) {
-                    // Fallback: simple parse
-                    try {
-                        val parts = generated.split("T")
-                        if (parts.size >= 2) {
-                            val time = parts[1].take(5)
-                            val date = parts[0].takeLast(5).replace("-", "/")
-                            "$date $time"
-                        } else generated
-                    } catch (_: Exception) { generated }
-                }
-                
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    // Staleness warning indicator
-                    if (isStale) {
-                        Text(
-                            text = "⚠️",
-                            fontSize = 10.sp,
-                        )
-                    }
-                    Text(
-                        text = if (isStale) "Hlui: $timeStr" else "Updated: $timeStr",
-                        color = if (isStale) Color(0xFFFFB74D) else Color.White.copy(alpha = 0.4f),
-                        fontSize = 9.sp,
-                        fontWeight = if (isStale) FontWeight.Medium else FontWeight.Normal,
-                    )
-                    if (isStale && dataAgeHours != null) {
-                        Text(
-                            text = "(${dataAgeHours}h hlui)",
-                            color = Color(0xFFFFB74D).copy(alpha = 0.7f),
-                            fontSize = 8.sp,
-                        )
-                    }
-                }
-            }
-            
-            // Confidence legend
+            // Confidence legend - Compact horizontal
             Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.padding(top = 4.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color.White.copy(alpha = 0.05f))
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                ConfidenceLegendItem(Color(0xFF4CAF50), "Rintlak")
-                ConfidenceLegendItem(Color(0xFFFFC107), "Pangngai")
-                ConfidenceLegendItem(Color(0xFFE57373), "Pawm ve theih")
+                ConfidenceLegendItem(Color(0xFF22C55E), "Rintlak")
+                ConfidenceLegendItem(Color(0xFFFBBF24), "Pangngai")
+                ConfidenceLegendItem(Color(0xFFEF4444), "Pawm ve theih")
             }
         }
+    }
+}
+
+/** Helper function to format generated time */
+private fun formatGeneratedTime(generated: String, utcOffsetSeconds: Long?): String {
+    return try {
+        val offset = utcOffsetSeconds ?: (5 * 3600 + 30 * 60).toLong() // Default IST +5:30
+        val instant = java.time.Instant.parse(generated)
+        val localTime = instant.plusSeconds(offset)
+        val formatter = java.time.format.DateTimeFormatter.ofPattern("MM/dd HH:mm")
+            .withZone(java.time.ZoneOffset.UTC)
+        formatter.format(localTime)
+    } catch (_: Exception) {
+        try {
+            val parts = generated.split("T")
+            if (parts.size >= 2) {
+                val time = parts[1].take(5)
+                val date = parts[0].takeLast(5).replace("-", "/")
+                "$date $time"
+            } else generated
+        } catch (_: Exception) { generated }
     }
 }
 
@@ -3548,6 +3582,8 @@ private fun NativeAdAndroidView(
 private fun NativeAdCard(modifier: Modifier = Modifier, isDay: Boolean) {
     val context = LocalContext.current
     var nativeAd by remember { mutableStateOf<NativeAd?>(null) }
+    var adLoadError by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
 
     // Ensure we don't leak ads.
     DisposableEffect(nativeAd) {
@@ -3559,6 +3595,8 @@ private fun NativeAdCard(modifier: Modifier = Modifier, isDay: Boolean) {
     val nativeAdUnitId = remember { context.getString(R.string.admob_native_unit_id) }
 
     LaunchedEffect(Unit) {
+        com.mapuia.khawchinthlirna.util.AppLog.d("NativeAd", "Loading native ad with unit ID: $nativeAdUnitId")
+
         val loader = AdLoader.Builder(context, nativeAdUnitId)
             .withNativeAdOptions(
                 NativeAdOptions.Builder()
@@ -3568,7 +3606,31 @@ private fun NativeAdCard(modifier: Modifier = Modifier, isDay: Boolean) {
             .forNativeAd { ad ->
                 nativeAd?.destroy()
                 nativeAd = ad
+                isLoading = false
+                adLoadError = null
+                com.mapuia.khawchinthlirna.util.AppLog.d("NativeAd", "✅ Native ad loaded successfully!")
             }
+            .withAdListener(object : com.google.android.gms.ads.AdListener() {
+                override fun onAdFailedToLoad(error: com.google.android.gms.ads.LoadAdError) {
+                    isLoading = false
+                    // Error code explanation for debugging
+                    val errorDetail = when (error.code) {
+                        0 -> "Internal error"
+                        1 -> "Invalid request - check ad unit ID"
+                        2 -> "Network error - check internet connection"
+                        3 -> "No fill - normal for unpublished apps, ads will serve after app is live"
+                        else -> "Unknown error"
+                    }
+                    adLoadError = "Ad not available ($errorDetail)"
+                    com.mapuia.khawchinthlirna.util.AppLog.w("NativeAd", "❌ Failed to load: $errorDetail (code: ${error.code}, msg: ${error.message})")
+                }
+                override fun onAdLoaded() {
+                    com.mapuia.khawchinthlirna.util.AppLog.d("NativeAd", "Ad loaded callback triggered")
+                }
+                override fun onAdImpression() {
+                    com.mapuia.khawchinthlirna.util.AppLog.d("NativeAd", "Ad impression recorded")
+                }
+            })
             .build()
 
         loader.loadAd(AdRequest.Builder().build())
@@ -3579,24 +3641,44 @@ private fun NativeAdCard(modifier: Modifier = Modifier, isDay: Boolean) {
         Text(text = "Sponsored", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
 
         val ad = nativeAd
-        if (ad == null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(160.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color.White.copy(alpha = 0.06f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(text = "Loading ad…", color = Color.White.copy(alpha = 0.75f))
+        when {
+            ad != null -> {
+                NativeAdAndroidView(
+                    nativeAd = ad,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp)),
+                )
             }
-        } else {
-            NativeAdAndroidView(
-                nativeAd = ad,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp)),
-            )
+            adLoadError != null -> {
+                // Show placeholder when ad fails to load (common for unpublished apps)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White.copy(alpha = 0.04f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "📢 Ad space",
+                        color = Color.White.copy(alpha = 0.3f),
+                        fontSize = 12.sp,
+                    )
+                }
+            }
+            else -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White.copy(alpha = 0.06f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(text = "Loading ad…", color = Color.White.copy(alpha = 0.75f))
+                }
+            }
         }
     }
 }

@@ -1,4 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Weather Widget Configuration
+    
+    NOTE: updatePeriodMillis=0 because we use WorkManager for updates.
+    This avoids duplicate refresh work:
+    - WorkManager handles 30-minute periodic refresh (Workers.kt)
+    - Widget also updates on app launch and user interaction
+    
+    Android throttles updatePeriodMillis to minimum 30 minutes anyway,
+    so WorkManager gives us more control and battery efficiency.
+-->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/widget_description"
     android:initialLayout="@layout/widget_loading"
@@ -8,5 +19,5 @@
     android:resizeMode="horizontal|vertical"
     android:targetCellWidth="3"
     android:targetCellHeight="2"
-    android:updatePeriodMillis="1800000"
+    android:updatePeriodMillis="0"
     android:widgetCategory="home_screen" />

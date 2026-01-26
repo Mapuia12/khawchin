@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -17,6 +16,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import com.google.firebase.messaging.FirebaseMessaging
 import com.mapuia.khawchinthlirna.ui.theme.KhawchinThlirnaTheme
+import com.mapuia.khawchinthlirna.util.AppLog
 
 class MainActivity : ComponentActivity() {
     
@@ -29,10 +29,10 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (isGranted) {
-            Log.d(TAG, "Notification permission granted")
+            AppLog.d(TAG, "Notification permission granted")
             subscribeToWeatherAlerts()
         } else {
-            Log.d(TAG, "Notification permission denied")
+            AppLog.d(TAG, "Notification permission denied")
             // User denied, notifications won't work but app still functions
         }
     }
@@ -67,7 +67,7 @@ class MainActivity : ComponentActivity() {
                     Manifest.permission.POST_NOTIFICATIONS
                 ) == PackageManager.PERMISSION_GRANTED -> {
                     // Permission already granted
-                    Log.d(TAG, "Notification permission already granted")
+                    AppLog.d(TAG, "Notification permission already granted")
                     subscribeToWeatherAlerts()
                 }
                 shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
@@ -99,9 +99,9 @@ class MainActivity : ComponentActivity() {
         messaging.subscribeToTopic("severe_weather")
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    Log.d(TAG, "Subscribed to severe_weather topic")
+                    AppLog.d(TAG, "Subscribed to severe_weather topic")
                 } else {
-                    Log.w(TAG, "Failed to subscribe to severe_weather topic")
+                    AppLog.w(TAG, "Failed to subscribe to severe_weather topic")
                 }
             }
         
@@ -109,16 +109,11 @@ class MainActivity : ComponentActivity() {
         messaging.subscribeToTopic("weather_alerts")
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    Log.d(TAG, "Subscribed to weather_alerts topic")
+                    AppLog.d(TAG, "Subscribed to weather_alerts topic")
                 }
             }
         
-        // Get and log FCM token (useful for debugging)
-        messaging.token.addOnCompleteListener { task ->
-            if (task.isSuccessful) {
-                val token = task.result
-                Log.d(TAG, "FCM Token: ${token.take(20)}...")
-            }
-        }
+        // FCM token is managed by KhawchinFCMService.onNewToken()
+        // No need to log here - avoid exposing tokens in logs
     }
 }

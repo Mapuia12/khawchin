@@ -17,7 +17,7 @@ import kotlin.math.*
  *
  * Contract:
  * - Read: `weather_v69_grid/{gridId}`
- * - Write: `crowdsource_reports` (must match backend function field names)
+ * - Write: `crowd_reports` (must match Firestore security rules)
  * 
  * ROBUST FALLBACK STRATEGY:
  * 1. Try exact grid ID from user location (rounded to 2 decimals)
@@ -306,9 +306,13 @@ class WeatherRepository(
             "accuracy_m" to accuracyMeters.coerceIn(1.0, 10000.0),
             // Firestore rule expects severity to be integer
             "severity" to severityClamped,
-            // Aligned with backend schema - use 'timestamp' consistently
-            "timestamp" to Instant.now().toString(),
+            // Must use 'timestamp_auto' to match Firestore security rules
+            "timestamp_auto" to Instant.now().toString(),
             "report_type" to optionMizo.sanitizeInput(),
+            // Required by Firestore rules
+            "user_id" to currentUser.uid,
+            // rain_intensity is required by rules (use severity as approximation)
+            "rain_intensity" to severityClamped,
         )
 
         if (!gridId.isNullOrBlank()) {

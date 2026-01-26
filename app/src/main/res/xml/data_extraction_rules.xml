@@ -1,19 +1,34 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Data extraction rules for Khawchin Weather App (API 31+)
    See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+   
+   SECURITY: Exclude sensitive/device-specific data:
+   - FCM tokens, user IDs, location history
+   - Allow: user preferences (theme, language, units)
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <!-- Include all shared prefs, then exclude sensitive ones -->
+        <include domain="sharedpref" path="." />
+        <exclude domain="sharedpref" path="khawchin_prefs.xml" />
+
+        <!-- Include database domain to allow exclusion -->
+        <include domain="database" path="." />
+        <exclude domain="database" path="khawchin_database" />
+
+        <!-- Include file domain to allow exclusion -->
+        <include domain="file" path="." />
+        <exclude domain="file" path="datastore/" />
     </cloud-backup>
-    <!--
+    
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <!-- Allow more data during device-to-device transfer -->
+        <include domain="sharedpref" path="." />
+        <exclude domain="sharedpref" path="khawchin_prefs.xml" />
+
+        <!-- Include database domain to allow exclusion -->
+        <include domain="database" path="." />
+        <exclude domain="database" path="khawchin_database" />
     </device-transfer>
-    -->
 </data-extraction-rules>

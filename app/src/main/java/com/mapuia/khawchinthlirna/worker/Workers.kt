@@ -4,8 +4,10 @@ import android.content.Context
 import androidx.work.*
 import com.google.firebase.firestore.FirebaseFirestore
 import com.mapuia.khawchinthlirna.data.local.KhawchinDatabase
+import com.mapuia.khawchinthlirna.data.preferences.PreferencesManager
 import com.mapuia.khawchinthlirna.widget.WeatherWidgetUpdater
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
@@ -100,9 +102,11 @@ class WeatherRefreshWorker(
             val database = KhawchinDatabase.getInstance(applicationContext)
             val firestore = FirebaseFirestore.getInstance()
 
-            // Get home location from preferences
-            val prefs = applicationContext.getSharedPreferences("khawchin_prefs", Context.MODE_PRIVATE)
-            val homeGridId = prefs.getString("home_grid_id", null)
+            // Use DataStore (PreferencesManager) instead of SharedPreferences
+            // This ensures consistency with the rest of the app
+            val preferencesManager = PreferencesManager(applicationContext)
+            val homeLocation = preferencesManager.homeLocationFlow.first()
+            val homeGridId = homeLocation?.first
 
             if (homeGridId != null) {
                 // Fetch latest weather for home location

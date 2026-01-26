@@ -1,13 +1,20 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Backup rules for Khawchin Weather App (API < 31)
    See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+   
+   SECURITY: Exclude sensitive/device-specific data from backup:
+   - FCM tokens (device-specific)
+   - User IDs (regenerated on new device)
+   - Location data (privacy)
+   - Cached weather (will refresh)
 -->
 <full-backup-content>
+    <!-- Include user preferences (theme, language, units) -->
+    <include domain="sharedpref" path="khawchin_settings.preferences_pb" />
+    
     <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+        Note: With specific <include> rules above, only the included paths are backed up.
+        No need to explicitly exclude other paths as they are not included by default.
+    -->
 </full-backup-content>

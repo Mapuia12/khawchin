@@ -3,12 +3,15 @@ package com.mapuia.khawchinthlirna.data
 import android.content.Context
 import android.location.Geocoder
 import android.os.Build
+import android.util.LruCache
 import com.mapuia.khawchinthlirna.util.AppLog
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.net.URL
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Best-effort reverse geocoder using multiple sources.
@@ -21,6 +24,12 @@ import java.util.Locale
  * instead of hardcoded location databases. Nominatim has excellent coverage of
  * rural areas in Myanmar and India.
  *
+ * NOMINATIM USAGE POLICY COMPLIANCE:
+ * - Rate limited to max 1 request per second
+ * - Results cached to reduce API calls
+ * - User-Agent includes app name and contact email
+ * - See: https://operations.osmfoundation.org/policies/nominatim/
+ *
  * Contract:
  * - Input: latitude/longitude
  * - Output: a short human-readable place name (e.g. "Letpanchaung") or null
@@ -31,35 +40,83 @@ class ReverseGeocoder(private val context: Context) {
     companion object {
         private const val TAG = "ReverseGeocoder"
         // Nominatim API (free, no API key needed)
-        // Note: Requires User-Agent header per Nominatim usage policy
         private const val NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse"
+        
+        // Rate limiting: max 1 request per second per Nominatim policy
+        private const val MIN_REQUEST_INTERVAL_MS = 1100L // 1.1 seconds to be safe
+        
+        // Cache settings
+        private const val CACHE_SIZE = 100
+        private const val COORDINATE_PRECISION = 3 // ~111m precision for cache key
+    }
+    
+    // Simple in-memory cache to reduce API calls
+    private val cache = LruCache<String, String>(CACHE_SIZE)
+    
+    // Track last request time for rate limiting
+    private val lastRequestTime = AtomicLong(0)
+    
+    /**
+     * Generate cache key from coordinates (rounded for reasonable precision)
+     */
+    private fun cacheKey(lat: Double, lon: Double): String {
+        val latRounded = "%.${COORDINATE_PRECISION}f".format(lat)
+        val lonRounded = "%.${COORDINATE_PRECISION}f".format(lon)
+        return "$latRounded,$lonRounded"
     }
 
     /**
      * Get place name for coordinates using Nominatim API first, then Android Geocoder fallback.
+     * Results are cached to reduce API calls.
      */
     suspend fun getPlaceName(lat: Double, lon: Double): String? {
+        // Check cache first
+        val key = cacheKey(lat, lon)
+        cache.get(key)?.let { cached ->
+            AppLog.d(TAG, "Cache hit: $cached")
+            return cached
+        }
+        
         // Try Nominatim first (better for rural areas)
         val nominatimResult = getNominatimPlaceName(lat, lon)
         if (!nominatimResult.isNullOrBlank()) {
             AppLog.d(TAG, "Nominatim result: $nominatimResult")
+            cache.put(key, nominatimResult)
             return nominatimResult
         }
         
         // Fallback to Android Geocoder
-        return getAndroidGeocoderPlaceName(lat, lon)
+        val androidResult = getAndroidGeocoderPlaceName(lat, lon)
+        if (!androidResult.isNullOrBlank()) {
+            cache.put(key, androidResult)
+        }
+        return androidResult
     }
 
     /**
      * Fetch place name from OpenStreetMap Nominatim API.
      * Returns village/town/city name, not administrative regions.
+     * 
+     * Respects Nominatim usage policy:
+     * - Max 1 request per second
+     * - Proper User-Agent with contact info
      */
     private suspend fun getNominatimPlaceName(lat: Double, lon: Double): String? {
         return withContext(Dispatchers.IO) {
             runCatching {
+                // Rate limiting - wait if needed
+                val now = System.currentTimeMillis()
+                val elapsed = now - lastRequestTime.get()
+                if (elapsed < MIN_REQUEST_INTERVAL_MS) {
+                    delay(MIN_REQUEST_INTERVAL_MS - elapsed)
+                }
+                lastRequestTime.set(System.currentTimeMillis())
+                
                 val url = URL("$NOMINATIM_URL?format=json&lat=$lat&lon=$lon&zoom=18&addressdetails=1")
                 val connection = url.openConnection().apply {
-                    setRequestProperty("User-Agent", "KhawchinThlirna/1.0 (Mizoram Weather App)")
+                    // User-Agent with app name and contact per Nominatim policy
+                    // Replace email with your actual contact for production
+                    setRequestProperty("User-Agent", "KhawchinThlirna/1.0 (Mizoram Weather App; contact@example.com)")
                     setRequestProperty("Accept-Language", "en")
                     connectTimeout = 10000
                     readTimeout = 10000

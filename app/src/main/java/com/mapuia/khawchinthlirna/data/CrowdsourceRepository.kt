@@ -17,7 +17,8 @@ class CrowdsourceRepository(
 ) {
 
     companion object {
-        private const val REPORTS_COLLECTION = "crowdsource_reports"
+        // Must match Firestore security rules: match /crowd_reports/{reportId}
+        private const val REPORTS_COLLECTION = "crowd_reports"
     }
 
     /**
@@ -51,7 +52,7 @@ class CrowdsourceRepository(
             "lon" to lon,
             "rain_intensity" to rainIntensity,
             "accuracy_m" to accuracyMeters.coerceIn(1.0, 10000.0),
-            "timestamp" to Instant.now().toString(),  // Aligned with backend schema
+            "timestamp_auto" to Instant.now().toString(),  // Must match Firestore rules field name
         )
 
         // Optional fields
@@ -62,15 +63,16 @@ class CrowdsourceRepository(
         gridId?.takeIf { it.isNotBlank() }?.let { data["grid_id"] = it }
 
         // Map rain intensity to severity for backend clustering
+        // Firestore rules require: severity >= 1 && severity <= 5 (integer values only)
         val severity = when (rainIntensity) {
-            0 -> 1.0
-            1 -> 1.5
-            2 -> 2.0
-            3 -> 3.0
-            4 -> 4.0
-            5 -> 4.5
-            6 -> 5.0
-            else -> 3.0
+            0 -> 1
+            1 -> 1
+            2 -> 2
+            3 -> 3
+            4 -> 4
+            5 -> 5
+            6 -> 5
+            else -> 3
         }
         data["severity"] = severity
 
@@ -79,6 +81,9 @@ class CrowdsourceRepository(
         data["report_type"] = rainLabel.labelMizo
 
         try {
+
+            android.util.Log.d("CROWD", "submitReport called. userId param=$userId, authUid=${com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid}")
+            android.util.Log.d("CROWD", "payload preview: lat=${data["lat"]} lon=${data["lon"]} rain_intensity=${data["rain_intensity"]} timestamp_auto=${data["timestamp_auto"]}")
             db.collection(REPORTS_COLLECTION).add(data).await()
         } catch (e: FirebaseFirestoreException) {
             // Provide user-friendly error messages
@@ -127,7 +132,7 @@ class CrowdsourceRepository(
             val snapshot = db.collection(REPORTS_COLLECTION)
                 .whereGreaterThanOrEqualTo("lat", minLat)
                 .whereLessThanOrEqualTo("lat", maxLat)
-                .whereGreaterThanOrEqualTo("timestamp", threshold)  // Aligned with backend schema
+                .whereGreaterThanOrEqualTo("timestamp_auto", threshold)  // Must match field name in Firestore
                 .limit(100)
                 .get()
                 .await()
@@ -152,7 +157,7 @@ class CrowdsourceRepository(
                         skyCondition = doc.getLong("sky_condition")?.toInt(),
                         windStrength = doc.getLong("wind_strength")?.toInt(),
                         locationName = doc.getString("location_name"),
-                        timestampAuto = doc.getString("timestamp") ?: "",  // Read from 'timestamp'
+                        timestampAuto = doc.getString("timestamp_auto") ?: "",  // Read from 'timestamp_auto'
                         userReputation = doc.getDouble("user_reputation"),
                         distanceKm = distance,
                     )
