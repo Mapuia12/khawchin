@@ -102,9 +102,9 @@ fun NearbyReportsScreen(
 
     val timeFilters = listOf(
         30 to "30 min",
-        60 to "1 darh",
-        120 to "2 darh",
-        180 to "3 darh",
+        60 to "1 dar",
+        120 to "2 dar",
+        180 to "3 dar",
     )
 
     // Fetch reports when screen loads or filter changes
@@ -529,8 +529,8 @@ private fun formatTimeAgo(isoTimestamp: String): String {
         when {
             minutes < 1 -> "Tun chauh"
             minutes < 60 -> "$minutes min hmasa"
-            minutes < 120 -> "1 darh hmasa"
-            minutes < 180 -> "${minutes / 60} darh hmasa"
+            minutes < 120 -> "1 dar hmasa"
+            minutes < 180 -> "${minutes / 60} dar hmasa"
             else -> {
                 val formatter = DateTimeFormatter.ofPattern("h:mm a")
                     .withZone(ZoneId.systemDefault())

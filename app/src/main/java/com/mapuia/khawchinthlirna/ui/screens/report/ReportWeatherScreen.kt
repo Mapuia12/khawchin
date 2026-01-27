@@ -361,7 +361,7 @@ fun ReportWeatherScreen(
                         Spacer(Modifier.width(8.dp))
                     }
                     Text(
-                        text = if (isSubmitting) "Thehlut mek..." else "Report Thehlut Rawh",
+                        text = if (isSubmitting) "Thehlut mek..." else "Report Ang",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                     )
