@@ -17,6 +17,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mapuia.khawchinthlirna.ui.theme.appTextSecondary
 import androidx.compose.ui.geometry.Offset
 
 /**
@@ -171,7 +172,7 @@ fun TemperatureRangeDisplay(
 
         Text(
             text = " ${max.toInt()}° / ${min.toInt()}°",
-            color = Color.White.copy(alpha = 0.7f),
+            color = appTextSecondary(0.7f),
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium,
             modifier = Modifier.offset(y = (-12).dp)

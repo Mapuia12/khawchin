@@ -12,6 +12,7 @@ import android.provider.Settings
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
+import androidx.annotation.StringRes
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -48,6 +49,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -67,6 +69,30 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Air
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.TrackChanges
+import androidx.compose.material.icons.filled.AcUnit
+import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Eco
+import androidx.compose.material.icons.filled.Thermostat
+import androidx.compose.material.icons.filled.Grain
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Thunderstorm
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Waves
+import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -78,6 +104,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -104,6 +131,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.TextStyle
@@ -125,7 +153,6 @@ import androidx.activity.compose.BackHandler
 import com.google.android.gms.ads.AdLoader
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
-import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.nativead.MediaView
 import com.google.android.gms.ads.nativead.NativeAd
 import com.google.android.gms.ads.nativead.NativeAdOptions
@@ -134,8 +161,12 @@ import java.time.LocalDate
 import kotlin.math.cos
 import kotlin.math.sin
 import com.mapuia.khawchinthlirna.data.model.WeatherDoc
+import com.mapuia.khawchinthlirna.data.model.SkillReport
+import com.mapuia.khawchinthlirna.data.model.ImergDoc
+import com.mapuia.khawchinthlirna.data.model.ForecastSnapshot
+import com.mapuia.khawchinthlirna.data.model.CycloneImpact
 import com.mapuia.khawchinthlirna.ui.getWeatherIcon
-import com.mapuia.khawchinthlirna.ui.seasonLabelMizo
+
 import com.mapuia.khawchinthlirna.ui.windDirLabel
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -146,11 +177,17 @@ import java.time.format.DateTimeFormatter
 import org.koin.androidx.compose.koinViewModel
 import com.mapuia.khawchinthlirna.ui.theme.GlassSurface
 import com.mapuia.khawchinthlirna.ui.theme.PremiumGlassTokens
+import com.mapuia.khawchinthlirna.ui.theme.LocalDarkTheme
+import com.mapuia.khawchinthlirna.ui.theme.appIconTint
+import com.mapuia.khawchinthlirna.ui.theme.appTextMuted
+import com.mapuia.khawchinthlirna.ui.theme.appTextPrimary
+import com.mapuia.khawchinthlirna.ui.theme.appTextSecondary
 import com.mapuia.khawchinthlirna.ui.theme.getWeatherGradient
 import com.mapuia.khawchinthlirna.ui.theme.getDynamicBackground
 import com.mapuia.khawchinthlirna.ui.theme.WeatherColorSchemes
 import com.mapuia.khawchinthlirna.ui.components.AnimatedWeatherIcon
 import com.mapuia.khawchinthlirna.data.WeatherConstants
+import com.mapuia.khawchinthlirna.ui.components.BannerAd
 import com.mapuia.khawchinthlirna.ui.components.ColorfulTemperatureText
 import com.mapuia.khawchinthlirna.ui.components.HeroTemperatureDisplay
 import com.mapuia.khawchinthlirna.ui.screens.info.InfoHubScreen
@@ -169,6 +206,7 @@ import kotlinx.coroutines.launch
 import com.mapuia.khawchinthlirna.ui.components.getTemperatureColor
 import com.mapuia.khawchinthlirna.ui.components.getTemperatureGlow
 import androidx.compose.ui.res.painterResource
+import com.google.firebase.Timestamp
 
 // Premium Vibrant Gradients
 private val NightGradient = Brush.verticalGradient(
@@ -179,12 +217,13 @@ private val NightGradient = Brush.verticalGradient(
     ),
 )
 
+
 /**
  * Extract HH:MM time from ISO timestamp.
  * Handles both formats:
- * - "2026-01-20T14:00" (length 16) → "14:00"
- * - "2026-01-20T14:00:00" (length 19) → "14:00" 
- * - "14:00" (already formatted) → "14:00"
+ * - "2026-01-20T14:00" (length 16) -> "14:00"
+ * - "2026-01-20T14:00:00" (length 19) -> "14:00" 
+ * - "14:00" (already formatted) -> "14:00"
  */
 private fun extractTimeHHMM(timestamp: String): String {
     return when {
@@ -212,101 +251,23 @@ private val DayGradient = Brush.verticalGradient(
 
 // Dynamic weather-based gradients for HERO BOX ONLY
 private fun getWeatherHeroGradient(weatherCode: Int, isDay: Boolean): Brush {
-    return when {
-        // Night time - dark blue/purple
-        !isDay -> Brush.verticalGradient(
-            listOf(
-                Color(0xFF1a1a2e),
-                Color(0xFF16213e),
-                Color(0xFF0f3460),
-            )
-        )
-        // Clear sky - bright cyan/blue
-        weatherCode == 0 -> Brush.verticalGradient(
-            listOf(
-                Color(0xFF00B4DB),
-                Color(0xFF0083B0),
-            )
-        )
-        // Rain - dark stormy
-        weatherCode in 51..67 || weatherCode in 80..82 -> Brush.verticalGradient(
-            listOf(
-                Color(0xFF0F2027),
-                Color(0xFF203A43),
-                Color(0xFF2C5364),
-            )
-        )
-        // Thunderstorm - dramatic purple
-        weatherCode in 95..99 -> Brush.verticalGradient(
-            listOf(
-                Color(0xFF141E30),
-                Color(0xFF243B55),
-                Color(0xFF6441A5),
-            )
-        )
-        // Partly cloudy - blue/purple
-        weatherCode in 1..3 -> Brush.verticalGradient(
-            listOf(
-                Color(0xFF4776E6),
-                Color(0xFF8E54E9),
-            )
-        )
-        // Foggy/Mist
-        weatherCode in 45..48 -> Brush.verticalGradient(
-            listOf(
-                Color(0xFF606c88),
-                Color(0xFF3f4c6b),
-            )
-        )
-        // Snow
-        weatherCode in 71..77 -> Brush.verticalGradient(
-            listOf(
-                Color(0xFF83a4d4),
-                Color(0xFFb6fbff),
-            )
-        )
-        // Default - nice gradient
-        else -> DayGradient
+    return if (!isDay) {
+        NightGradient
+    } else {
+        getWeatherGradient(weatherCode, isDay)
     }
 }
 
-private val GlassCardShape = RoundedCornerShape(PremiumGlassTokens.cornerRadius)
-
 @Composable
-fun GlassCard(
+private fun GlassCard(
     modifier: Modifier = Modifier,
-    isDay: Boolean = false,
+    isDay: Boolean,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    GlassSurface(modifier = modifier, isDay = isDay, tokens = PremiumGlassTokens, content = content)
-}
-
-@Composable
-private fun PremiumPressable(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.98f else 1f,
-        animationSpec = tween(durationMillis = 140),
-        label = "pressScale",
-    )
-
-    Row(
-        modifier = modifier
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clickable(
-                interactionSource = interaction,
-                indication = null,
-                onClick = onClick,
-            ),
-        verticalAlignment = Alignment.CenterVertically,
+    GlassSurface(
+        modifier = modifier,
+        isDay = isDay,
+        tokens = PremiumGlassTokens,
         content = content,
     )
 }
@@ -317,6 +278,7 @@ private fun PremiumPressable(
 @Composable
 fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
     val uiState by vm.uiState.collectAsStateWithLifecycle()
+    val darkTheme = LocalDarkTheme.current
 
     val context = LocalContext.current
     val view = LocalView.current
@@ -326,11 +288,10 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
     val isDay = uiState.weather?.getCurrentWeather()?.isDay == 1
 
     // --- Adaptive status bar icons (Gap B) ---
-    // Our background is dark in both cases. Keep status bar transparent + light icons.
+    // Our background is dark in both cases. Keep light icons.
     LaunchedEffect(isDay) {
         runCatching {
             val window = (context as Activity).window
-            window.statusBarColor = android.graphics.Color.TRANSPARENT
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
         }
     }
@@ -392,9 +353,26 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
     var showInfoHub by remember { mutableStateOf(false) }
     var showFullReportScreen by remember { mutableStateOf(false) }
     var showNearbyReports by remember { mutableStateOf(false) }
+    var showUserProfile by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
     var reportSubmitting by remember { mutableStateOf(false) }
-    var showThemeDialog by remember { mutableStateOf(false) }
     var menuNavigateTo by remember { mutableStateOf<String?>(null) }
+    
+    // User profile state for header icon
+    val authManager: com.mapuia.khawchinthlirna.data.auth.AuthManager = org.koin.compose.koinInject()
+    var userProfile by remember { mutableStateOf<UserProfile?>(null) }
+    val preferencesManager = remember { com.mapuia.khawchinthlirna.data.preferences.PreferencesManager(context) }
+    val currentLanguage by preferencesManager.languageFlow.collectAsStateWithLifecycle(initialValue = "mz")
+    val isMizo = currentLanguage == "mz"
+
+    fun localString(@StringRes mizoRes: Int, @StringRes englishRes: Int): String {
+        return context.getString(if (isMizo) mizoRes else englishRes)
+    }
+    
+    // Load user profile on launch
+    LaunchedEffect(Unit) {
+        userProfile = authManager.getUserProfile()
+    }
 
     // One-shot toast feedback counter
     var reportToastKey by remember { mutableIntStateOf(0) }
@@ -403,11 +381,12 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
     val weatherCode = uiState.weather?.getCurrentWeather()?.weatherCode ?: 0
     val currentHour = remember { java.time.LocalTime.now().hour }
 
-    // Fixed app background - premium blue-purple gradient (doesn't change with weather)
-    val backgroundBrush = if (isDay) DayGradient else NightGradient
+    // Fixed app background - respect dark mode override
+    val backgroundBrush = if (darkTheme) NightGradient else if (isDay) DayGradient else NightGradient
     
-    // Weather-based gradient only for hero box
-    val heroGradient = getWeatherHeroGradient(weatherCode, isDay)
+    // Weather-based gradient only for hero box (override to dark when dark mode is on)
+    val heroGradient = if (darkTheme) NightGradient else getWeatherHeroGradient(weatherCode, isDay)
+    val bannerPadding = 76.dp
 
     // Coroutine scope for BackHandler - properly managed lifecycle
     val backHandlerScope = rememberCoroutineScope()
@@ -417,6 +396,8 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
     
     BackHandler(enabled = true) {
         when {
+            showUserProfile -> showUserProfile = false
+            showSettings -> showSettings = false
             showInfoHub -> showInfoHub = false
             showFullReportScreen -> showFullReportScreen = false
             showNearbyReports -> showNearbyReports = false
@@ -427,7 +408,14 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
                     (context as? Activity)?.finish()
                 } else {
                     backPressedOnce = true
-                    Toast.makeText(context, "App khar nan 'Back' hmet nawn leh rawh", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        context,
+                        localString(
+                            R.string.main_exit_prompt_mz,
+                            R.string.main_exit_prompt_en,
+                        ),
+                        Toast.LENGTH_SHORT
+                    ).show()
                     // Reset after 2 seconds using properly scoped coroutine
                     backHandlerScope.launch {
                         kotlinx.coroutines.delay(2000)
@@ -456,13 +444,12 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
                                 menuNavigateTo = item
                                 showInfoHub = true
                             }
-                            "theme" -> showThemeDialog = true
+                            "profile" -> showUserProfile = true
+                            "settings" -> showSettings = true
                         }
                     },
+                    isMizo = isMizo,
                 )
-            },
-            bottomBar = {
-                BannerAd(modifier = Modifier.fillMaxWidth())
             },
         ) { paddingValues ->
             PullToRefreshBox(
@@ -481,7 +468,8 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
                     modifier = Modifier
                         .padding(paddingValues)
                         .verticalScroll(rememberScrollState())
-                        .padding(16.dp),
+                        .padding(16.dp)
+                        .padding(bottom = bannerPadding),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     StatusBanner(
@@ -498,6 +486,7 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             context.startActivity(intent)
                         },
+                        isMizo = isMizo,
                     )
 
                     uiState.weather?.let { weather ->
@@ -506,6 +495,19 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
                             weather = weather,
                             userLat = uiState.userLat,
                             userLon = uiState.userLon,
+                            isMizo = isMizo,
+                        )
+
+                        // Per-location cyclone impact (focused on user's area)
+                        CycloneImpactCard(
+                            impacts = weather.cycloneImpact,
+                            isMizo = isMizo,
+                        )
+
+                        // Weather systems overview (non-cyclone systems + alerts)
+                        WeatherSystemsSummaryCard(
+                            weather = weather,
+                            isMizo = isMizo,
                         )
                         
                         // Marine alert (primary backend alert) directly under header.
@@ -515,10 +517,10 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
                         val skipGreenStrip = hasCycloneCards && weather.marineAlert.trim().uppercase() == "GREEN"
                         
                         if (!skipGreenStrip) {
-                            MarineAlertStrip(marineAlert = weather.marineAlert, isDay = isDay)
+                            MarineAlertStrip(marineAlert = weather.marineAlert, isDay = isDay, isMizo = isMizo)
                         }
 
-                        UpstreamRainAlertCard(weather)
+                        UpstreamRainAlertCard(weather, isMizo = isMizo)
 
                         // 1. Hero Section
                         androidx.compose.animation.AnimatedVisibility(
@@ -533,44 +535,50 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
                                 userPlaceName = uiState.userPlaceName,
                                 isDay = isDay,
                                 heroGradient = heroGradient,
+                                isMizo = isMizo,
                             )
                         }
 
                         // 2. Hourly Forecast
-                        HourlyForecast(weather, isDay = isDay)
+                        HourlyForecast(weather, isDay = isDay, isMizo = isMizo)
 
                         // 3. Native Ad
-                        NativeAdCard(modifier = Modifier.fillMaxWidth(), isDay = isDay)
+                        NativeAdCard(modifier = Modifier.fillMaxWidth(), isDay = isDay, isMizo = isMizo)
 
                         // 4. Nearby Reports
                         NearbyReportsCard(
                             onViewNearbyReports = { showNearbyReports = true },
                             isDay = isDay,
+                            isMizo = isMizo,
                         )
 
                         // 5. Current Conditions Grid (Wind, Rainfall, Pressure, Humidity, Visibility, Dewpoint)
-                        CurrentConditionsGrid(weather, isDay = isDay)
+                        CurrentConditionsGrid(weather, isDay = isDay, isMizo = isMizo)
                         
                         // 5.5. Air Quality Index (if available) - TODO: Add airQuality field to WeatherDoc when backend supports it
                         // AirQualityCard(weather, isDay = isDay)
 
+                        // 5.6. Satellite/nowcast source card intentionally hidden in main UI
+
                         // 6. Daily Forecast (7 or 10 days)
-                        DailyForecastCard(weather, isDay = isDay)
+                        DailyForecastCard(weather, isDay = isDay, isMizo = isMizo)
 
                         // 7. Sunrise & Sunset
-                        SunriseSunsetCard(weather, isDay = isDay)
+                        SunriseSunsetCard(weather, isDay = isDay, isMizo = isMizo)
 
                         // 8. Native Ad (second)
-                        NativeAdCard(modifier = Modifier.fillMaxWidth(), isDay = isDay)
+                        NativeAdCard(modifier = Modifier.fillMaxWidth(), isDay = isDay, isMizo = isMizo)
 
                         // 9. Seasonal Forecast
-                        SeasonalForecastSection(weather = weather, isDay = isDay)
-                        
-                        // 9.5. Native Ad (third)
-                        NativeAdCard(modifier = Modifier.fillMaxWidth(), isDay = isDay)
+                        SeasonalForecastSection(weather = weather, isDay = isDay, isMizo = isMizo)
                         
                         // 10. Data Source & Accuracy Info
-                        DataSourceInfo(weather = weather, isDay = isDay)
+                        DataSourceInfo(
+                            weather = weather,
+                            isDay = isDay,
+                            skillReport = uiState.skillReport,
+                            isMizo = isMizo,
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(72.dp))
@@ -585,18 +593,33 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
                 onDismiss = {
                     if (!reportSubmitting) showReport = false
                 },
+                isMizo = isMizo,
                 onSubmit = { option ->
                     if (reportSubmitting) return@ReportDialog
 
                     // Validate report option
                     if (option.isBlank()) {
-                        Toast.makeText(context, "Please select a report option", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            context,
+                            localString(
+                                R.string.main_report_option_required_mz,
+                                R.string.main_report_option_required_en,
+                            ),
+                            Toast.LENGTH_SHORT
+                        ).show()
                         return@ReportDialog
                     }
 
                     // Block submit if we don't have GPS coordinates (backend clustering needs lat/lon).
                     if (uiState.userLat == null || uiState.userLon == null) {
-                        Toast.makeText(context, "Turn on GPS to submit a report", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            context,
+                            localString(
+                                R.string.main_report_gps_required_mz,
+                                R.string.main_report_gps_required_en,
+                            ),
+                            Toast.LENGTH_SHORT
+                        ).show()
                         return@ReportDialog
                     }
 
@@ -607,7 +630,17 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
                             reportSubmitting = false
                             showReport = false
                             // Feedback
-                            val text = if (ok) "Ka lawm e! Report thawn a hlawhtling e." else (msg ?: "Report thawn a hlawhchham")
+                            val text = if (ok) {
+                                localString(
+                                    R.string.main_report_submit_success_mz,
+                                    R.string.main_report_submit_success_en,
+                                )
+                            } else {
+                                msg ?: localString(
+                                    R.string.main_report_submit_failed_mz,
+                                    R.string.main_report_submit_failed_en,
+                                )
+                            }
                             Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
                             reportToastKey++
                             
@@ -633,15 +666,20 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
             val currentUserId = authManager.userId.ifBlank { "anonymous" }
             var currentInfoScreen by remember { mutableStateOf<String?>(null) }
             
-            // Handle back for nested rain_guide screen
-            BackHandler(enabled = currentInfoScreen != null) {
-                currentInfoScreen = null
+            // Handle back: if on nested screen go back to main, otherwise close
+            BackHandler(enabled = true) {
+                if (currentInfoScreen != null) {
+                    currentInfoScreen = null
+                } else {
+                    showFullReportScreen = false
+                }
             }
             
             when (currentInfoScreen) {
                 "rain_guide" -> {
                     RainIntensityGuideScreen(
-                        onBack = { currentInfoScreen = null }
+                        onBack = { currentInfoScreen = null },
+                        isMizo = isMizo,
                     )
                 }
                 else -> {
@@ -650,6 +688,7 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
                         userLon = uiState.userLon,
                         userId = currentUserId,
                         onBack = { showFullReportScreen = false },
+                        isMizo = isMizo,
                         onSubmit = { rainIntensity, skyCondition, windStrength, notes, locationName ->
                             try {
                                 crowdsourceRepo.submitReport(
@@ -673,10 +712,33 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
                                 // Show badge notification if earned
                                 if (awardResult.newBadges.isNotEmpty()) {
                                     val badgeName = com.mapuia.khawchinthlirna.data.auth.Badges.getNameMz(awardResult.newBadges.first())
-                                    Toast.makeText(context, "🎖️ Badge thar: $badgeName! +${awardResult.pointsEarned} points", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(
+                                            if (isMizo) R.string.main_badge_new_mz else R.string.main_badge_new_en,
+                                            badgeName,
+                                            awardResult.pointsEarned
+                                        ),
+                                        Toast.LENGTH_LONG
+                                    ).show()
                                 } else if (awardResult.pointsEarned > 0) {
-                                    Toast.makeText(context, "⭐ +${awardResult.pointsEarned} points earned!", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(
+                                            if (isMizo) R.string.main_points_earned_mz else R.string.main_points_earned_en,
+                                            awardResult.pointsEarned
+                                        ),
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 }
+                                
+                                // Optimistically update user profile to show updated points immediately
+                                // (Firestore read may return stale cached data)
+                                userProfile = userProfile?.copy(
+                                    points = (userProfile?.points ?: 0) + awardResult.pointsEarned,
+                                    totalReports = (userProfile?.totalReports ?: 0) + 1,
+                                    badges = (userProfile?.badges ?: emptyList()) + awardResult.newBadges
+                                )
                                 
                                 // Show interstitial ad after report submission (track action for auto-trigger)
                                 (context as? Activity)?.let { activity ->
@@ -706,30 +768,38 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
                 }
             }
             
-            // Handle back for nested screens - must be declared before the when block
-            BackHandler(enabled = currentInfoScreen != "hub") {
-                currentInfoScreen = "hub"
+            // Handle back: if on nested screen go back to hub, otherwise close
+            BackHandler(enabled = true) {
+                if (currentInfoScreen != "hub") {
+                    currentInfoScreen = "hub"
+                } else {
+                    showInfoHub = false
+                }
             }
             
             when (currentInfoScreen) {
                 "app_guide" -> {
                     AppGuideScreen(
-                        onBack = { currentInfoScreen = "hub" }
+                        onBack = { currentInfoScreen = "hub" },
+                        isMizo = isMizo,
                     )
                 }
                 "crowdsourcing" -> {
                     HowCrowdsourcingWorksScreen(
-                        onBack = { currentInfoScreen = "hub" }
+                        onBack = { currentInfoScreen = "hub" },
+                        isMizo = isMizo,
                     )
                 }
                 "rain_guide" -> {
                     RainIntensityGuideScreen(
-                        onBack = { currentInfoScreen = "hub" }
+                        onBack = { currentInfoScreen = "hub" },
+                        isMizo = isMizo,
                     )
                 }
                 "weather_data" -> {
                     WeatherDataExplainedScreen(
-                        onBack = { currentInfoScreen = "hub" }
+                        onBack = { currentInfoScreen = "hub" },
+                        isMizo = isMizo,
                     )
                 }
                 else -> {
@@ -739,6 +809,7 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
                         onNavigateToCrowdsourcing = { currentInfoScreen = "crowdsourcing" },
                         onNavigateToRainGuide = { currentInfoScreen = "rain_guide" },
                         onNavigateToWeatherData = { currentInfoScreen = "weather_data" },
+                        isMizo = isMizo,
                     )
                 }
             }
@@ -753,21 +824,156 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
                 onBack = { showNearbyReports = false },
                 onFetchReports = { lat, lon, radiusKm, minutes ->
                     crowdsourceRepo.getNearbyReports(lat, lon, radiusKm, minutes)
-                }
+                },
+                isMizo = isMizo,
             )
         }
         
-        // Theme Selection Dialog
-        if (showThemeDialog) {
-            ThemeSelectionDialog(
-                onDismiss = { showThemeDialog = false },
-                onThemeSelected = { theme ->
-                    // TODO: Implement theme persistence with DataStore
-                    Toast.makeText(context, "Theme: $theme (a la ṭawng)", Toast.LENGTH_SHORT).show()
-                    showThemeDialog = false
+        // User Profile Screen
+        if (showUserProfile) {
+            val coroutineScope = rememberCoroutineScope()
+            
+            // Refresh profile when opening the screen to get latest points/badges
+            LaunchedEffect(showUserProfile) {
+                userProfile = authManager.getUserProfile()
+            }
+            
+            val signInLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.StartActivityForResult()
+            ) { result ->
+                coroutineScope.launch {
+                    val signInResult = authManager.handleGoogleSignInResult(result.data)
+                    if (signInResult.isSuccess) {
+                        userProfile = authManager.getUserProfile()
+                        Toast.makeText(
+                            context,
+                            localString(
+                                R.string.main_toast_sign_in_success_mz,
+                                R.string.main_toast_sign_in_success_en,
+                            ),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        Toast.makeText(
+                            context,
+                            localString(
+                                R.string.main_toast_sign_in_failed_mz,
+                                R.string.main_toast_sign_in_failed_en,
+                            ),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 }
+            }
+            
+            UserProfileScreen(
+                userProfile = userProfile,
+                isAnonymous = authManager.isAnonymous,
+                onBackClick = { showUserProfile = false },
+                onSignInClick = {
+                    val signInIntent = authManager.getGoogleSignInIntent()
+                    signInLauncher.launch(signInIntent)
+                },
+                onSignOutClick = {
+                    coroutineScope.launch {
+                        authManager.signOut()
+                        userProfile = null
+                        Toast.makeText(
+                            context,
+                            localString(
+                                R.string.main_toast_signed_out_mz,
+                                R.string.main_toast_signed_out_en,
+                            ),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        showUserProfile = false
+                    }
+                },
+                isMizo = isMizo
             )
         }
+        
+        // Settings Screen
+        if (showSettings) {
+            val coroutineScope = rememberCoroutineScope()
+            val notificationsEnabled by preferencesManager.notificationsEnabledFlow.collectAsStateWithLifecycle(initialValue = true)
+            val severeWeatherAlerts by preferencesManager.severeWeatherAlertsFlow.collectAsStateWithLifecycle(initialValue = true)
+            val darkMode by preferencesManager.darkModeFlow.collectAsStateWithLifecycle(initialValue = null)
+            val temperatureUnit by preferencesManager.temperatureUnitFlow.collectAsStateWithLifecycle(initialValue = "celsius")
+            
+            SettingsScreen(
+                currentLanguage = currentLanguage,
+                onLanguageChange = { lang ->
+                    coroutineScope.launch { preferencesManager.setLanguage(lang) }
+                },
+                notificationsEnabled = notificationsEnabled,
+                onNotificationsToggle = { enabled ->
+                    coroutineScope.launch { preferencesManager.setNotificationsEnabled(enabled) }
+                },
+                severeWeatherAlertsEnabled = severeWeatherAlerts,
+                onSevereWeatherAlertsToggle = { enabled ->
+                    coroutineScope.launch { preferencesManager.setSevereWeatherAlerts(enabled) }
+                },
+                darkModeEnabled = darkMode,
+                onDarkModeToggle = { mode ->
+                    coroutineScope.launch { preferencesManager.setDarkMode(mode) }
+                },
+                temperatureUnit = temperatureUnit,
+                onTemperatureUnitChange = { unit ->
+                    coroutineScope.launch { preferencesManager.setTemperatureUnit(unit) }
+                },
+                onClearCache = {
+                    Toast.makeText(
+                        context,
+                        localString(
+                            R.string.main_toast_cache_cleared_mz,
+                            R.string.main_toast_cache_cleared_en,
+                        ),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                },
+                onDeleteAccount = {
+                    coroutineScope.launch {
+                        // Delete user data and sign out
+                        authManager.signOut()
+                        userProfile = null
+                        showSettings = false
+                        Toast.makeText(
+                            context,
+                            localString(
+                                R.string.main_toast_account_deleted_mz,
+                                R.string.main_toast_account_deleted_en,
+                            ),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                },
+                onPrivacyPolicyClick = {
+                    // Open privacy policy URL
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Mapuia12/Privacy/blob/main/Khawchin"))
+                    context.startActivity(intent)
+                },
+                onAboutClick = {
+                    Toast.makeText(
+                        context,
+                        localString(
+                            R.string.main_toast_about_mz,
+                            R.string.main_toast_about_en,
+                        ),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                },
+                onBackClick = { showSettings = false },
+                isMizo = isMizo
+            )
+        }
+
+        BannerAd(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .navigationBarsPadding()
+        )
     }
 }
 
@@ -779,7 +985,12 @@ private fun StatusBanner(
     errorMessage: String?,
     onRequestPermission: () -> Unit,
     onOpenSettings: () -> Unit,
+    isMizo: Boolean = true,
 ) {
+    val textPrimary = appTextPrimary()
+    val textSecondary = appTextSecondary(0.78f)
+    val textStrong = appTextSecondary(0.90f)
+    val iconTint = appIconTint()
     // Loading / error / permission shown in one compact premium banner.
     val show = permissionDenied || isLoading || !errorMessage.isNullOrBlank()
     if (!show) return
@@ -788,13 +999,33 @@ private fun StatusBanner(
         when {
             permissionDenied -> {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.LocationOff, contentDescription = "Location permission off", tint = Color.White)
+                    Icon(
+                        Icons.Filled.LocationOff,
+                        contentDescription = langString(
+                            R.string.main_cd_location_off_mz,
+                            R.string.main_cd_location_off_en,
+                            isMizo
+                        ),
+                        tint = iconTint
+                    )
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("Location a in-off", color = Color.White, fontWeight = FontWeight.Bold)
                         Text(
-                            "GPS i on chuan i awmna hnaih ber a thlang ang a, a dik zawk ang.",
-                            color = Color.White.copy(alpha = 0.78f),
+                            text = langString(
+                                R.string.main_status_location_off_title_mz,
+                                R.string.main_status_location_off_title_en,
+                                isMizo
+                            ),
+                            color = textPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            langString(
+                                R.string.main_status_location_off_desc_mz,
+                                R.string.main_status_location_off_desc_en,
+                                isMizo
+                            ),
+                            color = textSecondary,
                             fontSize = 12.sp,
                         )
                     }
@@ -803,32 +1034,68 @@ private fun StatusBanner(
                     OutlinedButton(onClick = onRequestPermission, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Filled.Refresh, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("On rawh le!")
+                        Text(
+                            langString(
+                                R.string.main_status_turn_on_mz,
+                                R.string.main_status_turn_on_en,
+                                isMizo
+                            )
+                        )
                     }
                     OutlinedButton(onClick = onOpenSettings, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Filled.Settings, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Settings")
+                        Text(
+                            langString(
+                                R.string.main_status_settings_mz,
+                                R.string.main_status_settings_en,
+                                isMizo
+                            )
+                        )
                     }
                 }
             }
 
             !errorMessage.isNullOrBlank() -> {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Warning, contentDescription = "Error", tint = Color.White)
+                    Icon(
+                        Icons.Filled.Warning,
+                        contentDescription = langString(
+                            R.string.main_cd_error_mz,
+                            R.string.main_cd_error_en,
+                            isMizo
+                        ),
+                        tint = iconTint
+                    )
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("Dik lo a awm tlat", color = Color.White, fontWeight = FontWeight.Bold)
-                        Text(errorMessage, color = Color.White.copy(alpha = 0.78f), fontSize = 12.sp)
+                        Text(
+                            text = langString(
+                                R.string.main_status_error_title_mz,
+                                R.string.main_status_error_title_en,
+                                isMizo
+                            ),
+                            color = textPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(errorMessage, color = textSecondary, fontSize = 12.sp)
                     }
                 }
             }
 
             isLoading -> {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                    CircularProgressIndicator(color = textPrimary, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(10.dp))
-                    Text("Khawchin a load mek…", color = Color.White.copy(alpha = 0.90f), fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = langString(
+                            R.string.main_status_loading_mz,
+                            R.string.main_status_loading_en,
+                            isMizo
+                        ),
+                        color = textStrong,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
         }
@@ -842,6 +1109,7 @@ private fun HeroSection(
     userLon: Double?,
     userPlaceName: String?,
     isDay: Boolean,
+    isMizo: Boolean = true,
     heroGradient: Brush = DayGradient,
 ) {
     // Use helper to support both old and new data formats
@@ -878,7 +1146,13 @@ private fun HeroSection(
         // NOTE: Marine alert is intentionally NOT shown in Hero (shown under header only).
 
         val locationLabel = userPlaceName
-            ?: if (userLat != null && userLon != null) "I awmna hnaivai" else null
+            ?: if (userLat != null && userLon != null) {
+                langString(
+                    R.string.main_location_nearby_mz,
+                    R.string.main_location_nearby_en,
+                    isMizo
+                )
+            } else null
 
         if (locationLabel != null) {
             Row(
@@ -894,7 +1168,7 @@ private fun HeroSection(
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text = locationLabel,
-                    color = Color.White.copy(alpha = 0.9f),
+                    color = appTextSecondary(0.9f),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -911,7 +1185,7 @@ private fun HeroSection(
             Column {
                 // Vibrant colored temperature with shadow for clarity
                 Text(
-                    text = "${temp.toInt()}°",
+                    text = "${temp.toInt()}\u00B0",
                     color = getTemperatureColor(temp),
                     fontSize = 88.sp,
                     fontWeight = FontWeight.Black,
@@ -931,13 +1205,17 @@ private fun HeroSection(
                     modifier = Modifier.padding(top = 4.dp)
                 ) {
                     Text(
-                        text = "Feels Like",
-                        color = Color.White.copy(alpha = 0.7f),
+                        text = langString(
+                            R.string.main_feels_like_mz,
+                            R.string.main_feels_like_en,
+                            isMizo
+                        ),
+                        color = appTextSecondary(0.7f),
                         fontSize = 13.sp,
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        text = "${current?.feelsLike?.toInt() ?: 0}°",
+                        text = "${current?.feelsLike?.toInt() ?: 0}\u00B0",
                         color = getTemperatureColor(current?.feelsLike ?: 0.0),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
@@ -945,33 +1223,6 @@ private fun HeroSection(
                 }
 
                 Spacer(Modifier.height(12.dp))
-
-                val season = seasonLabelMizo(weather.marineEvidence?.season)
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(
-                                    Color(0xFF8338EC).copy(alpha = 0.3f),
-                                    Color(0xFF3A86FF).copy(alpha = 0.3f),
-                                )
-                            )
-                        )
-                        .border(
-                            1.dp,
-                            Brush.horizontalGradient(
-                                listOf(
-                                    Color(0xFF8338EC).copy(alpha = 0.5f),
-                                    Color(0xFF3A86FF).copy(alpha = 0.5f),
-                                )
-                            ),
-                            RoundedCornerShape(999.dp)
-                        )
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                ) {
-                    Text(text = season, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                }
             }
 
             // Animated weather icon
@@ -990,6 +1241,7 @@ fun WeatherSvgIcon(
     code: Int,
     modifier: Modifier = Modifier,
     isDay: Boolean = true,
+    isMizo: Boolean = true,
 ) {
     val context = LocalContext.current
     val uri = getWeatherIcon(code = code, isDay = isDay)
@@ -1000,13 +1252,21 @@ fun WeatherSvgIcon(
             .decoderFactory(SvgDecoder.Factory())
             .crossfade(true)
             .build(),
-        contentDescription = "Weather icon",
+        contentDescription = langString(
+            R.string.main_cd_weather_icon_mz,
+            R.string.main_cd_weather_icon_en,
+            isMizo
+        ),
         modifier = modifier,
     )
 }
 
 @Composable
-private fun HourlyForecast(weather: WeatherDoc, isDay: Boolean) {
+private fun HourlyForecast(
+    weather: WeatherDoc,
+    isDay: Boolean,
+    isMizo: Boolean = true,
+) {
     // Use helper to support both old and new data formats
     val hourly = weather.getHourlyForecast() ?: return
     if (hourly.time.isEmpty() || hourly.temp.isEmpty()) return
@@ -1024,8 +1284,12 @@ private fun HourlyForecast(weather: WeatherDoc, isDay: Boolean) {
 
     GlassCard(modifier = Modifier.fillMaxWidth(), isDay = isDay) {
         Text(
-            text = "Darkar Tin Thlirlawkna",
-            color = Color.White.copy(alpha = 0.85f),
+            text = langString(
+                R.string.main_hourly_forecast_mz,
+                R.string.main_hourly_forecast_en,
+                isMizo
+            ),
+            color = appTextSecondary(0.85f),
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
         )
@@ -1065,6 +1329,8 @@ private fun HourlyForecast(weather: WeatherDoc, isDay: Boolean) {
         
         // First item data for sticky "Now" pill
         val nowItem = rows.firstOrNull()
+        val unitMm = stringResource(R.string.main_unit_mm)
+        val unitKmh = stringResource(R.string.main_unit_kmh)
         
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1085,12 +1351,16 @@ private fun HourlyForecast(weather: WeatherDoc, isDay: Boolean) {
                     if (item.rainProb > 0) append("${item.rainProb}%")
                     if (item.rainMm > 0.0) {
                         if (isNotEmpty()) append(" ")
-                        append("${"%.1f".format(item.rainMm)}mm")
+                        append("${"%.1f".format(item.rainMm)}$unitMm")
                     }
                 }.ifBlank { null }
                 
                 HourlyPill(
-                    label = "Tunah",
+                    label = langString(
+                        R.string.main_now_mz,
+                        R.string.main_now_en,
+                        isMizo
+                    ),
                     temp = item.temp,
                     code = item.weatherCode,
                     highlighted = true,
@@ -1131,11 +1401,11 @@ private fun HourlyForecast(weather: WeatherDoc, isDay: Boolean) {
                         if (rainProb > 0) append("$rainProb%")
                         if (rainMm > 0.0) {
                             if (isNotEmpty()) append(" ")
-                            append("${"%.1f".format(rainMm)}mm")
+                            append("${"%.1f".format(rainMm)}$unitMm")
                         }
                         if (wind > 0.0) {
                             if (isNotEmpty()) append("  ")
-                            append("${wind.toInt()}km/h")
+                            append("${wind.toInt()}$unitKmh")
                         }
                     }.ifBlank { null }
 
@@ -1223,7 +1493,7 @@ private fun HourlyPill(
         // Time label - pure white for visibility
         Text(
             text = label,
-            color = Color.White,
+            color = appTextPrimary(),
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
         )
@@ -1241,7 +1511,7 @@ private fun HourlyPill(
 
         // Temperature with color coding - ensure visibility
         Text(
-            text = "${temp.toInt()}°",
+            text = "${temp.toInt()}\u00B0",
             color = tempColor,
             fontWeight = FontWeight.ExtraBold,
             fontSize = 16.sp,
@@ -1250,7 +1520,11 @@ private fun HourlyPill(
 }
 
 @Composable
-private fun CurrentConditionsGrid(weather: WeatherDoc, isDay: Boolean = true) {
+private fun CurrentConditionsGrid(
+    weather: WeatherDoc,
+    isDay: Boolean = true,
+    isMizo: Boolean = true,
+) {
     // Use helper to support both old and new data formats
     val current = weather.getCurrentWeather()
     val hourly = weather.getHourlyForecast()
@@ -1273,6 +1547,12 @@ private fun CurrentConditionsGrid(weather: WeatherDoc, isDay: Boolean = true) {
     // UV Index and Cloud Cover
     val uvIndex = hourly?.uvIndex?.firstOrNull() ?: current?.uvIndex
     val cloudCover = hourly?.cloudCoverPercent?.firstOrNull()?.toInt() ?: hourly?.cloudCover?.firstOrNull() ?: current?.cloudCover
+
+    val unitMmPerHr = stringResource(R.string.main_unit_mm_per_hr)
+    val unitPercent = stringResource(R.string.main_unit_percent)
+    val unitHpa = stringResource(R.string.main_unit_hpa)
+    val unitKm = stringResource(R.string.main_unit_km)
+    val unitCelsius = stringResource(R.string.main_unit_celsius)
 
     val shape = RoundedCornerShape(24.dp)
 
@@ -1319,8 +1599,12 @@ private fun CurrentConditionsGrid(weather: WeatherDoc, isDay: Boolean = true) {
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "Current Conditions",
-                    color = Color.White,
+                    text = langString(
+                        R.string.main_current_conditions_mz,
+                        R.string.main_current_conditions_en,
+                        isMizo
+                    ),
+                    color = appTextPrimary(),
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
                 )
@@ -1332,15 +1616,20 @@ private fun CurrentConditionsGrid(weather: WeatherDoc, isDay: Boolean = true) {
                 windGust = (current?.windGust ?: hourly?.windGust?.firstOrNull())?.toInt(),
                 windDirection = windDeg,
                 windDirLabel = windDir,
+                isMizo = isMizo,
             )
 
             // Row 2: Rainfall + Humidity
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 // Rainfall Card
                 PremiumMetricCard(
-                    title = "RAINFALL",
+                    title = langString(
+                        R.string.main_rainfall_label_mz,
+                        R.string.main_rainfall_label_en,
+                        isMizo
+                    ),
                     value = "${"%.1f".format(current?.rainMm ?: 0.0)}",
-                    unit = "mm/hr",
+                    unit = unitMmPerHr,
                     iconRes = R.drawable.ic_rain_mm,
                     gradientColors = listOf(Color(0xFF3A86FF), Color(0xFF0066FF)),
                     modifier = Modifier.weight(1f),
@@ -1348,9 +1637,13 @@ private fun CurrentConditionsGrid(weather: WeatherDoc, isDay: Boolean = true) {
                 
                 // Humidity Card
                 PremiumMetricCard(
-                    title = "HUMIDITY",
+                    title = langString(
+                        R.string.main_humidity_label_mz,
+                        R.string.main_humidity_label_en,
+                        isMizo
+                    ),
                     value = "${current?.humidity ?: 0}",
-                    unit = "%",
+                    unit = unitPercent,
                     iconRes = R.drawable.ic_humidity_drop,
                     gradientColors = listOf(Color(0xFF06D6A0), Color(0xFF00B894)),
                     modifier = Modifier.weight(1f),
@@ -1361,9 +1654,13 @@ private fun CurrentConditionsGrid(weather: WeatherDoc, isDay: Boolean = true) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 // Pressure Card
                 PremiumMetricCard(
-                    title = "PRESSURE",
+                    title = langString(
+                        R.string.main_pressure_label_mz,
+                        R.string.main_pressure_label_en,
+                        isMizo
+                    ),
                     value = pressure?.let { "${"%.0f".format(it)}" } ?: "--",
-                    unit = "hPa",
+                    unit = unitHpa,
                     iconRes = R.drawable.ic_pressure,
                     gradientColors = listOf(Color(0xFFFF006E), Color(0xFFD6336C)),
                     modifier = Modifier.weight(1f),
@@ -1371,9 +1668,13 @@ private fun CurrentConditionsGrid(weather: WeatherDoc, isDay: Boolean = true) {
                 
                 // Visibility Card
                 PremiumMetricCard(
-                    title = "VISIBILITY",
+                    title = langString(
+                        R.string.main_visibility_label_mz,
+                        R.string.main_visibility_label_en,
+                        isMizo
+                    ),
                     value = visibilityKm?.let { "${"%.1f".format(it)}" } ?: "--",
-                    unit = "km",
+                    unit = unitKm,
                     iconRes = R.drawable.ic_visibility,
                     gradientColors = listOf(Color(0xFF9B59B6), Color(0xFF8E44AD)),
                     modifier = Modifier.weight(1f),
@@ -1385,9 +1686,13 @@ private fun CurrentConditionsGrid(weather: WeatherDoc, isDay: Boolean = true) {
                 // Dewpoint Card
                 if (dewpoint != null) {
                     PremiumMetricCard(
-                        title = "DEWPOINT",
+                        title = langString(
+                            R.string.main_dewpoint_label_mz,
+                            R.string.main_dewpoint_label_en,
+                            isMizo
+                        ),
                         value = "${dewpoint.toInt()}",
-                        unit = "°C",
+                        unit = unitCelsius,
                         iconRes = R.drawable.ic_dewpoint,
                         gradientColors = listOf(Color(0xFF1ABC9C), Color(0xFF16A085)),
                         modifier = Modifier.weight(1f),
@@ -1399,9 +1704,13 @@ private fun CurrentConditionsGrid(weather: WeatherDoc, isDay: Boolean = true) {
                 // Cloud Cover Card
                 if (cloudCover != null) {
                     PremiumMetricCard(
-                        title = "CLOUD COVER",
+                        title = langString(
+                            R.string.main_cloud_cover_label_mz,
+                            R.string.main_cloud_cover_label_en,
+                            isMizo
+                        ),
                         value = "$cloudCover",
-                        unit = "%",
+                        unit = unitPercent,
                         iconRes = R.drawable.ic_cloud,
                         gradientColors = listOf(Color(0xFF78909C), Color(0xFF546E7A)),
                         modifier = Modifier.weight(1f),
@@ -1415,9 +1724,13 @@ private fun CurrentConditionsGrid(weather: WeatherDoc, isDay: Boolean = true) {
             if (uvIndex != null && uvIndex > 0) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     PremiumMetricCard(
-                        title = "UV INDEX",
+                        title = langString(
+                            R.string.main_uv_index_label_mz,
+                            R.string.main_uv_index_label_en,
+                            isMizo
+                        ),
                         value = "${"%.1f".format(uvIndex)}",
-                        unit = getUvLevel(uvIndex),
+                        unit = getUvLevel(uvIndex, isMizo),
                         iconRes = R.drawable.ic_sun,
                         gradientColors = getUvGradientColors(uvIndex),
                         modifier = Modifier.weight(1f),
@@ -1470,6 +1783,8 @@ private fun AirQualityCard(weather: WeatherDoc, isDay: Boolean = true) {
             )
             .padding(16.dp)
     ) {
+        val unitUgM3 = stringResource(R.string.main_unit_ugm3)
+
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             // Header with AQI Value
             Row(
@@ -1487,8 +1802,12 @@ private fun AirQualityCard(weather: WeatherDoc, isDay: Boolean = true) {
                     Spacer(Modifier.width(8.dp))
                     Column {
                         Text(
-                            text = "Air Quality",
-                            color = Color.White,
+                            text = langString(
+                                R.string.main_air_quality_mz,
+                                R.string.main_air_quality_en,
+                                isMizo
+                            ),
+                            color = appTextPrimary(),
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                         )
@@ -1518,7 +1837,11 @@ private fun AirQualityCard(weather: WeatherDoc, isDay: Boolean = true) {
                             fontSize = 28.sp,
                         )
                         Text(
-                            text = "AQI",
+                            text = langString(
+                                R.string.main_aqi_label_mz,
+                                R.string.main_aqi_label_en,
+                                isMizo
+                            ),
                             color = aqiColor.copy(alpha = 0.8f),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Medium,
@@ -1530,7 +1853,7 @@ private fun AirQualityCard(weather: WeatherDoc, isDay: Boolean = true) {
             // Health Advice
             Text(
                 text = aqi.getHealthAdvice(),
-                color = Color.White.copy(alpha = 0.7f),
+                color = appTextSecondary(0.7f),
                 fontSize = 11.sp,
                 lineHeight = 14.sp,
             )
@@ -1542,14 +1865,14 @@ private fun AirQualityCard(weather: WeatherDoc, isDay: Boolean = true) {
                     AqiPollutantCard(
                         name = "PM2.5",
                         value = aqi.pm25,
-                        unit = "µg/m³",
+                        unit = unitUgM3,
                         isPrimary = aqi.dominantPollutant == "pm2_5",
                         modifier = Modifier.weight(1f),
                     )
                     AqiPollutantCard(
                         name = "PM10",
                         value = aqi.pm10,
-                        unit = "µg/m³",
+                        unit = unitUgM3,
                         isPrimary = aqi.dominantPollutant == "pm10",
                         modifier = Modifier.weight(1f),
                     )
@@ -1558,16 +1881,16 @@ private fun AirQualityCard(weather: WeatherDoc, isDay: Boolean = true) {
                 // Row 2: O3 and NO2
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     AqiPollutantCard(
-                        name = "O₃",
+                        name = "O3",
                         value = aqi.o3,
-                        unit = "µg/m³",
+                        unit = unitUgM3,
                         isPrimary = aqi.dominantPollutant == "o3",
                         modifier = Modifier.weight(1f),
                     )
                     AqiPollutantCard(
-                        name = "NO₂",
+                        name = "NO2",
                         value = aqi.no2,
-                        unit = "µg/m³",
+                        unit = unitUgM3,
                         isPrimary = aqi.dominantPollutant == "no2",
                         modifier = Modifier.weight(1f),
                     )
@@ -1576,16 +1899,16 @@ private fun AirQualityCard(weather: WeatherDoc, isDay: Boolean = true) {
                 // Row 3: SO2 and CO
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     AqiPollutantCard(
-                        name = "SO₂",
+                        name = "SO2",
                         value = aqi.so2,
-                        unit = "µg/m³",
+                        unit = unitUgM3,
                         isPrimary = aqi.dominantPollutant == "so2",
                         modifier = Modifier.weight(1f),
                     )
                     AqiPollutantCard(
                         name = "CO",
                         value = aqi.co,
-                        unit = "µg/m³",
+                        unit = unitUgM3,
                         isPrimary = aqi.dominantPollutant == "co",
                         modifier = Modifier.weight(1f),
                     )
@@ -1622,13 +1945,13 @@ private fun AqiPollutantCard(
             ) {
                 Text(
                     text = name,
-                    color = if (isPrimary) Color(0xFFFF9800) else Color.White.copy(alpha = 0.7f),
+                    color = if (isPrimary) Color(0xFFFF9800) else appTextSecondary(0.7f),
                     fontSize = 11.sp,
                     fontWeight = if (isPrimary) FontWeight.Bold else FontWeight.Medium,
                 )
                 if (isPrimary) {
                     Text(
-                        text = "●",
+                        text = "*",
                         color = Color(0xFFFF9800),
                         fontSize = 8.sp,
                     )
@@ -1640,14 +1963,14 @@ private fun AqiPollutantCard(
             ) {
                 Text(
                     text = "%.1f".format(value),
-                    color = Color.White,
+                    color = appTextPrimary(),
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                 )
                 Spacer(Modifier.width(2.dp))
                 Text(
                     text = unit,
-                    color = Color.White.copy(alpha = 0.5f),
+                    color = appTextMuted(0.5f),
                     fontSize = 9.sp,
                     modifier = Modifier.padding(bottom = 2.dp),
                 )
@@ -1664,9 +1987,15 @@ private fun WindDetailCard(
     windGust: Int?,
     windDirection: Int?,
     windDirLabel: String?,
+    isMizo: Boolean = true,
 ) {
     val shape = RoundedCornerShape(16.dp)
     val accentColor = Color(0xFF00D4FF)
+    val unitKmh = stringResource(R.string.main_unit_kmh)
+    val cardinalN = stringResource(R.string.main_cardinal_n)
+    val cardinalS = stringResource(R.string.main_cardinal_s)
+    val cardinalE = stringResource(R.string.main_cardinal_e)
+    val cardinalW = stringResource(R.string.main_cardinal_w)
 
     Box(
         modifier = Modifier
@@ -1714,14 +2043,18 @@ private fun WindDetailCard(
                         Icon(
                             painter = painterResource(R.drawable.ic_wind),
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = appIconTint(),
                             modifier = Modifier.size(18.dp),
                         )
                     }
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = "WIND",
-                        color = Color.White,
+                        text = langString(
+                            R.string.main_wind_label_mz,
+                            R.string.main_wind_label_en,
+                            isMizo
+                        ),
+                        color = appTextPrimary(),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.ExtraBold,
                         letterSpacing = 1.sp,
@@ -1732,7 +2065,7 @@ private fun WindDetailCard(
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
                         text = "$windSpeed",
-                        color = Color.White,
+                        color = appTextPrimary(),
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 42.sp,
                         style = TextStyle(
@@ -1746,8 +2079,8 @@ private fun WindDetailCard(
                     Spacer(Modifier.width(4.dp))
                     Column(modifier = Modifier.padding(bottom = 8.dp)) {
                         Text(
-                            text = "km/h",
-                            color = Color.White.copy(alpha = 0.8f),
+                            text = unitKmh,
+                            color = appTextSecondary(0.8f),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                         )
@@ -1769,13 +2102,17 @@ private fun WindDetailCard(
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            text = "Wind Gust",
-                            color = Color.White.copy(alpha = 0.7f),
+                            text = langString(
+                                R.string.main_wind_gust_label_mz,
+                                R.string.main_wind_gust_label_en,
+                                isMizo
+                            ),
+                            color = appTextSecondary(0.7f),
                             fontSize = 12.sp,
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            text = "$windGust km/h",
+                            text = "$windGust $unitKmh",
                             color = Color(0xFFFF6B6B),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
@@ -1801,8 +2138,8 @@ private fun WindDetailCard(
                     ) {
                         // Compass cardinal directions
                         Text(
-                            text = "N",
-                            color = Color.White.copy(alpha = 0.6f),
+                            text = cardinalN,
+                            color = appTextSecondary(0.6f),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier
@@ -1810,24 +2147,24 @@ private fun WindDetailCard(
                                 .padding(top = 4.dp),
                         )
                         Text(
-                            text = "S",
-                            color = Color.White.copy(alpha = 0.4f),
+                            text = cardinalS,
+                            color = appTextMuted(0.4f),
                             fontSize = 10.sp,
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .padding(bottom = 4.dp),
                         )
                         Text(
-                            text = "E",
-                            color = Color.White.copy(alpha = 0.4f),
+                            text = cardinalE,
+                            color = appTextMuted(0.4f),
                             fontSize = 10.sp,
                             modifier = Modifier
                                 .align(Alignment.CenterEnd)
                                 .padding(end = 6.dp),
                         )
                         Text(
-                            text = "W",
-                            color = Color.White.copy(alpha = 0.4f),
+                            text = cardinalW,
+                            color = appTextMuted(0.4f),
                             fontSize = 10.sp,
                             modifier = Modifier
                                 .align(Alignment.CenterStart)
@@ -1850,14 +2187,14 @@ private fun WindDetailCard(
 
                     // Direction Label
                     Text(
-                        text = windDirLabel ?: "N",
-                        color = Color.White,
+                        text = windDirLabel ?: cardinalN,
+                        color = appTextPrimary(),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
-                        text = "${windDirection}°",
-                        color = Color.White.copy(alpha = 0.6f),
+                        text = "${windDirection}\u00B0",
+                        color = appTextSecondary(0.6f),
                         fontSize = 12.sp,
                     )
                 }
@@ -1880,6 +2217,7 @@ private fun PremiumMetricCard(
 ) {
     val shape = RoundedCornerShape(16.dp)
     val accentColor = gradientColors.first()
+    val cardinalN = stringResource(R.string.main_cardinal_n)
 
     Box(
         modifier = modifier
@@ -1922,14 +2260,14 @@ private fun PremiumMetricCard(
                     Icon(
                         painter = painterResource(iconRes),
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = appIconTint(),
                         modifier = Modifier.size(18.dp),
                     )
                 }
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text = title,
-                    color = Color.White,  // Pure white for visibility
+                    color = appTextPrimary(),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 1.sp,
@@ -1942,7 +2280,7 @@ private fun PremiumMetricCard(
             ) {
                 Text(
                     text = value,
-                    color = Color.White,
+                    color = appTextPrimary(),
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 32.sp,
                     style = TextStyle(
@@ -1956,7 +2294,7 @@ private fun PremiumMetricCard(
                 Spacer(Modifier.width(4.dp))
                 Text(
                     text = unit,
-                    color = Color.White.copy(alpha = 0.8f),
+                    color = appTextSecondary(0.8f),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(bottom = 5.dp),
@@ -1984,8 +2322,8 @@ private fun PremiumMetricCard(
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        text = windDirLabel ?: "N",
-                        color = Color.White.copy(alpha = 0.8f),
+                        text = windDirLabel ?: cardinalN,
+                        color = appTextSecondary(0.8f),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -1996,7 +2334,7 @@ private fun PremiumMetricCard(
 }
 
 @Composable
-private fun DailyForecastCard(weather: WeatherDoc, isDay: Boolean) {
+private fun DailyForecastCard(weather: WeatherDoc, isDay: Boolean, isMizo: Boolean = true) {
     val daily = weather.daily ?: return
 
     val count = listOf(
@@ -2017,11 +2355,11 @@ private fun DailyForecastCard(weather: WeatherDoc, isDay: Boolean) {
         rawList.mapNotNull { item ->
             when (item) {
                 // Simple number format
-                is Number -> ConfidenceInfo(item.toDouble(), getConfidenceLabel(item.toDouble()), 0, 0)
+                is Number -> ConfidenceInfo(item.toDouble(), getConfidenceLabel(item.toDouble(), isMizo), 0, 0)
                 // Complex object format from backend v86+
                 is Map<*, *> -> {
                     val overall = (item["overall"] as? Number)?.toDouble()?.div(100) ?: 0.5
-                    val label = (item["label"] as? String) ?: getConfidenceLabel(overall)
+                    val label = (item["label"] as? String) ?: getConfidenceLabel(overall, isMizo)
                     val precip = (item["precip"] as? Number)?.toInt() ?: 0
                     val temp = (item["temp"] as? Number)?.toInt() ?: 0
                     ConfidenceInfo(overall, label, precip, temp)
@@ -2077,8 +2415,20 @@ private fun DailyForecastCard(weather: WeatherDoc, isDay: Boolean) {
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = if (daysToShow >= 10) "Ni 10 Chhung Forecast" else "Kar Khat Chhung Khawchin",
-                    color = Color.White,
+                    text = if (daysToShow >= 10) {
+                        langString(
+                            R.string.main_daily_forecast_10_mz,
+                            R.string.main_daily_forecast_10_en,
+                            isMizo
+                        )
+                    } else {
+                        langString(
+                            R.string.main_daily_forecast_7_mz,
+                            R.string.main_daily_forecast_7_en,
+                            isMizo
+                        )
+                    },
+                    color = appTextPrimary(),
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
                 )
@@ -2094,8 +2444,12 @@ private fun DailyForecastCard(weather: WeatherDoc, isDay: Boolean) {
                             fontSize = 10.sp,
                         )
                         Text(
-                            text = "A Rintlak Dan",
-                            color = Color.White.copy(alpha = 0.5f),
+                            text = langString(
+                                R.string.main_confidence_label_mz,
+                                R.string.main_confidence_label_en,
+                                isMizo
+                            ),
+                            color = appTextMuted(0.5f),
                             fontSize = 10.sp,
                         )
                     }
@@ -2106,7 +2460,7 @@ private fun DailyForecastCard(weather: WeatherDoc, isDay: Boolean) {
             for (i in 0 until daysToShow) {
                 val confData = confidenceData.getOrNull(i)
                 val confidence = confData?.overall ?: getDefaultConfidence(i)
-                val confidenceLabel = confData?.label ?: getConfidenceLabel(confidence)
+                val confidenceLabel = confData?.label ?: getConfidenceLabel(confidence, isMizo)
                 val rainMm = daily.precipitationSum.getOrNull(i) ?: 0.0
                 val maxTemp = daily.tempMax.getOrNull(i) ?: continue
                 val minTemp = daily.tempMin.getOrNull(i) ?: continue
@@ -2119,19 +2473,20 @@ private fun DailyForecastCard(weather: WeatherDoc, isDay: Boolean) {
                     iconCode = daily.weatherCode.getOrNull(i) ?: 0,
                     confidence = confidence,
                     confidenceLabel = confidenceLabel,
+                    isMizo = isMizo,
                 )
             }
             
             // Confidence legend
             Spacer(Modifier.height(8.dp))
-            ConfidenceLegend()
+            ConfidenceLegend(isMizo = isMizo)
         }
     }
 }
 
 /** Legend for confidence levels - responsive for small screens */
 @Composable
-private fun ConfidenceLegend() {
+private fun ConfidenceLegend(isMizo: Boolean = true) {
     val shape = RoundedCornerShape(8.dp)
     val configuration = LocalConfiguration.current
     val screenWidthDp = configuration.screenWidthDp
@@ -2157,8 +2512,12 @@ private fun ConfidenceLegend() {
         ) {
             // Header
             Text(
-                text = "🎯 A Rintlak Dan:",
-                color = Color.White.copy(alpha = 0.85f),
+                text = langString(
+                    R.string.main_confidence_header_mz,
+                    R.string.main_confidence_header_en,
+                    isMizo
+                ),
+                color = appTextSecondary(0.85f),
                 fontSize = titleFontSize,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -2170,15 +2529,51 @@ private fun ConfidenceLegend() {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                     ) {
-                        EnhancedConfidenceLegendItem(Color(0xFF4CAF50), "Tha Tak", itemFontSize, dotSize)
-                        EnhancedConfidenceLegendItem(Color(0xFF8BC34A), "Tha", itemFontSize, dotSize)
+                        EnhancedConfidenceLegendItem(
+                            Color(0xFF4CAF50),
+                            langString(
+                                R.string.main_confidence_very_high_mz,
+                                R.string.main_confidence_very_high_en,
+                                isMizo
+                            ),
+                            itemFontSize,
+                            dotSize
+                        )
+                        EnhancedConfidenceLegendItem(
+                            Color(0xFF8BC34A),
+                            langString(
+                                R.string.main_confidence_high_mz,
+                                R.string.main_confidence_high_en,
+                                isMizo
+                            ),
+                            itemFontSize,
+                            dotSize
+                        )
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                     ) {
-                        EnhancedConfidenceLegendItem(Color(0xFFFFC107), "Tha Tawk", itemFontSize, dotSize)
-                        EnhancedConfidenceLegendItem(Color(0xFFE57373), "Beisei Theih", itemFontSize, dotSize)
+                        EnhancedConfidenceLegendItem(
+                            Color(0xFFFFC107),
+                            langString(
+                                R.string.main_confidence_medium_mz,
+                                R.string.main_confidence_medium_en,
+                                isMizo
+                            ),
+                            itemFontSize,
+                            dotSize
+                        )
+                        EnhancedConfidenceLegendItem(
+                            Color(0xFFE57373),
+                            langString(
+                                R.string.main_confidence_low_mz,
+                                R.string.main_confidence_low_en,
+                                isMizo
+                            ),
+                            itemFontSize,
+                            dotSize
+                        )
                     }
                 }
             } else {
@@ -2188,10 +2583,46 @@ private fun ConfidenceLegend() {
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    EnhancedConfidenceLegendItem(Color(0xFF4CAF50), "Tha Tak", itemFontSize, dotSize)
-                    EnhancedConfidenceLegendItem(Color(0xFF8BC34A), "Tha", itemFontSize, dotSize)
-                    EnhancedConfidenceLegendItem(Color(0xFFFFC107), "Tha Tawk", itemFontSize, dotSize)
-                    EnhancedConfidenceLegendItem(Color(0xFFE57373), "Beisei Theih", itemFontSize, dotSize)
+                    EnhancedConfidenceLegendItem(
+                        Color(0xFF4CAF50),
+                        langString(
+                            R.string.main_confidence_very_high_mz,
+                            R.string.main_confidence_very_high_en,
+                            isMizo
+                        ),
+                        itemFontSize,
+                        dotSize
+                    )
+                    EnhancedConfidenceLegendItem(
+                        Color(0xFF8BC34A),
+                        langString(
+                            R.string.main_confidence_high_mz,
+                            R.string.main_confidence_high_en,
+                            isMizo
+                        ),
+                        itemFontSize,
+                        dotSize
+                    )
+                    EnhancedConfidenceLegendItem(
+                        Color(0xFFFFC107),
+                        langString(
+                            R.string.main_confidence_medium_mz,
+                            R.string.main_confidence_medium_en,
+                            isMizo
+                        ),
+                        itemFontSize,
+                        dotSize
+                    )
+                    EnhancedConfidenceLegendItem(
+                        Color(0xFFE57373),
+                        langString(
+                            R.string.main_confidence_low_mz,
+                            R.string.main_confidence_low_en,
+                            isMizo
+                        ),
+                        itemFontSize,
+                        dotSize
+                    )
                 }
             }
         }
@@ -2219,7 +2650,7 @@ private fun EnhancedConfidenceLegendItem(
         )
         Text(
             text = label,
-            color = Color.White.copy(alpha = 0.9f),
+            color = appTextSecondary(0.9f),
             fontSize = fontSize,
             fontWeight = FontWeight.Medium,
         )
@@ -2252,25 +2683,67 @@ private fun getConfidenceColor(confidence: Double): Color {
     }
 }
 
-/** Get Mizo confidence label */
-private fun getConfidenceLabel(confidence: Double): String {
+/** Get confidence label */
+@Composable
+private fun getConfidenceLabel(confidence: Double, isMizo: Boolean = true): String {
     return when {
-        confidence >= 0.85 -> "Tha Tak"      // Very reliable
-        confidence >= 0.70 -> "Tha"          // Good
-        confidence >= 0.55 -> "Tha Tawk"     // Moderate
-        confidence >= 0.40 -> "Beisei Theih" // Fair
-        else -> "Ngaihdan"                   // Less reliable
+        confidence >= 0.85 -> langString(
+            R.string.main_confidence_very_high_mz,
+            R.string.main_confidence_very_high_en,
+            isMizo
+        )
+        confidence >= 0.70 -> langString(
+            R.string.main_confidence_high_mz,
+            R.string.main_confidence_high_en,
+            isMizo
+        )
+        confidence >= 0.55 -> langString(
+            R.string.main_confidence_medium_mz,
+            R.string.main_confidence_medium_en,
+            isMizo
+        )
+        confidence >= 0.40 -> langString(
+            R.string.main_confidence_low_mz,
+            R.string.main_confidence_low_en,
+            isMizo
+        )
+        else -> langString(
+            R.string.main_confidence_very_low_mz,
+            R.string.main_confidence_very_low_en,
+            isMizo
+        )
     }
 }
 
 /** Get UV level label */
-private fun getUvLevel(uv: Double): String {
+@Composable
+private fun getUvLevel(uv: Double, isMizo: Boolean = true): String {
     return when {
-        uv >= 11 -> "Extreme"
-        uv >= 8 -> "Very High"
-        uv >= 6 -> "High"
-        uv >= 3 -> "Moderate"
-        else -> "Low"
+        uv >= 11 -> langString(
+            R.string.main_uv_level_extreme_mz,
+            R.string.main_uv_level_extreme_en,
+            isMizo
+        )
+        uv >= 8 -> langString(
+            R.string.main_uv_level_very_high_mz,
+            R.string.main_uv_level_very_high_en,
+            isMizo
+        )
+        uv >= 6 -> langString(
+            R.string.main_uv_level_high_mz,
+            R.string.main_uv_level_high_en,
+            isMizo
+        )
+        uv >= 3 -> langString(
+            R.string.main_uv_level_moderate_mz,
+            R.string.main_uv_level_moderate_en,
+            isMizo
+        )
+        else -> langString(
+            R.string.main_uv_level_low_mz,
+            R.string.main_uv_level_low_en,
+            isMizo
+        )
     }
 }
 
@@ -2295,12 +2768,13 @@ private fun PremiumForecastRow(
     iconCode: Int,
     confidence: Double = 0.95,
     confidenceLabel: String = "",
+    isMizo: Boolean = true,
 ) {
-    val dayNameMizo = dayNameMizo(dateIso)
+    val dayName = dayNameMizo(dateIso, isMizo)
     val maxColor = getTemperatureColor(max)
     val minColor = getTemperatureColor(min)
     val confidenceColor = getConfidenceColor(confidence)
-    val displayLabel = confidenceLabel.ifBlank { getConfidenceLabel(confidence) }
+    val displayLabel = confidenceLabel.ifBlank { getConfidenceLabel(confidence, isMizo) }
     
     val shape = RoundedCornerShape(12.dp)
     
@@ -2363,8 +2837,8 @@ private fun PremiumForecastRow(
         
         // Day name - pure white bold
         Text(
-            text = dayNameMizo,
-            color = Color.White,
+            text = dayName,
+            color = appTextPrimary(),
             fontWeight = FontWeight.Bold,
             fontSize = dayFontSize,
             modifier = Modifier.weight(1f),
@@ -2422,18 +2896,18 @@ private fun PremiumForecastRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "${max.toInt()}°",
+                text = "${max.toInt()}\u00B0",
                 color = maxColor,
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = tempMaxFontSize,
             )
             Text(
                 text = " / ",
-                color = Color.White.copy(alpha = 0.6f),
+                color = appTextSecondary(0.6f),
                 fontSize = if (isSmallScreen) 11.sp else 14.sp,
             )
             Text(
-                text = "${min.toInt()}°",
+                text = "${min.toInt()}\u00B0",
                 color = minColor,
                 fontWeight = FontWeight.Bold,
                 fontSize = tempMinFontSize,
@@ -2444,8 +2918,14 @@ private fun PremiumForecastRow(
 
 // Enhanced Seasonal Outlook Section - REDESIGNED for clarity
 @Composable
-private fun SeasonalForecastSection(weather: WeatherDoc, isDay: Boolean) {
+private fun SeasonalForecastSection(
+    weather: WeatherDoc,
+    isDay: Boolean,
+    isMizo: Boolean = true,
+) {
     val seasonal = weather.seasonalOutlook
+    val unitMm = stringResource(R.string.main_unit_mm)
+    val unitCelsius = stringResource(R.string.main_unit_celsius)
     
     // Check if we have enhanced seasonal data (backend v86+)
     val currentMonth = seasonal?.currentMonth
@@ -2541,15 +3021,23 @@ private fun SeasonalForecastSection(weather: WeatherDoc, isDay: Boolean) {
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "Seasonal Outlook",
-                            color = Color.White,
+                            text = langString(
+                                R.string.main_seasonal_outlook_mz,
+                                R.string.main_seasonal_outlook_en,
+                                isMizo
+                            ),
+                            color = appTextPrimary(),
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
                             letterSpacing = (-0.3).sp,
                         )
                         Text(
-                            text = "Past vs Upcoming",
-                            color = Color.White.copy(alpha = 0.6f),
+                            text = langString(
+                                R.string.main_past_vs_upcoming_mz,
+                                R.string.main_past_vs_upcoming_en,
+                                isMizo
+                            ),
+                            color = appTextSecondary(0.6f),
                             fontSize = 12.sp,
                         )
                     }
@@ -2583,6 +3071,45 @@ private fun SeasonalForecastSection(weather: WeatherDoc, isDay: Boolean) {
                     }
                 }
             }
+
+            // Summary + metadata (if available)
+            val summaryText = if (isMizo) {
+                listOfNotNull(
+                    currentMonth?.outlookTextMz,
+                    seasonal?.noteMz,
+                    seasonal?.text
+                ).firstOrNull()
+            } else {
+                listOfNotNull(
+                    currentMonth?.outlookTextEn,
+                    seasonal?.noteEn,
+                    seasonal?.text
+                ).firstOrNull()
+            }
+            val updatedText = seasonal?.generatedAt?.let { ts ->
+                formatGeneratedTime(ts, weather.utcOffsetSeconds)
+            }
+            if (!summaryText.isNullOrBlank() || updatedText != null) {
+                val summaryScope = if (!currentMonth?.outlookTextEn.isNullOrBlank() || !currentMonth?.outlookTextMz.isNullOrBlank()) {
+                    langString(
+                        R.string.main_seasonal_scope_current_mz,
+                        R.string.main_seasonal_scope_current_en,
+                        isMizo
+                    )
+                } else {
+                    langString(
+                        R.string.main_seasonal_scope_trend_mz,
+                        R.string.main_seasonal_scope_trend_en,
+                        isMizo
+                    )
+                }
+                SeasonalSummaryCard(
+                    summaryText = summaryText,
+                    updatedText = updatedText,
+                    summaryScope = summaryScope,
+                    isMizo = isMizo
+                )
+            }
             
             // Current & Next Month Comparison Cards
             currentMonth?.let { month ->
@@ -2592,6 +3119,7 @@ private fun SeasonalForecastSection(weather: WeatherDoc, isDay: Boolean) {
                     seasonalForecast = month.seasonalForecast,
                     season = month.season,
                     isCurrent = true,
+                    isMizo = isMizo,
                 )
             }
             
@@ -2602,7 +3130,12 @@ private fun SeasonalForecastSection(weather: WeatherDoc, isDay: Boolean) {
                     seasonalForecast = month.seasonalForecast,
                     season = null,
                     isCurrent = false,
+                    isMizo = isMizo,
                 )
+            }
+
+            seasonal?.upcomingSeason?.let { season ->
+                UpcomingSeasonCard(season = season, isMizo = isMizo)
             }
             
             // 6-Month Forecast Grid
@@ -2625,12 +3158,16 @@ private fun SeasonalForecastSection(weather: WeatherDoc, isDay: Boolean) {
                                     .background(Color(0xFFF59E0B).copy(alpha = 0.2f)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(text = "📊", fontSize = 14.sp)
+                                Icon(imageVector = Icons.Filled.BarChart, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(16.dp))
                             }
                             Spacer(Modifier.width(10.dp))
                             Text(
-                                text = "6-Month Outlook",
-                                color = Color.White,
+                                text = langString(
+                                    R.string.main_six_month_outlook_mz,
+                                    R.string.main_six_month_outlook_en,
+                                    isMizo
+                                ),
+                                color = appTextPrimary(),
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp,
                             )
@@ -2648,7 +3185,7 @@ private fun SeasonalForecastSection(weather: WeatherDoc, isDay: Boolean) {
                                         .background(Color(0xFFF97316))
                                 )
                                 Spacer(Modifier.width(4.dp))
-                                Text("°C", color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp)
+                                Text(unitCelsius, color = appTextSecondary(0.6f), fontSize = 10.sp)
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
@@ -2658,7 +3195,7 @@ private fun SeasonalForecastSection(weather: WeatherDoc, isDay: Boolean) {
                                         .background(Color(0xFF3B82F6))
                                 )
                                 Spacer(Modifier.width(4.dp))
-                                Text("mm", color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp)
+                                Text(unitMm, color = appTextSecondary(0.6f), fontSize = 10.sp)
                             }
                         }
                     }
@@ -2669,7 +3206,7 @@ private fun SeasonalForecastSection(weather: WeatherDoc, isDay: Boolean) {
                         contentPadding = PaddingValues(horizontal = 2.dp)
                     ) {
                         items(monthlyForecasts.drop(2)) { forecast ->
-                            PremiumMonthlyMiniCard(forecast = forecast)
+                            PremiumMonthlyMiniCard(forecast = forecast, isMizo = isMizo)
                         }
                     }
                 }
@@ -2686,6 +3223,7 @@ private fun PremiumMonthComparisonCard(
     seasonalForecast: com.mapuia.khawchinthlirna.data.model.SeasonalForecastData? = null,
     season: String? = null,
     isCurrent: Boolean = false,
+    isMizo: Boolean = true,
 ) {
     val cardGradient = if (isCurrent) {
         listOf(
@@ -2708,9 +3246,13 @@ private fun PremiumMonthComparisonCard(
     
     val avgRain = climatology?.avgRainMm
     val forecastRain = seasonalForecast?.predictedRainMm?.toInt()
-    val rainDiff = if (avgRain != null && avgRain > 0 && forecastRain != null) {
-        ((forecastRain - avgRain) * 100 / avgRain)
-    } else null
+    val rainDiff = when {
+        avgRain != null && avgRain > 0 && forecastRain != null ->
+            ((forecastRain - avgRain) * 100 / avgRain)
+        seasonalForecast?.precipPctChange != null ->
+            seasonalForecast.precipPctChange?.toInt()
+        else -> null
+    }
     
     Column(
         modifier = Modifier
@@ -2755,13 +3297,25 @@ private fun PremiumMonthComparisonCard(
                 Column {
                     Text(
                         text = title,
-                        color = Color.White,
+                        color = appTextPrimary(),
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                     )
                     Text(
-                        text = if (isCurrent) "Current Month" else "Next Month",
-                        color = Color.White.copy(alpha = 0.5f),
+                        text = if (isCurrent) {
+                            langString(
+                                R.string.main_current_month_mz,
+                                R.string.main_current_month_en,
+                                isMizo
+                            )
+                        } else {
+                            langString(
+                                R.string.main_next_month_mz,
+                                R.string.main_next_month_en,
+                                isMizo
+                            )
+                        },
+                        color = appTextMuted(0.5f),
                         fontSize = 10.sp,
                     )
                 }
@@ -2801,30 +3355,34 @@ private fun PremiumMonthComparisonCard(
                 Text(text = "🌡️", fontSize = 16.sp)
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    text = "Temp",
-                    color = Color.White.copy(alpha = 0.7f),
+                    text = langString(
+                        R.string.main_temp_label_mz,
+                        R.string.main_temp_label_en,
+                        isMizo
+                    ),
+                    color = appTextSecondary(0.7f),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                 )
             }
             
-            // Values: Average → Forecast (diff)
+            // Values: Average -> Forecast (diff)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.End,
             ) {
                 // Average
                 Text(
-                    text = "${avgTemp ?: "--"}°",
-                    color = Color.White.copy(alpha = 0.6f),
+                    text = "${avgTemp ?: "--"}\u00B0",
+                    color = appTextSecondary(0.6f),
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
                 )
                 
                 // Arrow
                 Text(
-                    text = " → ",
-                    color = Color.White.copy(alpha = 0.4f),
+                    text = " -> ",
+                    color = appTextMuted(0.4f),
                     fontSize = 14.sp,
                 )
                 
@@ -2836,7 +3394,7 @@ private fun PremiumMonthComparisonCard(
                 }
                 
                 Text(
-                    text = "${forecastTemp ?: "--"}°",
+                    text = "${forecastTemp ?: "--"}\u00B0",
                     color = tempColor,
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 22.sp,
@@ -2853,7 +3411,7 @@ private fun PremiumMonthComparisonCard(
                             .padding(horizontal = 6.dp, vertical = 3.dp)
                     ) {
                         Text(
-                            text = "$sign$diff°",
+                            text = "$sign$diff\u00B0",
                             color = tempColor,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
@@ -2863,6 +3421,8 @@ private fun PremiumMonthComparisonCard(
             }
         }
         
+        val unitMm = stringResource(R.string.main_unit_mm)
+
         // Rain Comparison Row
         Row(
             modifier = Modifier
@@ -2878,30 +3438,34 @@ private fun PremiumMonthComparisonCard(
                 Text(text = "💧", fontSize = 16.sp)
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    text = "Rain",
-                    color = Color.White.copy(alpha = 0.7f),
+                    text = langString(
+                        R.string.main_rain_label_mz,
+                        R.string.main_rain_label_en,
+                        isMizo
+                    ),
+                    color = appTextSecondary(0.7f),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                 )
             }
             
-            // Values: Average → Forecast (diff%)
+            // Values: Average -> Forecast (diff%)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.End,
             ) {
                 // Average
                 Text(
-                    text = "${avgRain ?: "--"}mm",
-                    color = Color.White.copy(alpha = 0.6f),
+                    text = "${avgRain ?: "--"}$unitMm",
+                    color = appTextSecondary(0.6f),
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                 )
                 
                 // Arrow
                 Text(
-                    text = " → ",
-                    color = Color.White.copy(alpha = 0.4f),
+                    text = " -> ",
+                    color = appTextMuted(0.4f),
                     fontSize = 14.sp,
                 )
                 
@@ -2913,12 +3477,12 @@ private fun PremiumMonthComparisonCard(
                 }
                 
                 Text(
-                    text = "${forecastRain ?: "--"}mm",
+                    text = "${forecastRain ?: "--"}$unitMm",
                     color = rainColor,
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 20.sp,
                 )
-                
+
                 // Difference badge inline (percentage)
                 rainDiff?.let { diff ->
                     Spacer(Modifier.width(6.dp))
@@ -2942,21 +3506,20 @@ private fun PremiumMonthComparisonCard(
     }
 }
 
-/** Premium Mini Card for 6-month forecast - shows value with inline diff */
 @Composable
-private fun PremiumMonthlyMiniCard(forecast: com.mapuia.khawchinthlirna.data.model.MonthlyForecast) {
-    // Temperature color based on anomaly
+private fun PremiumMonthlyMiniCard(
+    forecast: com.mapuia.khawchinthlirna.data.model.MonthlyForecast,
+    isMizo: Boolean = true,
+) {
+    val unitMm = stringResource(R.string.main_unit_mm)
+    val unitDeg = "\u00B0"
     val tempAnom = forecast.tempAnomalyC ?: 0.0
+    val rainPct = forecast.precipPctChange?.toInt() ?: 0
     val tempColor = when {
-        tempAnom >= 2.0 -> Color(0xFFFF7043)
-        tempAnom >= 1.0 -> Color(0xFFFFA726)
-        tempAnom <= -2.0 -> Color(0xFF4FC3F7)
-        tempAnom <= -1.0 -> Color(0xFF81D4FA)
+        tempAnom >= 2 -> Color(0xFFFF7043)
+        tempAnom <= -2 -> Color(0xFF4FC3F7)
         else -> Color(0xFF4ADE80)
     }
-    
-    // Rain color based on change
-    val rainPct = forecast.precipPctChange ?: 0.0
     val rainColor = when {
         rainPct >= 30 -> Color(0xFF42A5F5)
         rainPct >= 15 -> Color(0xFF64B5F6)
@@ -2964,7 +3527,7 @@ private fun PremiumMonthlyMiniCard(forecast: com.mapuia.khawchinthlirna.data.mod
         rainPct <= -15 -> Color(0xFFFFCC80)
         else -> Color(0xFF4ADE80)
     }
-    
+
     Column(
         modifier = Modifier
             .widthIn(min = 82.dp)
@@ -2989,7 +3552,7 @@ private fun PremiumMonthlyMiniCard(forecast: com.mapuia.khawchinthlirna.data.mod
         // Month name
         Text(
             text = forecast.monthName.take(3),
-            color = Color.White,
+            color = appTextPrimary(),
             fontWeight = FontWeight.Bold,
             fontSize = 12.sp,
         )
@@ -2998,7 +3561,7 @@ private fun PremiumMonthlyMiniCard(forecast: com.mapuia.khawchinthlirna.data.mod
         forecast.predictedTempMax?.let { temp ->
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "${temp.toInt()}°",
+                    text = "${temp.toInt()}$unitDeg",
                     color = tempColor,
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 22.sp,
@@ -3006,7 +3569,7 @@ private fun PremiumMonthlyMiniCard(forecast: com.mapuia.khawchinthlirna.data.mod
                 forecast.tempAnomalyC?.let { anom ->
                     val sign = if (anom >= 0) "+" else ""
                     Text(
-                        text = "(${sign}${anom.toInt()}°)",
+                        text = "(${sign}${anom.toInt()}$unitDeg)",
                         color = tempColor.copy(alpha = 0.8f),
                         fontSize = 10.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -3016,32 +3579,208 @@ private fun PremiumMonthlyMiniCard(forecast: com.mapuia.khawchinthlirna.data.mod
         }
         
         // Rain with inline diff %
-        forecast.predictedRainMm?.let { rain ->
+        when {
+            forecast.predictedRainMm != null -> {
+                val rain = forecast.predictedRainMm
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(rainColor.copy(alpha = 0.15f))
+                        .padding(horizontal = 6.dp, vertical = 5.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Filled.WaterDrop,
+                            contentDescription = null,
+                            tint = rainColor.copy(alpha = 0.8f),
+                            modifier = Modifier.size(12.dp),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = "${rain?.toInt()}$unitMm",
+                            color = rainColor,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                        )
+                    }
+                    forecast.precipPctChange?.let { pct ->
+                        val sign = if (pct >= 0) "+" else ""
+                        Text(
+                            text = "(${sign}${pct.toInt()}%)",
+                            color = rainColor.copy(alpha = 0.8f),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                }
+            }
+            forecast.precipPctChange != null -> {
+                val pct = forecast.precipPctChange ?: 0.0
+                val sign = if (pct >= 0) "+" else ""
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(rainColor.copy(alpha = 0.15f))
+                        .padding(horizontal = 6.dp, vertical = 5.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Filled.WaterDrop,
+                            contentDescription = null,
+                            tint = rainColor.copy(alpha = 0.8f),
+                            modifier = Modifier.size(12.dp),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = "$sign${pct.toInt()}%",
+                            color = rainColor,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                        )
+                    }
+                }
+            }
+        }
+
+    }
+}
+
+@Composable
+private fun UpcomingSeasonCard(
+    season: com.mapuia.khawchinthlirna.data.model.SeasonOutlook,
+    isMizo: Boolean = true,
+) {
+    val configuration = LocalConfiguration.current
+    val scale = (configuration.screenWidthDp / 360f).coerceIn(0.85f, 1.1f)
+    val accent = when (season.season.uppercase()) {
+        "MONSOON", "MONSOON_PEAK" -> Color(0xFF38BDF8)
+        "PRE_MONSOON", "WARMING", "HOT_SEASON" -> Color(0xFFF59E0B)
+        "POST_MONSOON", "MONSOON_RETREAT" -> Color(0xFF34D399)
+        "DRY" -> Color(0xFF60A5FA)
+        else -> Color(0xFF8B5CF6)
+    }
+    val shape = RoundedCornerShape(20.dp)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        Color(0xFF0F172A).copy(alpha = 0.9f),
+                        accent.copy(alpha = 0.12f)
+                    )
+                )
+            )
+            .border(1.dp, accent.copy(alpha = 0.35f), shape)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(accent.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = "🌤️", fontSize = (14.sp * scale))
+                }
+                Spacer(Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = langString(
+                            R.string.main_upcoming_season_mz,
+                            R.string.main_upcoming_season_en,
+                            isMizo
+                        ),
+                        color = appTextPrimary(),
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = (13.sp * scale),
+                    )
+                    Text(
+                        text = season.season.ifBlank { "—" },
+                        color = appTextSecondary(0.6f),
+                        fontSize = (10.sp * scale),
+                    )
+                }
+            }
+            if (season.monthsAway > 0) {
+                PremiumPill(
+                    text = langFormatString(
+                        R.string.main_starts_in_mz,
+                        R.string.main_starts_in_en,
+                        isMizo,
+                        season.monthsAway
+                    ),
+                    bg = accent.copy(alpha = 0.2f),
+                    border = accent.copy(alpha = 0.4f),
+                    textColor = accent
+                )
+            }
+        }
+
+        if (season.text.isNotBlank()) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(rainColor.copy(alpha = 0.15f))
-                    .padding(horizontal = 6.dp, vertical = 5.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color.White.copy(alpha = 0.06f))
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "💧", fontSize = 9.sp)
-                    Spacer(Modifier.width(2.dp))
-                    Text(
-                        text = "${rain.toInt()}mm",
-                        color = rainColor,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp,
+                Text(
+                    text = langString(
+                        R.string.main_key_message_mz,
+                        R.string.main_key_message_en,
+                        isMizo
+                    ),
+                    color = appTextSecondary(0.7f),
+                    fontSize = (10.sp * scale),
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = season.text,
+                    color = appTextPrimary(),
+                    fontSize = (12.sp * scale),
+                )
+            }
+        }
+
+        val rain = season.rainfallOutlook?.takeIf { it.isNotBlank() }
+        val wind = season.windOutlook?.takeIf { it.isNotBlank() }
+        if (rain != null || wind != null) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                rain?.let {
+                    SeasonDetailRow(
+                        icon = "💧",
+                        title = langString(
+                            R.string.main_rain_outlook_label_mz,
+                            R.string.main_rain_outlook_label_en,
+                            isMizo
+                        ),
+                        value = it
                     )
                 }
-                forecast.precipPctChange?.let { pct ->
-                    val sign = if (pct >= 0) "+" else ""
-                    Text(
-                        text = "(${sign}${pct.toInt()}%)",
-                        color = rainColor.copy(alpha = 0.8f),
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Medium,
+                wind?.let {
+                    SeasonDetailRow(
+                        icon = "🍃",
+                        title = langString(
+                            R.string.main_wind_outlook_label_mz,
+                            R.string.main_wind_outlook_label_en,
+                            isMizo
+                        ),
+                        value = it
                     )
                 }
             }
@@ -3049,9 +3788,230 @@ private fun PremiumMonthlyMiniCard(forecast: com.mapuia.khawchinthlirna.data.mod
     }
 }
 
+@Composable
+private fun SeasonalSummaryCard(
+    summaryText: String?,
+    updatedText: String?,
+    summaryScope: String,
+    isMizo: Boolean,
+) {
+    val configuration = LocalConfiguration.current
+    val scale = (configuration.screenWidthDp / 360f).coerceIn(0.85f, 1.1f)
+    val shape = RoundedCornerShape(18.dp)
+    val accent = Color(0xFF22D3EE)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color(0xFF111827).copy(alpha = 0.92f),
+                        Color(0xFF0B1220).copy(alpha = 0.92f)
+                    )
+                )
+            )
+            .border(1.dp, accent.copy(alpha = 0.25f), shape)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clip(CircleShape)
+                        .background(accent.copy(alpha = 0.18f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = "🧭", fontSize = (13.sp * scale))
+                }
+                Spacer(Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = langString(
+                            R.string.main_seasonal_summary_title_mz,
+                            R.string.main_seasonal_summary_title_en,
+                            isMizo
+                        ),
+                        color = appTextPrimary(),
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = (13.sp * scale),
+                    )
+                    Text(
+                        text = langFormatString(
+                            R.string.main_seasonal_scope_label_mz,
+                            R.string.main_seasonal_scope_label_en,
+                            isMizo,
+                            summaryScope
+                        ),
+                        color = appTextSecondary(0.6f),
+                        fontSize = (10.sp * scale),
+                    )
+                }
+            }
+            PremiumPill(
+                text = langString(
+                    R.string.main_seasonal_trend_only_short_mz,
+                    R.string.main_seasonal_trend_only_short_en,
+                    isMizo
+                ),
+                bg = accent.copy(alpha = 0.16f),
+                border = accent.copy(alpha = 0.3f),
+                textColor = accent
+            )
+        }
+        summaryText?.let { txt ->
+            Text(
+                text = txt,
+                color = appTextPrimary(),
+                fontSize = (12.sp * scale),
+                lineHeight = (16.sp * scale),
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            updatedText?.let { ts ->
+                Text(
+                    text = langFormatString(
+                        R.string.main_seasonal_updated_mz,
+                        R.string.main_seasonal_updated_en,
+                        isMizo,
+                        ts
+                    ),
+                    color = appTextSecondary(0.55f),
+                    fontSize = (10.sp * scale),
+                )
+            }
+            Text(
+                text = langString(
+                    R.string.main_seasonal_longrange_mz,
+                    R.string.main_seasonal_longrange_en,
+                    isMizo
+                ),
+                color = appTextSecondary(0.45f),
+                fontSize = (10.sp * scale),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SeasonDetailRow(
+    icon: String,
+    title: String,
+    value: String,
+) {
+    val configuration = LocalConfiguration.current
+    val scale = (configuration.screenWidthDp / 360f).coerceIn(0.85f, 1.1f)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.White.copy(alpha = 0.05f))
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(text = icon, fontSize = (14.sp * scale))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = title,
+                color = appTextSecondary(0.7f),
+                fontSize = (11.sp * scale),
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = value,
+            color = appTextPrimary(),
+            fontSize = (12.sp * scale),
+        )
+    }
+}
+
+@Composable
+private fun PremiumPill(
+    text: String,
+    bg: Color,
+    border: Color,
+    textColor: Color,
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(bg)
+            .border(1.dp, border, RoundedCornerShape(20.dp))
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = text,
+            color = textColor,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+@Composable
+private fun SkillMetricTile(
+    label: String,
+    value: String,
+    accent: Color,
+    icon: String,
+    modifier: Modifier = Modifier,
+) {
+    val configuration = LocalConfiguration.current
+    val scale = (configuration.screenWidthDp / 360f).coerceIn(0.85f, 1.1f)
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(accent.copy(alpha = 0.12f))
+            .border(1.dp, accent.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 10.dp, vertical = 10.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = icon,
+                fontSize = (12.sp * scale),
+                fontFamily = FontFamily.Default,
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = label,
+                color = appTextSecondary(0.7f),
+                fontSize = (10.sp * scale),
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = value,
+            color = appTextPrimary(),
+            fontSize = (12.sp * scale),
+            fontWeight = FontWeight.Bold,
+        )
+    }
+}
+
 /** Data source and accuracy info section - Redesigned compact version */
 @Composable
-private fun DataSourceInfo(weather: WeatherDoc, isDay: Boolean) {
+private fun DataSourceInfo(
+    weather: WeatherDoc,
+    isDay: Boolean,
+    skillReport: SkillReport?,
+    isMizo: Boolean = true,
+) {
     val modelWeights = weather.meta?.modelWeights
     val modelsUsed = weather.modelsUsed
     val generated = weather.generated
@@ -3068,8 +4028,8 @@ private fun DataSourceInfo(weather: WeatherDoc, isDay: Boolean) {
     }
     val isStale = dataAgeHours != null && dataAgeHours > 6 // More than 6 hours old
     
-    // If no model info, don't show
-    if (modelsUsed.isNullOrEmpty() && modelWeights.isNullOrEmpty()) return
+    // If no model info AND no skill report, don't show
+    if (modelsUsed.isNullOrEmpty() && modelWeights.isNullOrEmpty() && skillReport == null) return
     
     val shape = RoundedCornerShape(20.dp)
 
@@ -3114,13 +4074,17 @@ private fun DataSourceInfo(weather: WeatherDoc, isDay: Boolean) {
                             .background(Color(0xFF6366F1).copy(alpha = 0.2f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = "🛰️", fontSize = 14.sp)
+                        Icon(imageVector = Icons.Filled.Public, contentDescription = null, tint = Color(0xFF6366F1), modifier = Modifier.size(16.dp))
                     }
                     Spacer(Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = "Data Source",
-                            color = Color.White,
+                            text = langString(
+                                R.string.main_data_source_title_mz,
+                                R.string.main_data_source_title_en,
+                                isMizo
+                            ),
+                            color = appTextPrimary(),
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 14.sp,
                         )
@@ -3128,8 +4092,22 @@ private fun DataSourceInfo(weather: WeatherDoc, isDay: Boolean) {
                         if (generated != null) {
                             val timeStr = formatGeneratedTime(generated, weather.utcOffsetSeconds)
                             Text(
-                                text = if (isStale) "⚠️ $timeStr" else "Updated $timeStr",
-                                color = if (isStale) Color(0xFFFFB74D) else Color.White.copy(alpha = 0.5f),
+                                text = if (isStale) {
+                                    langFormatString(
+                                        R.string.main_data_source_stale_mz,
+                                        R.string.main_data_source_stale_en,
+                                        isMizo,
+                                        timeStr
+                                    )
+                                } else {
+                                    langFormatString(
+                                        R.string.main_data_source_updated_mz,
+                                        R.string.main_data_source_updated_en,
+                                        isMizo,
+                                        timeStr
+                                    )
+                                },
+                                color = if (isStale) Color(0xFFFFB74D) else appTextMuted(0.5f),
                                 fontSize = 10.sp,
                                 fontWeight = if (isStale) FontWeight.Medium else FontWeight.Normal,
                             )
@@ -3146,7 +4124,12 @@ private fun DataSourceInfo(weather: WeatherDoc, isDay: Boolean) {
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "${dataAgeHours}h hlui",
+                            text = langFormatString(
+                                R.string.main_data_source_age_mz,
+                                R.string.main_data_source_age_en,
+                                isMizo,
+                                dataAgeHours
+                            ),
                             color = Color(0xFFFFB74D),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
@@ -3170,17 +4153,15 @@ private fun DataSourceInfo(weather: WeatherDoc, isDay: Boolean) {
                         val displayName = when (model.lowercase()) {
                             "ecmwf", "ecmwf_ifs" -> "ECMWF"
                             "gfs", "gfs_seamless" -> "GFS"
-                            "icon" -> "ICON"
+                            "icon", "icon_seamless" -> "ICON"
                             else -> model.uppercase().take(6)
                         }
                         val (color, bgColor) = when (model.lowercase()) {
                             "ecmwf", "ecmwf_ifs" -> Color(0xFF10B981) to Color(0xFF10B981).copy(alpha = 0.15f)
                             "gfs", "gfs_seamless" -> Color(0xFF3B82F6) to Color(0xFF3B82F6).copy(alpha = 0.15f)
-                            "icon" -> Color(0xFFF59E0B) to Color(0xFFF59E0B).copy(alpha = 0.15f)
+                            "icon", "icon_seamless" -> Color(0xFFF59E0B) to Color(0xFFF59E0B).copy(alpha = 0.15f)
                             else -> Color.White to Color.White.copy(alpha = 0.1f)
                         }
-                        val percentage = (weight * 100).toInt()
-                        
                         // Modern pill chip
                         Row(
                             modifier = Modifier
@@ -3207,13 +4188,6 @@ private fun DataSourceInfo(weather: WeatherDoc, isDay: Boolean) {
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 11.sp,
                             )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = "$percentage%",
-                                color = Color.White.copy(alpha = 0.9f),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
-                            )
                         }
                     }
                 }
@@ -3221,7 +4195,7 @@ private fun DataSourceInfo(weather: WeatherDoc, isDay: Boolean) {
                 // Fallback to just showing model names
                 Text(
                     text = modelsUsed.joinToString(" • ") { it.uppercase() },
-                    color = Color.White.copy(alpha = 0.7f),
+                    color = appTextSecondary(0.7f),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                 )
@@ -3236,9 +4210,230 @@ private fun DataSourceInfo(weather: WeatherDoc, isDay: Boolean) {
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                ConfidenceLegendItem(Color(0xFF22C55E), "Rintlak")
-                ConfidenceLegendItem(Color(0xFFFBBF24), "Pangngai")
-                ConfidenceLegendItem(Color(0xFFEF4444), "Pawm ve theih")
+                ConfidenceLegendItem(
+                    Color(0xFF22C55E),
+                    langString(
+                        R.string.main_confidence_high_short_mz,
+                        R.string.main_confidence_high_short_en,
+                        isMizo
+                    )
+                )
+                ConfidenceLegendItem(
+                    Color(0xFFFBBF24),
+                    langString(
+                        R.string.main_confidence_medium_short_mz,
+                        R.string.main_confidence_medium_short_en,
+                        isMizo
+                    )
+                )
+                ConfidenceLegendItem(
+                    Color(0xFFEF4444),
+                    langString(
+                        R.string.main_confidence_low_short_mz,
+                        R.string.main_confidence_low_short_en,
+                        isMizo
+                    )
+                )
+            }
+
+            // Skill report (latest verification summary)
+            // Show skill data if we have any valid data (sample count, model counts, or model MAE)
+            // Note: MAE/Brier of 0 is VALID (means perfect match or no rain events)
+            val hasSkillData = skillReport != null && (
+                skillReport.sampleCount > 0 ||
+                !skillReport.perModelCount.isNullOrEmpty() ||
+                skillReport.perModelMae != null  // Changed: null check only, empty map or zeros are valid
+            )
+            if (hasSkillData) {
+                val report = skillReport ?: return
+                val maeText = report.overallMae?.let { "%.2f".format(it) } ?: "--"
+                val brierText = report.overallBrier?.let { "%.3f".format(it) } ?: "--"
+                val biasText = report.overallBias?.let { "%.2f".format(it) } ?: "--"
+                val hitRateText = report.hitRate?.let { if (it <= 1.0) "%.0f%%".format(it * 100.0) else "%.0f%%".format(it) } ?: "--"
+                val faText = report.falseAlarmRate?.let { if (it <= 1.0) "%.0f%%".format(it * 100.0) else "%.0f%%".format(it) } ?: "--"
+
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(
+                                        Brush.verticalGradient(
+                                            colors = listOf(
+                                                Color(0xFF0F172A).copy(alpha = 0.9f),
+                                                Color(0xFF111827).copy(alpha = 0.8f)
+                                            )
+                                        )
+                                    )
+                                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                                    .padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(28.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFF22C55E).copy(alpha = 0.15f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Assessment,
+                                            contentDescription = null,
+                                            tint = Color(0xFF22C55E),
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                        }
+                                        Spacer(Modifier.width(8.dp))
+                                        Column {
+                                            Text(
+                                                text = langString(
+                                                    R.string.main_skill_report_title_mz,
+                                                    R.string.main_skill_report_title_en,
+                                                    isMizo
+                                                ),
+                                                color = appTextPrimary(),
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontSize = 12.sp,
+                                            )
+                                            Text(
+                                                text = langString(
+                                                    R.string.main_verification_subtitle_mz,
+                                                    R.string.main_verification_subtitle_en,
+                                                    isMizo
+                                                ),
+                                                color = appTextSecondary(0.6f),
+                                                fontSize = 10.sp,
+                                            )
+                                        }
+                                    }
+                                    PremiumPill(
+                                        text = langFormatString(
+                                            R.string.main_skill_report_samples_mz,
+                                            R.string.main_skill_report_samples_en,
+                                            isMizo,
+                                            skillReport.sampleCount
+                                        ),
+                                        bg = Color.White.copy(alpha = 0.06f),
+                                        border = Color.White.copy(alpha = 0.15f),
+                                        textColor = appTextSecondary(0.75f)
+                                    )
+                                }
+
+                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    SkillMetricTile(
+                                        label = langFormatString(
+                                            R.string.main_skill_report_mae_mz,
+                                            R.string.main_skill_report_mae_en,
+                                            isMizo,
+                                            ""
+                                        ).trim(),
+                                        value = maeText,
+                                        accent = Color(0xFFF59E0B),
+                                        icon = "MAE",
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    SkillMetricTile(
+                                        label = langFormatString(
+                                            R.string.main_skill_report_brier_mz,
+                                            R.string.main_skill_report_brier_en,
+                                            isMizo,
+                                            ""
+                                        ).trim(),
+                                        value = brierText,
+                                        accent = Color(0xFF8B5CF6),
+                                        icon = "BR",
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    SkillMetricTile(
+                                        label = langFormatString(
+                                            R.string.main_skill_report_bias_mz,
+                                            R.string.main_skill_report_bias_en,
+                                            isMizo,
+                                            ""
+                                        ).trim(),
+                                        value = biasText,
+                                        accent = Color(0xFF38BDF8),
+                                        icon = "BS",
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    SkillMetricTile(
+                                        label = langString(
+                                            R.string.main_skill_report_hitfa_mz,
+                                            R.string.main_skill_report_hitfa_en,
+                                            isMizo
+                                        ),
+                                        value = "$hitRateText / $faText",
+                                        accent = Color(0xFF22C55E),
+                                        icon = "HF",
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                                skillReport.perModelMae?.takeIf { it.isNotEmpty() }?.let { perModel ->
+                                    val best = perModel.entries.sortedBy { it.value }.take(3)
+                                    val bestText = best.joinToString(" | ") { (k, v) ->
+                                        val name = when (k.lowercase()) {
+                                            "ecmwf", "ecmwf_ifs" -> "ECMWF"
+                                            "gfs", "gfs_seamless" -> "GFS"
+                                            "icon" -> "ICON"
+                                            else -> k.uppercase().take(6)
+                                        }
+                                        "$name ${"%.2f".format(v)}"
+                                    }
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(Color.White.copy(alpha = 0.04f))
+                                            .padding(horizontal = 10.dp, vertical = 8.dp)
+                                    ) {
+                                        Text(
+                                            text = langFormatString(
+                                                R.string.main_skill_report_best_mz,
+                                                R.string.main_skill_report_best_en,
+                                                isMizo,
+                                                bestText
+                                            ),
+                                            color = appTextSecondary(0.6f),
+                                            fontSize = 10.sp,
+                                        )
+                                    }
+                                }
+                            }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.White.copy(alpha = 0.04f))
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        text = langString(
+                            R.string.main_skill_report_title_mz,
+                            R.string.main_skill_report_title_en,
+                            isMizo
+                        ),
+                        color = appTextSecondary(0.75f),
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp,
+                    )
+                    Text(
+                        text = langString(
+                            R.string.main_skill_report_unavailable_mz,
+                            R.string.main_skill_report_unavailable_en,
+                            isMizo
+                        ),
+                        color = appTextMuted(0.5f),
+                        fontSize = 10.sp,
+                    )
+                }
             }
         }
     }
@@ -3249,10 +4444,7 @@ private fun formatGeneratedTime(generated: String, utcOffsetSeconds: Long?): Str
     return try {
         val offset = utcOffsetSeconds ?: (5 * 3600 + 30 * 60).toLong() // Default IST +5:30
         val instant = java.time.Instant.parse(generated)
-        val localTime = instant.plusSeconds(offset)
-        val formatter = java.time.format.DateTimeFormatter.ofPattern("MM/dd HH:mm")
-            .withZone(java.time.ZoneOffset.UTC)
-        formatter.format(localTime)
+        formatInstant(instant, offset)
     } catch (_: Exception) {
         try {
             val parts = generated.split("T")
@@ -3263,6 +4455,32 @@ private fun formatGeneratedTime(generated: String, utcOffsetSeconds: Long?): Str
             } else generated
         } catch (_: Exception) { generated }
     }
+}
+
+private fun formatAnyTimestamp(value: Any?, utcOffsetSeconds: Long?): String? {
+    if (value == null) return null
+    return try {
+        when (value) {
+            is String -> formatGeneratedTime(value, utcOffsetSeconds)
+            is Timestamp -> formatInstant(value.toDate().toInstant(), utcOffsetSeconds ?: defaultUtcOffset())
+            is java.util.Date -> formatInstant(value.toInstant(), utcOffsetSeconds ?: defaultUtcOffset())
+            is Long -> formatInstant(java.time.Instant.ofEpochMilli(value), utcOffsetSeconds ?: defaultUtcOffset())
+            else -> value.toString()
+        }
+    } catch (_: Exception) {
+        null
+    }
+}
+
+private fun formatInstant(instant: java.time.Instant, offsetSeconds: Long): String {
+    val localTime = instant.plusSeconds(offsetSeconds)
+    val formatter = java.time.format.DateTimeFormatter.ofPattern("MM/dd HH:mm")
+        .withZone(java.time.ZoneOffset.UTC)
+    return formatter.format(localTime)
+}
+
+private fun defaultUtcOffset(): Long {
+    return (5 * 3600 + 30 * 60).toLong()
 }
 
 @Composable
@@ -3276,39 +4494,74 @@ private fun ConfidenceLegendItem(color: Color, label: String) {
         Spacer(Modifier.width(3.dp))
         Text(
             text = label,
-            color = Color.White.copy(alpha = 0.5f),
+            color = appTextMuted(0.5f),
             fontSize = 9.sp,
         )
     }
 }
 
-private fun dayNameMizo(dateIso: String): String {
-    return try {
+@Composable
+private fun dayNameMizo(dateIso: String, isMizo: Boolean = true): String {
+    return runCatching {
         val date = LocalDate.parse(dateIso.take(10))
         when (date.dayOfWeek) {
-            java.time.DayOfWeek.MONDAY -> "Thawhtanni"
-            java.time.DayOfWeek.TUESDAY -> "Thawhlehni"
-            java.time.DayOfWeek.WEDNESDAY -> "Nilaini"
-            java.time.DayOfWeek.THURSDAY -> "Ningani"
-            java.time.DayOfWeek.FRIDAY -> "Zirtawpni"
-            java.time.DayOfWeek.SATURDAY -> "Inrinni"
-            java.time.DayOfWeek.SUNDAY -> "Pathianni"
+            java.time.DayOfWeek.MONDAY -> langString(
+                R.string.main_day_mon_mz,
+                R.string.main_day_mon_en,
+                isMizo
+            )
+            java.time.DayOfWeek.TUESDAY -> langString(
+                R.string.main_day_tue_mz,
+                R.string.main_day_tue_en,
+                isMizo
+            )
+            java.time.DayOfWeek.WEDNESDAY -> langString(
+                R.string.main_day_wed_mz,
+                R.string.main_day_wed_en,
+                isMizo
+            )
+            java.time.DayOfWeek.THURSDAY -> langString(
+                R.string.main_day_thu_mz,
+                R.string.main_day_thu_en,
+                isMizo
+            )
+            java.time.DayOfWeek.FRIDAY -> langString(
+                R.string.main_day_fri_mz,
+                R.string.main_day_fri_en,
+                isMizo
+            )
+            java.time.DayOfWeek.SATURDAY -> langString(
+                R.string.main_day_sat_mz,
+                R.string.main_day_sat_en,
+                isMizo
+            )
+            java.time.DayOfWeek.SUNDAY -> langString(
+                R.string.main_day_sun_mz,
+                R.string.main_day_sun_en,
+                isMizo
+            )
         }
-    } catch (_: Throwable) {
-        dateIso.take(10)
-    }
+    }.getOrElse { dateIso.take(10) }
 }
 
 /** Wrapper for SunriseSunsetArc with premium styling */
 @Composable
-private fun SunriseSunsetCard(weather: WeatherDoc, isDay: Boolean) {
+private fun SunriseSunsetCard(
+    weather: WeatherDoc,
+    isDay: Boolean,
+    isMizo: Boolean = true,
+) {
     // Just call the existing arc implementation
-    SunriseSunsetArc(weather, isDay)
+    SunriseSunsetArc(weather, isDay, isMizo)
 }
 
 @Composable
 @Suppress("UNUSED_PARAMETER")
-private fun SunriseSunsetArc(weather: WeatherDoc, isDayParam: Boolean) {
+private fun SunriseSunsetArc(
+    weather: WeatherDoc,
+    isDayParam: Boolean,
+    isMizo: Boolean,
+) {
     val daily = weather.daily ?: return
     val sunriseStr = daily.sunrise.firstOrNull() ?: return
     val sunsetStr = daily.sunset.firstOrNull() ?: return
@@ -3365,8 +4618,12 @@ private fun SunriseSunsetArc(weather: WeatherDoc, isDayParam: Boolean) {
                 Text(text = "☀️", fontSize = 18.sp)
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "SUNRISE & SUNSET",
-                    color = Color.White,
+                    text = langString(
+                        R.string.main_sunrise_sunset_title_mz,
+                        R.string.main_sunrise_sunset_title_en,
+                        isMizo
+                    ),
+                    color = appTextPrimary(),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.sp,
@@ -3471,8 +4728,12 @@ private fun SunriseSunsetArc(weather: WeatherDoc, isDayParam: Boolean) {
                 // Sunrise
                 Column(horizontalAlignment = Alignment.Start) {
                     Text(
-                        text = "🌅 Sunrise",
-                        color = Color.White.copy(alpha = 0.7f),
+                        text = langString(
+                            R.string.main_sunrise_mz,
+                            R.string.main_sunrise_en,
+                            isMizo
+                        ),
+                        color = appTextSecondary(0.7f),
                         fontSize = 11.sp,
                     )
                     Text(
@@ -3488,13 +4749,23 @@ private fun SunriseSunsetArc(weather: WeatherDoc, isDayParam: Boolean) {
                     val daylightHours = totalMinutes / 60
                     val daylightMins = totalMinutes % 60
                     Text(
-                        text = "Daylight",
-                        color = Color.White.copy(alpha = 0.6f),
+                        text = langString(
+                            R.string.main_daylight_mz,
+                            R.string.main_daylight_en,
+                            isMizo
+                        ),
+                        color = appTextSecondary(0.6f),
                         fontSize = 10.sp,
                     )
                     Text(
-                        text = "${daylightHours}h ${daylightMins}m",
-                        color = Color.White,
+                        text = langFormatString(
+                            R.string.main_daylight_duration_mz,
+                            R.string.main_daylight_duration_en,
+                            isMizo,
+                            daylightHours,
+                            daylightMins
+                        ),
+                        color = appTextPrimary(),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -3503,8 +4774,12 @@ private fun SunriseSunsetArc(weather: WeatherDoc, isDayParam: Boolean) {
                 // Sunset
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = "🌇 Sunset",
-                        color = Color.White.copy(alpha = 0.7f),
+                        text = langString(
+                            R.string.main_sunset_mz,
+                            R.string.main_sunset_en,
+                            isMizo
+                        ),
+                        color = appTextSecondary(0.7f),
                         fontSize = 11.sp,
                     )
                     Text(
@@ -3579,11 +4854,9 @@ private fun NativeAdAndroidView(
 // NOTE: RadarMap and RadarWebView removed - RainViewer has no coverage in Mizoram/Chin Hills region
 
 @Composable
-private fun NativeAdCard(modifier: Modifier = Modifier, isDay: Boolean) {
+private fun NativeAdCard(modifier: Modifier = Modifier, isDay: Boolean, isMizo: Boolean = true) {
     val context = LocalContext.current
     var nativeAd by remember { mutableStateOf<NativeAd?>(null) }
-    var adLoadError by remember { mutableStateOf<String?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
 
     // Ensure we don't leak ads.
     DisposableEffect(nativeAd) {
@@ -3595,6 +4868,11 @@ private fun NativeAdCard(modifier: Modifier = Modifier, isDay: Boolean) {
     val nativeAdUnitId = remember { context.getString(R.string.admob_native_unit_id) }
 
     LaunchedEffect(Unit) {
+        if (com.mapuia.khawchinthlirna.util.NativeAdBackoff.shouldBackoff()) {
+            com.mapuia.khawchinthlirna.util.AppLog.w("NativeAd", "Backoff active after no-fill. Skipping ad request.")
+            return@LaunchedEffect
+        }
+
         com.mapuia.khawchinthlirna.util.AppLog.d("NativeAd", "Loading native ad with unit ID: $nativeAdUnitId")
 
         val loader = AdLoader.Builder(context, nativeAdUnitId)
@@ -3606,14 +4884,10 @@ private fun NativeAdCard(modifier: Modifier = Modifier, isDay: Boolean) {
             .forNativeAd { ad ->
                 nativeAd?.destroy()
                 nativeAd = ad
-                isLoading = false
-                adLoadError = null
-                com.mapuia.khawchinthlirna.util.AppLog.d("NativeAd", "✅ Native ad loaded successfully!")
+                com.mapuia.khawchinthlirna.util.AppLog.d("NativeAd", "Native ad loaded successfully")
             }
             .withAdListener(object : com.google.android.gms.ads.AdListener() {
                 override fun onAdFailedToLoad(error: com.google.android.gms.ads.LoadAdError) {
-                    isLoading = false
-                    // Error code explanation for debugging
                     val errorDetail = when (error.code) {
                         0 -> "Internal error"
                         1 -> "Invalid request - check ad unit ID"
@@ -3621,8 +4895,10 @@ private fun NativeAdCard(modifier: Modifier = Modifier, isDay: Boolean) {
                         3 -> "No fill - normal for unpublished apps, ads will serve after app is live"
                         else -> "Unknown error"
                     }
-                    adLoadError = "Ad not available ($errorDetail)"
-                    com.mapuia.khawchinthlirna.util.AppLog.w("NativeAd", "❌ Failed to load: $errorDetail (code: ${error.code}, msg: ${error.message})")
+                    if (error.code == 3) {
+                        com.mapuia.khawchinthlirna.util.NativeAdBackoff.markNoFill()
+                    }
+                    com.mapuia.khawchinthlirna.util.AppLog.w("NativeAd", "Failed to load: $errorDetail (code: ${error.code}, msg: ${error.message})")
                 }
                 override fun onAdLoaded() {
                     com.mapuia.khawchinthlirna.util.AppLog.d("NativeAd", "Ad loaded callback triggered")
@@ -3636,76 +4912,25 @@ private fun NativeAdCard(modifier: Modifier = Modifier, isDay: Boolean) {
         loader.loadAd(AdRequest.Builder().build())
     }
 
-    // Ad placement polish: keep a consistent placeholder height to avoid jumpy layout.
+    val ad = nativeAd ?: return
+
     GlassCard(modifier = modifier, isDay = isDay) {
-        Text(text = "Sponsored", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
-
-        val ad = nativeAd
-        when {
-            ad != null -> {
-                NativeAdAndroidView(
-                    nativeAd = ad,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp)),
-                )
-            }
-            adLoadError != null -> {
-                // Show placeholder when ad fails to load (common for unpublished apps)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(100.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color.White.copy(alpha = 0.04f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "📢 Ad space",
-                        color = Color.White.copy(alpha = 0.3f),
-                        fontSize = 12.sp,
-                    )
-                }
-            }
-            else -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color.White.copy(alpha = 0.06f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(text = "Loading ad…", color = Color.White.copy(alpha = 0.75f))
-                }
-            }
-        }
+        Text(
+            text = langString(
+                R.string.main_sponsored_mz,
+                R.string.main_sponsored_en,
+                isMizo
+            ),
+            color = appTextSecondary(0.8f),
+            fontSize = 12.sp,
+        )
+        NativeAdAndroidView(
+            nativeAd = ad,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp)),
+        )
     }
-}
-
-@Composable
-private fun BannerAd(modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val bannerAdUnitId = remember { context.getString(R.string.admob_banner_unit_id) }
-    
-    // Calculate adaptive banner size based on screen width
-    val density = context.resources.displayMetrics.density
-    val screenWidthDp = (context.resources.displayMetrics.widthPixels / density).toInt()
-
-    AndroidView(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(Color.Transparent)
-            .padding(bottom = 8.dp),
-        factory = { ctx ->
-            AdView(ctx).apply {
-                // Use adaptive banner for better fit across devices
-                setAdSize(AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(ctx, screenWidthDp))
-                adUnitId = bannerAdUnitId
-                loadAd(AdRequest.Builder().build())
-            }
-        },
-    )
 }
 
 @Composable
@@ -3714,9 +4939,15 @@ private fun GlassHeaderBar(
     onInfoClick: () -> Unit = {},
     onMenuItemClick: (String) -> Unit = {},
     modifier: Modifier = Modifier,
+    isMizo: Boolean = true,
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(0.dp, 0.dp, 28.dp, 28.dp)
+    val openMenuDescription = langString(
+        R.string.main_cd_open_menu_mz,
+        R.string.main_cd_open_menu_en,
+        isMizo
+    )
     
     // Animated shimmer effect for premium feel
     val infiniteTransition = rememberInfiniteTransition(label = "headerShimmer")
@@ -3812,8 +5043,8 @@ private fun GlassHeaderBar(
                 
                 Column {
                     Text(
-                        text = "Khawchin Thlirna",
-                        color = Color.White,
+                        text = stringResource(R.string.app_name),
+                        color = appTextPrimary(),
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 20.sp,
                         letterSpacing = (-0.3).sp,
@@ -3847,7 +5078,9 @@ private fun GlassHeaderBar(
                             RoundedCornerShape(14.dp)
                         )
                         .clickable { showMenu = true }
-                        .semantics { contentDescription = "Open menu" },
+                        .semantics {
+                            contentDescription = openMenuDescription
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     // Premium hamburger icon with gradient lines
@@ -3893,7 +5126,8 @@ private fun GlassHeaderBar(
                     onMenuItemClick = { item ->
                         showMenu = false
                         onMenuItemClick(item)
-                    }
+                    },
+                    isMizo = isMizo,
                 )
             }
         }
@@ -3907,6 +5141,7 @@ private fun PremiumDropdownMenu(
     onDismissRequest: () -> Unit,
     onReport: () -> Unit,
     onMenuItemClick: (String) -> Unit,
+    isMizo: Boolean = true,
 ) {
     androidx.compose.material3.DropdownMenu(
         expanded = expanded,
@@ -3955,8 +5190,12 @@ private fun PremiumDropdownMenu(
             ) {
                 Text(text = "☰", fontSize = 20.sp)
                 Text(
-                    text = "Menu",
-                    color = Color.White,
+                    text = langString(
+                        R.string.main_menu_label_mz,
+                        R.string.main_menu_label_en,
+                        isMizo
+                    ),
+                    color = appTextPrimary(),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                 )
@@ -3965,63 +5204,128 @@ private fun PremiumDropdownMenu(
         
         Spacer(Modifier.height(8.dp))
         
-        // Weather Report - Primary Action with accent
+        // Profile - Moved to top
         PremiumMenuItem(
-            icon = "📝",
+            icon = "👤",
             iconBg = Color(0xFF06D6A0),
-            text = "Khawchin reportna",
-            subtitle = "Submit weather report",
+            text = langString(
+                R.string.main_menu_profile_title_mz,
+                R.string.main_menu_profile_title_en,
+                isMizo
+            ),
+            subtitle = langString(
+                R.string.main_menu_profile_subtitle_mz,
+                R.string.main_menu_profile_subtitle_en,
+                isMizo
+            ),
             isPrimary = true,
-            onClick = onReport
+            onClick = { onMenuItemClick("profile") }
         )
         
         PremiumMenuDivider()
         
+        // Weather Report - Primary Action with accent
+        PremiumMenuItem(
+            icon = "📝",
+            iconBg = Color(0xFF3A86FF),
+            text = langString(
+                R.string.main_menu_report_title_mz,
+                R.string.main_menu_report_title_en,
+                isMizo
+            ),
+            subtitle = langString(
+                R.string.main_menu_report_subtitle_mz,
+                R.string.main_menu_report_subtitle_en,
+                isMizo
+            ),
+            onClick = onReport
+        )
+        
         // App Guide
         PremiumMenuItem(
             icon = "📖",
-            iconBg = Color(0xFF3A86FF),
-            text = "App hman dan",
-            subtitle = "How to use this app",
+            iconBg = Color(0xFF8338EC),
+            text = langString(
+                R.string.main_menu_app_guide_title_mz,
+                R.string.main_menu_app_guide_title_en,
+                isMizo
+            ),
+            subtitle = langString(
+                R.string.main_menu_app_guide_subtitle_mz,
+                R.string.main_menu_app_guide_subtitle_en,
+                isMizo
+            ),
             onClick = { onMenuItemClick("app_guide") }
         )
         
         // How Crowdsourcing Works
         PremiumMenuItem(
             icon = "👥",
-            iconBg = Color(0xFF8338EC),
-            text = "Report a ṭangkai dan",
-            subtitle = "How reports help",
+            iconBg = Color(0xFF00B4D8),
+            text = langString(
+                R.string.main_menu_crowd_title_mz,
+                R.string.main_menu_crowd_title_en,
+                isMizo
+            ),
+            subtitle = langString(
+                R.string.main_menu_crowd_subtitle_mz,
+                R.string.main_menu_crowd_subtitle_en,
+                isMizo
+            ),
             onClick = { onMenuItemClick("crowdsourcing") }
         )
         
         // Rain Intensity Guide
         PremiumMenuItem(
             icon = "🌧️",
-            iconBg = Color(0xFF00B4D8),
-            text = "Ruah Sur Tam Dan Hrilhfiahna",
-            subtitle = "Rain intensity guide",
+            iconBg = Color(0xFFFF6B6B),
+            text = langString(
+                R.string.main_menu_rain_title_mz,
+                R.string.main_menu_rain_title_en,
+                isMizo
+            ),
+            subtitle = langString(
+                R.string.main_menu_rain_subtitle_mz,
+                R.string.main_menu_rain_subtitle_en,
+                isMizo
+            ),
             onClick = { onMenuItemClick("rain_guide") }
         )
         
         // Weather Data Explained
         PremiumMenuItem(
             icon = "🌡️",
-            iconBg = Color(0xFFFF6B6B),
-            text = "Khawchin data chiang zâwk",
-            subtitle = "Understanding weather data",
+            iconBg = Color(0xFFFFBE0B),
+            text = langString(
+                R.string.main_menu_weather_title_mz,
+                R.string.main_menu_weather_title_en,
+                isMizo
+            ),
+            subtitle = langString(
+                R.string.main_menu_weather_subtitle_mz,
+                R.string.main_menu_weather_subtitle_en,
+                isMizo
+            ),
             onClick = { onMenuItemClick("weather_data") }
         )
         
         PremiumMenuDivider()
         
-        // Theme Selection
+        // Settings - At bottom
         PremiumMenuItem(
-            icon = "🎨",
-            iconBg = Color(0xFFFFBE0B),
-            text = "Theme thlanna",
-            subtitle = "Change app theme",
-            onClick = { onMenuItemClick("theme") }
+            icon = "⚙️",
+            iconBg = Color(0xFF6C757D),
+            text = langString(
+                R.string.main_menu_settings_title_mz,
+                R.string.main_menu_settings_title_en,
+                isMizo
+            ),
+            subtitle = langString(
+                R.string.main_menu_settings_subtitle_mz,
+                R.string.main_menu_settings_subtitle_en,
+                isMizo
+            ),
+            onClick = { onMenuItemClick("settings") }
         )
         
         Spacer(Modifier.height(12.dp))
@@ -4100,13 +5404,13 @@ private fun PremiumMenuItem(
         Column {
             Text(
                 text = text,
-                color = Color.White,
+                color = appTextPrimary(),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
                 text = subtitle,
-                color = Color.White.copy(alpha = 0.5f),
+                color = appTextMuted(0.5f),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Normal,
             )
@@ -4116,8 +5420,8 @@ private fun PremiumMenuItem(
         
         // Arrow indicator
         Text(
-            text = "›",
-            color = Color.White.copy(alpha = 0.4f),
+            text = ">",
+            color = appTextMuted(0.4f),
             fontSize = 20.sp,
             fontWeight = FontWeight.Light,
         )
@@ -4155,6 +5459,7 @@ private fun WeatherSystemsAlertCard(
     weather: WeatherDoc,
     userLat: Double?,
     userLon: Double?,
+    isMizo: Boolean = true,
 ) {
     val weatherSystems = weather.weatherSystems ?: return
     val bob = weatherSystems.bayOfBengal ?: return
@@ -4213,6 +5518,7 @@ private fun WeatherSystemsAlertCard(
                 etaHours = etaHours,
                 cycloneLat = cyclone.lat,
                 cycloneLon = cyclone.lon,
+                isMizo = isMizo,
             )
             
             // Rotation animation for expand icon
@@ -4250,14 +5556,30 @@ private fun WeatherSystemsAlertCard(
                             Text(text = emoji, fontSize = 16.sp)
                             Spacer(Modifier.width(6.dp))
                             Column {
+                                val cycloneDisplayName = cyclone.name.ifBlank {
+                                    langString(
+                                        R.string.main_cyclone_default_name_mz,
+                                        R.string.main_cyclone_default_name_en,
+                                        isMizo
+                                    )
+                                }
                                 Text(
-                                    text = "Bay of Bengal Khawchin",
-                                    color = Color.White.copy(alpha = 0.7f),
+                                    text = langString(
+                                        R.string.main_bay_of_bengal_weather_mz,
+                                        R.string.main_bay_of_bengal_weather_en,
+                                        isMizo
+                                    ),
+                                    color = appTextSecondary(0.7f),
                                     fontSize = 8.sp,
                                 )
                                 Text(
-                                    text = "Tropical Cyclone ${cyclone.name.ifBlank { "" }}".trim(),
-                                    color = Color.White,
+                                    text = langFormatString(
+                                        R.string.main_tropical_cyclone_mz,
+                                        R.string.main_tropical_cyclone_en,
+                                        isMizo,
+                                        cycloneDisplayName
+                                    ),
+                                    color = appTextPrimary(),
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 12.sp,
                                 )
@@ -4275,7 +5597,7 @@ private fun WeatherSystemsAlertCard(
                                 ) {
                                     Text(
                                         text = cyclone.categoryShort,
-                                        color = Color.White,
+                                        color = appTextPrimary(),
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 10.sp,
                                     )
@@ -4285,8 +5607,20 @@ private fun WeatherSystemsAlertCard(
                             // Expand/Collapse icon
                             Icon(
                                 imageVector = Icons.Default.ExpandMore,
-                                contentDescription = if (isExpanded) "Collapse" else "Expand",
-                                tint = Color.White.copy(alpha = 0.8f),
+                                contentDescription = if (isExpanded) {
+                                    langString(
+                                        R.string.main_collapse_mz,
+                                        R.string.main_collapse_en,
+                                        isMizo
+                                    )
+                                } else {
+                                    langString(
+                                        R.string.main_expand_mz,
+                                        R.string.main_expand_en,
+                                        isMizo
+                                    )
+                                },
+                                tint = appIconTint(0.8f),
                                 modifier = Modifier
                                     .size(20.dp)
                                     .rotate(rotationAngle)
@@ -4296,8 +5630,13 @@ private fun WeatherSystemsAlertCard(
                     
                     // Short summary always visible
                     Text(
-                        text = "📍 Km ${closestKm.toInt()} vela hnai",
-                        color = Color.White.copy(alpha = 0.8f),
+                        text = langFormatString(
+                            R.string.main_cyclone_distance_mz,
+                            R.string.main_cyclone_distance_en,
+                            isMizo,
+                            closestKm.toInt()
+                        ),
+                        color = appTextSecondary(0.8f),
                         fontSize = 10.sp,
                     )
                     
@@ -4312,7 +5651,7 @@ private fun WeatherSystemsAlertCard(
                             // Contextual message
                             Text(
                                 text = contextualMessage,
-                                color = Color.White.copy(alpha = 0.9f),
+                                color = appTextSecondary(0.9f),
                                 fontSize = 11.sp,
                                 lineHeight = 15.sp,
                             )
@@ -4328,8 +5667,13 @@ private fun WeatherSystemsAlertCard(
                                             Text(text = "💨", fontSize = 10.sp)
                                             Spacer(Modifier.width(3.dp))
                                             Text(
-                                                text = "${cyclone.windSpeedKmh.toInt()} km/h",
-                                                color = Color.White.copy(alpha = 0.8f),
+                                                text = langFormatString(
+                                                    R.string.main_kmh_format_mz,
+                                                    R.string.main_kmh_format_en,
+                                                    isMizo,
+                                                    cyclone.windSpeedKmh.toInt()
+                                                ),
+                                                color = appTextSecondary(0.8f),
                                                 fontSize = 10.sp,
                                             )
                                         }
@@ -4339,8 +5683,13 @@ private fun WeatherSystemsAlertCard(
                                             Text(text = "⏱️", fontSize = 10.sp)
                                             Spacer(Modifier.width(3.dp))
                                             Text(
-                                                text = "~${etaHours}h hnuah",
-                                                color = Color.White.copy(alpha = 0.8f),
+                                                text = langFormatString(
+                                                    R.string.main_eta_hours_mz,
+                                                    R.string.main_eta_hours_en,
+                                                    isMizo,
+                                                    etaHours
+                                                ),
+                                                color = appTextSecondary(0.8f),
                                                 fontSize = 10.sp,
                                             )
                                         }
@@ -4350,6 +5699,478 @@ private fun WeatherSystemsAlertCard(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CycloneImpactCard(
+    impacts: List<CycloneImpact>?,
+    isMizo: Boolean = true,
+) {
+    if (impacts.isNullOrEmpty()) return
+
+    val shape = RoundedCornerShape(16.dp)
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = langString(
+                R.string.main_cyclone_impact_title_mz,
+                R.string.main_cyclone_impact_title_en,
+                isMizo
+            ),
+            color = appTextPrimary(),
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 13.sp,
+        )
+
+        impacts.forEach { impact ->
+            val level = (impact.impactLevel ?: "none").lowercase()
+            val (gradient, border) = when (level) {
+                "high" -> Brush.horizontalGradient(listOf(Color(0xFFFF1744), Color(0xFFD50000))) to Color(0xFFFF1744)
+                "medium" -> Brush.horizontalGradient(listOf(Color(0xFFFF6D00), Color(0xFFFF3D00))) to Color(0xFFFF6D00)
+                "low" -> Brush.horizontalGradient(listOf(Color(0xFF3A86FF), Color(0xFF2563EB))) to Color(0xFF3A86FF)
+                else -> Brush.horizontalGradient(listOf(Color(0xFF374151), Color(0xFF1F2937))) to Color(0xFF9CA3AF)
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(shape)
+                    .background(gradient)
+                    .border(1.dp, Color.White.copy(alpha = 0.2f), shape)
+                    .padding(12.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val name = impact.cycloneName?.takeIf { it.isNotBlank() } ?: langString(
+                        R.string.main_cyclone_default_name_mz,
+                        R.string.main_cyclone_default_name_en,
+                        isMizo
+                    )
+
+                    Text(
+                        text = name,
+                        color = appTextPrimary(),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                    )
+
+                    val impactLabel = impactLevelLabel(level, isMizo)
+                    Text(
+                        text = langFormatString(
+                            R.string.main_cyclone_impact_level_mz,
+                            R.string.main_cyclone_impact_level_en,
+                            isMizo,
+                            impactLabel
+                        ),
+                        color = appTextSecondary(0.9f),
+                        fontSize = 11.sp,
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        impact.closestApproachKm?.let { km ->
+                            Text(
+                                text = langFormatString(
+                                    R.string.main_cyclone_impact_distance_mz,
+                                    R.string.main_cyclone_impact_distance_en,
+                                    isMizo,
+                                    km.toInt()
+                                ),
+                                color = appTextSecondary(0.85f),
+                                fontSize = 10.sp,
+                            )
+                        }
+                        impact.etaHours?.let { eta ->
+                            if (eta > 0) {
+                                Text(
+                                    text = langFormatString(
+                                        R.string.main_cyclone_impact_eta_mz,
+                                        R.string.main_cyclone_impact_eta_en,
+                                        isMizo,
+                                        eta
+                                    ),
+                                    color = appTextSecondary(0.85f),
+                                    fontSize = 10.sp,
+                                )
+                            }
+                        }
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        impact.expectedWindKmh?.let { wind ->
+                            if (wind > 0) {
+                                Text(
+                                    text = langFormatString(
+                                        R.string.main_cyclone_impact_wind_mz,
+                                        R.string.main_cyclone_impact_wind_en,
+                                        isMizo,
+                                        wind.toInt()
+                                    ),
+                                    color = appTextSecondary(0.8f),
+                                    fontSize = 10.sp,
+                                )
+                            }
+                        }
+                        impact.rainRisk?.takeIf { it.isNotBlank() }?.let { risk ->
+                            Text(
+                                text = langFormatString(
+                                    R.string.main_cyclone_impact_rain_mz,
+                                    R.string.main_cyclone_impact_rain_en,
+                                    isMizo,
+                                    riskLabel(risk, isMizo)
+                                ),
+                                color = appTextSecondary(0.8f),
+                                fontSize = 10.sp,
+                            )
+                        }
+                    }
+
+                    impact.motionQuality?.takeIf { it.isNotBlank() }?.let { mq ->
+                        Text(
+                            text = langFormatString(
+                                R.string.main_cyclone_impact_motion_mz,
+                                R.string.main_cyclone_impact_motion_en,
+                                isMizo,
+                                mq.uppercase()
+                            ),
+                            color = appTextMuted(0.6f),
+                            fontSize = 9.sp,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeatherSystemsSummaryCard(
+    weather: WeatherDoc,
+    isMizo: Boolean = true,
+) {
+    val systems = weather.weatherSystems ?: return
+    val active = systems.activeSystems
+    val alerts = systems.alerts ?: emptyList()
+    val hasExtra =
+        (systems.westernDisturbance?.active == true) ||
+        (systems.easterlySurge?.active == true) ||
+        ((systems.norwesters as? Map<*, *>)?.get("active") as? Boolean == true)
+
+    if (active.isEmpty() && alerts.isEmpty() && !hasExtra) return
+
+    val shape = RoundedCornerShape(16.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Color.White.copy(alpha = 0.06f))
+            .border(1.dp, Color.White.copy(alpha = 0.1f), shape)
+            .padding(12.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = langString(
+                    R.string.main_systems_title_mz,
+                    R.string.main_systems_title_en,
+                    isMizo
+                ),
+                color = appTextPrimary(),
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+            )
+
+    if (active.isNotEmpty()) {
+                val systemLabels = mapOf(
+                    "bay_of_bengal_cyclone" to langString(
+                        R.string.main_system_bob_mz,
+                        R.string.main_system_bob_en,
+                        isMizo
+                    ),
+                    "western_disturbance" to langString(
+                        R.string.main_system_wd_mz,
+                        R.string.main_system_wd_en,
+                        isMizo
+                    ),
+                    "norwester" to langString(
+                        R.string.main_system_norwester_mz,
+                        R.string.main_system_norwester_en,
+                        isMizo
+                    ),
+                    "easterly_moisture" to langString(
+                        R.string.main_system_easterly_mz,
+                        R.string.main_system_easterly_en,
+                        isMizo
+                    ),
+                    "monsoon_rain" to langString(
+                        R.string.main_system_monsoon_mz,
+                        R.string.main_system_monsoon_en,
+                        isMizo
+                    ),
+                )
+                val activeLabel = active.joinToString(" | ") { key ->
+                    systemLabels[key] ?: key.replace("_", " ")
+                }
+                Text(
+                    text = langFormatString(
+                        R.string.main_systems_active_mz,
+                        R.string.main_systems_active_en,
+                        isMizo,
+                        activeLabel
+                    ),
+                    color = appTextSecondary(0.9f),
+                    fontSize = 11.sp,
+                )
+            }
+
+            systems.timestamp?.let { ts ->
+                Text(
+                    text = langFormatString(
+                        R.string.main_systems_checked_mz,
+                        R.string.main_systems_checked_en,
+                        isMizo,
+                        formatGeneratedTime(ts, weather.utcOffsetSeconds)
+                    ),
+                    color = appTextMuted(0.6f),
+                    fontSize = 9.sp,
+                )
+            }
+
+            if (alerts.isNotEmpty()) {
+                Text(
+                    text = langString(
+                        R.string.main_systems_alerts_mz,
+                        R.string.main_systems_alerts_en,
+                        isMizo
+                    ),
+                    color = appTextSecondary(0.85f),
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 11.sp,
+                )
+                alerts.forEach { alert ->
+                    val text = (if (isMizo) alert["text_mz"] else alert["text_en"]) as? String
+                    if (!text.isNullOrBlank()) {
+                        Text(
+                            text = text,
+                            color = appTextSecondary(0.85f),
+                            fontSize = 10.sp,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NowcastSourcesCard(
+    weather: WeatherDoc,
+    isMizo: Boolean = true,
+) {
+    val nowcast = weather.nowcast ?: return
+    val hasSources = nowcast.sources.isNotEmpty() || nowcast.sourceDetails.isNotEmpty()
+
+    val shape = RoundedCornerShape(16.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Color.White.copy(alpha = 0.06f))
+            .border(1.dp, Color.White.copy(alpha = 0.1f), shape)
+            .padding(12.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = langString(
+                    R.string.main_nowcast_title_mz,
+                    R.string.main_nowcast_title_en,
+                    isMizo
+                ),
+                color = appTextPrimary(),
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+            )
+
+            Text(
+                text = langFormatString(
+                    R.string.main_nowcast_method_mz,
+                    R.string.main_nowcast_method_en,
+                    isMizo,
+                    nowcastMethodLabel(nowcast.method, isMizo)
+                ),
+                color = appTextSecondary(0.85f),
+                fontSize = 11.sp,
+            )
+
+            if (nowcast.hoursAdjusted > 0) {
+                Text(
+                    text = langFormatString(
+                        R.string.main_nowcast_hours_mz,
+                        R.string.main_nowcast_hours_en,
+                        isMizo,
+                        nowcast.hoursAdjusted
+                    ),
+                    color = appTextMuted(0.6f),
+                    fontSize = 10.sp,
+                )
+            }
+
+            nowcast.nowcastValue?.let { v ->
+                Text(
+                    text = langFormatString(
+                        R.string.main_nowcast_value_mz,
+                        R.string.main_nowcast_value_en,
+                        isMizo,
+                        String.format("%.2f", v)
+                    ),
+                    color = appTextSecondary(0.8f),
+                    fontSize = 10.sp,
+                )
+            }
+
+            if (hasSources) {
+                val sourcesText = if (nowcast.sources.isNotEmpty()) {
+                    nowcast.sources.joinToString(" | ") { it.replaceFirstChar { c -> c.uppercase() } }
+                } else {
+                    nowcast.sourceDetails.joinToString(" | ") { it.name.replaceFirstChar { c -> c.uppercase() } }
+                }
+                Text(
+                    text = langFormatString(
+                        R.string.main_nowcast_sources_mz,
+                        R.string.main_nowcast_sources_en,
+                        isMizo,
+                        sourcesText
+                    ),
+                    color = appTextSecondary(0.85f),
+                    fontSize = 10.sp,
+                )
+            }
+
+            if (nowcast.sourceDetails.isNotEmpty()) {
+                nowcast.sourceDetails.forEach { src ->
+                    val line = buildString {
+                        append(src.name.replaceFirstChar { c -> c.uppercase() })
+                        src.value?.let { append(" | ").append(String.format("%.2f", it)).append(" mm/hr") }
+                        src.confidence?.let { append(" | ").append((it * 100).toInt()).append("%") }
+                    }
+                    Text(
+                        text = line,
+                        color = appTextMuted(0.6f),
+                        fontSize = 9.sp,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SatelliteBiasCard(
+    imerg: ImergDoc?,
+    snapshot: ForecastSnapshot?,
+    weather: WeatherDoc,
+    isMizo: Boolean = true,
+) {
+    val bias = weather.meta?.biasFactor
+    val hasData = imerg != null || snapshot != null || bias != null
+    if (!hasData) return
+
+    val shape = RoundedCornerShape(16.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Color.White.copy(alpha = 0.06f))
+            .border(1.dp, Color.White.copy(alpha = 0.1f), shape)
+            .padding(12.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = langString(
+                    R.string.main_satellite_title_mz,
+                    R.string.main_satellite_title_en,
+                    isMizo
+                ),
+                color = appTextPrimary(),
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+            )
+
+            Text(
+                text = langString(
+                    R.string.main_satellite_desc_mz,
+                    R.string.main_satellite_desc_en,
+                    isMizo
+                ),
+                color = appTextSecondary(0.8f),
+                fontSize = 10.sp,
+            )
+
+            val imergTimeStr = formatAnyTimestamp(imerg?.imergTime ?: imerg?.generated, weather.utcOffsetSeconds)
+            if (imergTimeStr != null) {
+                Text(
+                    text = langFormatString(
+                        R.string.main_satellite_imerg_time_mz,
+                        R.string.main_satellite_imerg_time_en,
+                        isMizo,
+                        imergTimeStr
+                    ),
+                    color = appTextSecondary(0.85f),
+                    fontSize = 10.sp,
+                )
+            }
+
+            imerg?.precip30MinMm?.let { v ->
+                Text(
+                    text = langFormatString(
+                        R.string.main_satellite_rain_30min_mz,
+                        R.string.main_satellite_rain_30min_en,
+                        isMizo,
+                        String.format("%.2f", v)
+                    ),
+                    color = appTextSecondary(0.85f),
+                    fontSize = 10.sp,
+                )
+            }
+
+            imerg?.precipRateMmHr?.let { v ->
+                Text(
+                    text = langFormatString(
+                        R.string.main_satellite_rate_mz,
+                        R.string.main_satellite_rate_en,
+                        isMizo,
+                        String.format("%.2f", v)
+                    ),
+                    color = appTextSecondary(0.85f),
+                    fontSize = 10.sp,
+                )
+            }
+
+            val snapTimeStr = formatAnyTimestamp(snapshot?.runTime ?: snapshot?.generated, weather.utcOffsetSeconds)
+            if (snapTimeStr != null) {
+                Text(
+                    text = langFormatString(
+                        R.string.main_satellite_snapshot_time_mz,
+                        R.string.main_satellite_snapshot_time_en,
+                        isMizo,
+                        snapTimeStr
+                    ),
+                    color = appTextMuted(0.6f),
+                    fontSize = 9.sp,
+                )
+            }
+
+            bias?.let {
+                Text(
+                    text = langFormatString(
+                        R.string.main_satellite_bias_factor_mz,
+                        R.string.main_satellite_bias_factor_en,
+                        isMizo,
+                        String.format("%.2f", it)
+                    ),
+                    color = appTextSecondary(0.85f),
+                    fontSize = 10.sp,
+                )
             }
         }
     }
@@ -4374,9 +6195,38 @@ private fun calculateDistanceKm(lat1: Double, lon1: Double, lat2: Double, lon2: 
     return earthRadiusKm * c
 }
 
+private fun impactLevelLabel(level: String, isMizo: Boolean): String {
+    return when (level) {
+        "high" -> if (isMizo) "Nasa tak" else "High"
+        "medium" -> if (isMizo) "Zual" else "Medium"
+        "low" -> if (isMizo) "A tlem" else "Low"
+        else -> if (isMizo) "A la chiang lo" else "Low"
+    }
+}
+
+private fun riskLabel(level: String, isMizo: Boolean): String {
+    return when (level.lowercase()) {
+        "heavy" -> if (isMizo) "nasa" else "heavy"
+        "moderate" -> if (isMizo) "zual" else "moderate"
+        "light" -> if (isMizo) "tlem" else "light"
+        else -> if (isMizo) "a la chiang lo" else "unknown"
+    }
+}
+
+@Composable
+private fun nowcastMethodLabel(method: String, isMizo: Boolean): String {
+    return when (method) {
+        "hybrid_blend" -> if (isMizo) "Satellite + report + model" else "Satellite + reports + model"
+        "model_only" -> if (isMizo) "Model chauh" else "Model only"
+        "model_fallback" -> if (isMizo) "Model (fallback)" else "Model fallback"
+        else -> method
+    }
+}
+
 /**
  * Build contextual message about cyclone impact relative to user's location
  */
+@Composable
 private fun buildContextualCycloneMessage(
     cycloneName: String,
     category: String,
@@ -4387,41 +6237,98 @@ private fun buildContextualCycloneMessage(
     etaHours: Int,
     cycloneLat: Double,
     cycloneLon: Double,
+    isMizo: Boolean = true,
 ): String {
-    val name = cycloneName.ifBlank { "Thlipui" }
+    val name = cycloneName.ifBlank {
+        langString(
+            R.string.main_cyclone_default_name_mz,
+            R.string.main_cyclone_default_name_en,
+            isMizo
+        )
+    }
     
     // Determine location description
     val locationDesc = when {
-        cycloneLon < 87 -> "Bay of Bengal khawthlang lamah" // Changed 'thlai' to 'khawthlang'
-        cycloneLon < 90 -> "Bay of Bengal lai takah"        // Changed 'lailien' to 'lai takah'
-        cycloneLon < 92 -> "Bangladesh chhim lam tuipuiah"  // More specific than just 'inkar'
-        else -> "Andaman tuifinriatah"
+        cycloneLon < 87 -> langString(
+            R.string.main_cyclone_location_west_bob_mz,
+            R.string.main_cyclone_location_west_bob_en,
+            isMizo
+        )
+        cycloneLon < 90 -> langString(
+            R.string.main_cyclone_location_central_bob_mz,
+            R.string.main_cyclone_location_central_bob_en,
+            isMizo
+        )
+        cycloneLon < 92 -> langString(
+            R.string.main_cyclone_location_bangladesh_south_mz,
+            R.string.main_cyclone_location_bangladesh_south_en,
+            isMizo
+        )
+        else -> langString(
+            R.string.main_cyclone_location_andaman_mz,
+            R.string.main_cyclone_location_andaman_en,
+            isMizo
+        )
     }
     
     return when {
         // High impact expected
         willImpact && probability >= 70 -> {
-            "⚠️ $name ($categoryShort) chu $locationDesc a awm a, kan ram lam a rawn pan mek. " +
-            (if (etaHours > 0) "Darkar $etaHours hnu velah a rawn thleng thei. " else "") +
-            "Thli na tak leh ruahtui tam tak a thlen thei a, fimkhur hle tur!"
+            val etaSentence = if (etaHours > 0) {
+                langFormatString(
+                    R.string.main_cyclone_eta_sentence_mz,
+                    R.string.main_cyclone_eta_sentence_en,
+                    isMizo,
+                    etaHours
+                )
+            } else {
+                ""
+            }
+            langFormatString(
+                R.string.main_cyclone_msg_high_mz,
+                R.string.main_cyclone_msg_high_en,
+                isMizo,
+                name,
+                categoryShort,
+                locationDesc,
+                etaSentence
+            )
         }
         
         // Moderate impact possible
         willImpact || probability >= 40 -> {
-            "$name ($categoryShort) chu $locationDesc a awm a, kan ram a rawn hnaih thei. " +
-            "Km $closestKm vela hnaiin a rawn kal ang. Ruah leh thli a awm thei a, hriattirna ngaichang reng ang che."
+            langFormatString(
+                R.string.main_cyclone_msg_moderate_mz,
+                R.string.main_cyclone_msg_moderate_en,
+                isMizo,
+                name,
+                categoryShort,
+                locationDesc,
+                closestKm
+            )
         }
         
         // Low impact, but worth monitoring
         probability >= 20 -> {
-            "$name chu $locationDesc a awm mek. I awmna a rawn thleng kher lo ang, " +
-            "mahse thli leh ruah erawh a rawn thlen thei. Darkar 24 chhung chu ruah a sur thei."
+            langFormatString(
+                R.string.main_cyclone_msg_low_mz,
+                R.string.main_cyclone_msg_low_en,
+                isMizo,
+                name,
+                locationDesc
+            )
         }
         
         // Far away, minimal impact
         else -> {
-            "$name chu $locationDesc a awm a, i awmna a rawn thleng pha lo ang. " +
-            "Km $closestKm vela hlaah a kal liam ang. Hriattirna erawh ngaichang reng rawh."
+            langFormatString(
+                R.string.main_cyclone_msg_far_mz,
+                R.string.main_cyclone_msg_far_en,
+                isMizo,
+                name,
+                locationDesc,
+                closestKm
+            )
         }
     }
 }
@@ -4430,6 +6337,7 @@ private fun buildContextualCycloneMessage(
 private fun MarineAlertStrip(
     marineAlert: String,
     isDay: Boolean,
+    isMizo: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val level = marineAlert.trim().uppercase()
@@ -4437,22 +6345,38 @@ private fun MarineAlertStrip(
 
     val (label, tint, gradient) = when (level) {
         "RED" -> Triple(
-            "⚠️ Tuifinriat Ralveng: Thlipui Hlauhawm A Awm",
+            langString(
+                R.string.main_marine_alert_red_mz,
+                R.string.main_marine_alert_red_en,
+                isMizo
+            ),
             Color(0xFFFF1744),
             Brush.horizontalGradient(listOf(Color(0xFFFF1744), Color(0xFFD50000)))
         )
         "ORANGE" -> Triple(
-            "⚠️ Tuifinriat Ralveng: Thlipui A Intham Mek",
+            langString(
+                R.string.main_marine_alert_orange_mz,
+                R.string.main_marine_alert_orange_en,
+                isMizo
+            ),
             Color(0xFFFF6D00),
             Brush.horizontalGradient(listOf(Color(0xFFFF6D00), Color(0xFFFF3D00)))
         )
         "YELLOW" -> Triple(
-            "🌤️ Tuifinriat Ralveng: Low Pressure (Thlipui intham tan)",
+            langString(
+                R.string.main_marine_alert_yellow_mz,
+                R.string.main_marine_alert_yellow_en,
+                isMizo
+            ),
             Color(0xFFFFD600),
             Brush.horizontalGradient(listOf(Color(0xFFFFD600), Color(0xFFFFC400)))
         )
         "GREEN" -> Triple(
-            "✅ Tuifinriat Ralveng: A Thiang Tha E",
+            langString(
+                R.string.main_marine_alert_green_mz,
+                R.string.main_marine_alert_green_en,
+                isMizo
+            ),
             Color(0xFF00E676),
             Brush.horizontalGradient(listOf(Color(0xFF00E676), Color(0xFF00C853)))
         )
@@ -4484,7 +6408,7 @@ private fun MarineAlertStrip(
         ) {
             Text(
                 text = label,
-                color = if (level == "YELLOW") Color.Black.copy(alpha = 0.9f) else Color.White,
+                color = if (level == "YELLOW") Color.Black.copy(alpha = 0.9f) else appTextPrimary(),
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
             )
@@ -4493,7 +6417,7 @@ private fun MarineAlertStrip(
 }
 
 @Composable
-private fun UpstreamRainAlertCard(weather: WeatherDoc) {
+private fun UpstreamRainAlertCard(weather: WeatherDoc, isMizo: Boolean = true) {
     val alert = weather.marineUpstreamRain ?: return
     if (alert.level.uppercase() != "HIGH" && alert.level.uppercase() != "MODERATE") return
 
@@ -4513,17 +6437,25 @@ private fun UpstreamRainAlertCard(weather: WeatherDoc) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Filled.Warning,
-                    contentDescription = "Upstream rain alert",
-                    tint = Color.White,
+                    contentDescription = langString(
+                        R.string.main_upstream_rain_alert_cd_mz,
+                        R.string.main_upstream_rain_alert_cd_en,
+                        isMizo
+                    ),
+                    tint = appIconTint(),
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "Tuifinriat Lam Ralveng",
-                    color = Color.White,
+                    text = langString(
+                        R.string.main_marine_alert_title_mz,
+                        R.string.main_marine_alert_title_en,
+                        isMizo
+                    ),
+                    color = appTextPrimary(),
                     fontWeight = FontWeight.Bold,
                 )
             }
-            Text(text = alert.reason, color = Color.White)
+            Text(text = alert.reason, color = appTextSecondary(0.9f))
         }
     }
 }
@@ -4534,50 +6466,102 @@ private fun ReportDialog(
     isSubmitting: Boolean,
     onDismiss: () -> Unit,
     onSubmit: (String) -> Unit,
+    isMizo: Boolean = true,
 ) {
+    val rainOption = langString(
+        R.string.main_report_option_rain_mz,
+        R.string.main_report_option_rain_en,
+        isMizo
+    )
+    val clearOption = langString(
+        R.string.main_report_option_clear_mz,
+        R.string.main_report_option_clear_en,
+        isMizo
+    )
+    val windyOption = langString(
+        R.string.main_report_option_windy_mz,
+        R.string.main_report_option_windy_en,
+        isMizo
+    )
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Report", fontWeight = FontWeight.Bold) },
+        containerColor = Color(0xFF1C1B2E),
+        titleContentColor = Color.White,
+        textContentColor = Color.White.copy(alpha = 0.87f),
+        title = {
+            Text(
+                langString(
+                    R.string.main_report_dialog_title_mz,
+                    R.string.main_report_dialog_title_en,
+                    isMizo
+                ),
+                fontWeight = FontWeight.Bold
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    "I awmna hmun khaw dinhmun report rawh. GPS i on chuan a dik zawk ang.",
+                    langString(
+                        R.string.main_report_dialog_desc_mz,
+                        R.string.main_report_dialog_desc_en,
+                        isMizo
+                    ),
                 )
 
                 if (!locationAvailable) {
                     Text(
-                        "GPS a off chuan report a thawn theih loh.",
+                        langString(
+                            R.string.main_report_dialog_gps_off_mz,
+                            R.string.main_report_dialog_gps_off_en,
+                            isMizo
+                        ),
                         color = Color(0xFFFFD166),
                         fontSize = 12.sp,
                     )
                 }
 
                 OutlinedButton(
-                    onClick = { onSubmit("Ruah a sur") },
+                    onClick = { onSubmit(rainOption) },
                     enabled = locationAvailable && !isSubmitting,
-                ) { Text("Ruah a sur") }
+                ) { Text(rainOption) }
 
                 OutlinedButton(
-                    onClick = { onSubmit("Khua a tha") },
+                    onClick = { onSubmit(clearOption) },
                     enabled = locationAvailable && !isSubmitting,
-                ) { Text("Khua a tha") }
+                ) { Text(clearOption) }
 
                 OutlinedButton(
-                    onClick = { onSubmit("Thli a na") },
+                    onClick = { onSubmit(windyOption) },
                     enabled = locationAvailable && !isSubmitting,
-                ) { Text("Thli a na") }
+                ) { Text(windyOption) }
 
                 if (isSubmitting) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.width(10.dp))
-                        Text("Submitting…", fontSize = 12.sp)
+                        Text(
+                            langString(
+                                R.string.main_report_submitting_mz,
+                                R.string.main_report_submitting_en,
+                                isMizo
+                            ),
+                            fontSize = 12.sp
+                        )
                     }
                 }
             }
         },
         confirmButton = {
-            Button(onClick = onDismiss, enabled = !isSubmitting) { Text("Close") }
+            Button(onClick = onDismiss, enabled = !isSubmitting) {
+                Text(
+                    langString(
+                        R.string.main_report_close_mz,
+                        R.string.main_report_close_en,
+                        isMizo
+                    )
+                )
+            }
         },
     )
 }
@@ -4667,7 +6651,7 @@ private fun MiniMetricCard(
                     Icon(
                         painter = painterResource(iconRes),
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = appIconTint(),
                         modifier = Modifier.size(20.dp),
                     )
                 }
@@ -4680,7 +6664,7 @@ private fun MiniMetricCard(
                 ) {
                     Text(
                         text = title,
-                        color = Color.White.copy(alpha = 0.85f),
+                        color = appTextSecondary(0.85f),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp,
@@ -4688,7 +6672,7 @@ private fun MiniMetricCard(
                     subtitle?.let {
                         Text(
                             text = it,
-                            color = Color.White.copy(alpha = 0.6f),
+                            color = appTextSecondary(0.6f),
                             fontSize = 10.sp,
                         )
                     }
@@ -4702,7 +6686,7 @@ private fun MiniMetricCard(
             ) {
                 Text(
                     text = value,
-                    color = Color.White,
+                    color = appTextPrimary(),
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = (-1).sp,
@@ -4710,7 +6694,7 @@ private fun MiniMetricCard(
                 Spacer(Modifier.width(6.dp))
                 Text(
                     text = unit,
-                    color = Color.White.copy(alpha = 0.8f),
+                    color = appTextSecondary(0.8f),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(bottom = 4.dp)
@@ -4724,6 +6708,7 @@ private fun MiniMetricCard(
 private fun NearbyReportsCard(
     onViewNearbyReports: () -> Unit,
     isDay: Boolean,
+    isMizo: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(20.dp)
@@ -4769,22 +6754,27 @@ private fun NearbyReportsCard(
                         .background(Brush.linearGradient(accentColors)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "📍",
-                        fontSize = 22.sp,
-                    )
+                    Icon(imageVector = Icons.Filled.LocationOn, contentDescription = null, tint = appIconTint(), modifier = Modifier.size(24.dp))
                 }
                 Spacer(Modifier.width(14.dp))
                 Column {
                     Text(
-                        text = "Nearby Reports",
-                        color = Color.White,
+                        text = langString(
+                            R.string.main_nearby_title_mz,
+                            R.string.main_nearby_title_en,
+                            isMizo
+                        ),
+                        color = appTextPrimary(),
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                     )
                     Text(
-                        text = "I vela mi dangte report en rawh",
-                        color = Color.White.copy(alpha = 0.65f),
+                        text = langString(
+                            R.string.main_nearby_subtitle_mz,
+                            R.string.main_nearby_subtitle_en,
+                            isMizo
+                        ),
+                        color = appTextSecondary(0.65f),
                         fontSize = 12.sp,
                     )
                 }
@@ -4796,127 +6786,35 @@ private fun NearbyReportsCard(
                     .background(Color.White.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "→",
-                    color = Color.White.copy(alpha = 0.8f),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                )
+                Icon(imageVector = Icons.Filled.ArrowForward, contentDescription = null, tint = appTextSecondary(0.8f), modifier = Modifier.size(18.dp))
             }
         }
     }
 }
 
-/** Theme Selection Dialog */
 @Composable
-private fun ThemeSelectionDialog(
-    onDismiss: () -> Unit,
-    onThemeSelected: (String) -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = Color(0xFF1a1a2e),
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("🎨", fontSize = 24.sp)
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    "Theme Thlang",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                // Light Theme
-                ThemeOptionButton(
-                    icon = "☀️",
-                    title = "Light",
-                    description = "Eng eng a lang",
-                    isSelected = false,
-                    onClick = { onThemeSelected("light") },
-                )
-                
-                // Dark Theme
-                ThemeOptionButton(
-                    icon = "🌙",
-                    title = "Dark",
-                    description = "Thim a lang",
-                    isSelected = false,
-                    onClick = { onThemeSelected("dark") },
-                )
-                
-                // System Theme
-                ThemeOptionButton(
-                    icon = "⚙️",
-                    title = "System",
-                    description = "Phone setting zìr a zui ang",
-                    isSelected = true, // Default
-                    onClick = { onThemeSelected("system") },
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = onDismiss,
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF06D6A0),
-                ),
-            ) {
-                Text("Close", color = Color.White)
-            }
-        },
-    )
+private fun langString(
+    @StringRes mizoRes: Int,
+    @StringRes englishRes: Int,
+    isMizo: Boolean,
+): String {
+    return stringResource(if (isMizo) mizoRes else englishRes)
 }
 
-/** Individual theme option button */
 @Composable
-private fun ThemeOptionButton(
-    icon: String,
-    title: String,
-    description: String,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-) {
-    val shape = RoundedCornerShape(12.dp)
-    val borderColor = if (isSelected) Color(0xFF06D6A0) else Color.White.copy(alpha = 0.2f)
-    
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .background(
-                if (isSelected) Color(0xFF06D6A0).copy(alpha = 0.15f)
-                else Color.White.copy(alpha = 0.05f)
-            )
-            .border(1.dp, borderColor, shape)
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(text = icon, fontSize = 24.sp)
-        Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-            )
-            Text(
-                text = description,
-                color = Color.White.copy(alpha = 0.6f),
-                fontSize = 12.sp,
-            )
-        }
-        if (isSelected) {
-            Text(
-                text = "✓",
-                color = Color(0xFF06D6A0),
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-            )
-        }
-    }
+private fun langFormatString(
+    @StringRes mizoRes: Int,
+    @StringRes englishRes: Int,
+    isMizo: Boolean,
+    vararg formatArgs: Any,
+): String {
+    return stringResource(if (isMizo) mizoRes else englishRes, *formatArgs)
 }
+
+
+
+
+
+
+
+

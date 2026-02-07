@@ -66,6 +66,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -74,11 +75,18 @@ import com.mapuia.khawchinthlirna.data.model.RainIntensity
 import com.mapuia.khawchinthlirna.data.model.SkyCondition
 import com.mapuia.khawchinthlirna.data.model.WindStrength
 import com.mapuia.khawchinthlirna.ui.components.BannerAd
+import androidx.annotation.StringRes
+import com.mapuia.khawchinthlirna.R
 import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import com.mapuia.khawchinthlirna.ui.theme.appBackgroundGradient
+import com.mapuia.khawchinthlirna.ui.theme.appIconTint
+import com.mapuia.khawchinthlirna.ui.theme.appTextMuted
+import com.mapuia.khawchinthlirna.ui.theme.appTextPrimary
+import com.mapuia.khawchinthlirna.ui.theme.appTextSecondary
 
 /**
  * Screen showing nearby weather reports from other users.
@@ -91,6 +99,7 @@ fun NearbyReportsScreen(
     userLon: Double?,
     onBack: () -> Unit,
     onFetchReports: suspend (lat: Double, lon: Double, radiusKm: Double, minutes: Int) -> List<NearbyReport>,
+    isMizo: Boolean = true,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -100,12 +109,15 @@ fun NearbyReportsScreen(
     var selectedTimeFilter by remember { mutableIntStateOf(60) } // Default 1 hour
     var selectedReport by remember { mutableStateOf<NearbyReport?>(null) }
 
-    val timeFilters = listOf(
-        30 to "30 min",
-        60 to "1 dar",
-        120 to "2 dar",
-        180 to "3 dar",
+    val loadReportsFailedMessage = langString(
+        R.string.report_load_reports_failed_mz,
+        R.string.report_load_reports_failed_en,
+        isMizo
     )
+
+    val timeFilters = listOf(30, 60, 120, 180).map { minutes ->
+        minutes to timeFilterLabel(minutes, isMizo)
+    }
 
     // Fetch reports when screen loads or filter changes
     LaunchedEffect(userLat, userLon, selectedTimeFilter) {
@@ -114,19 +126,21 @@ fun NearbyReportsScreen(
             try {
                 reports = onFetchReports(userLat, userLon, 15.0, selectedTimeFilter)
             } catch (e: Exception) {
-                Toast.makeText(context, "Reports load a hlawh lo", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    loadReportsFailedMessage,
+                    Toast.LENGTH_SHORT
+                ).show()
             }
             isLoading = false
         }
     }
 
-    val backgroundGradient = Brush.verticalGradient(
-        listOf(
-            Color(0xFF0F0C29),
-            Color(0xFF302B63),
-            Color(0xFF24243E),
-        )
-    )
+    val backgroundGradient = appBackgroundGradient()
+    val textPrimary = appTextPrimary()
+    val textSecondary = appTextSecondary(0.7f)
+    val textMuted = appTextMuted(0.5f)
+    val iconTint = appIconTint()
 
     Box(
         modifier = Modifier
@@ -139,8 +153,12 @@ fun NearbyReportsScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "Nearby Reports",
-                            color = Color.White,
+                            text = langString(
+                                R.string.report_nearby_title_mz,
+                                R.string.report_nearby_title_en,
+                                isMizo
+                            ),
+                            color = textPrimary,
                             fontWeight = FontWeight.Bold,
                         )
                     },
@@ -148,8 +166,12 @@ fun NearbyReportsScreen(
                         IconButton(onClick = onBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = Color.White
+                                contentDescription = langString(
+                                    R.string.report_back_mz,
+                                    R.string.report_back_en,
+                                    isMizo
+                                ),
+                                tint = iconTint
                             )
                         }
                     },
@@ -167,8 +189,12 @@ fun NearbyReportsScreen(
                         ) {
                             Icon(
                                 Icons.Default.Refresh,
-                                contentDescription = "Refresh",
-                                tint = Color.White
+                                contentDescription = langString(
+                                    R.string.report_refresh_mz,
+                                    R.string.report_refresh_en,
+                                    isMizo
+                                ),
+                                tint = iconTint
                             )
                         }
                     },
@@ -194,7 +220,7 @@ fun NearbyReportsScreen(
                     Icon(
                         Icons.Default.Schedule,
                         contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.7f),
+                        tint = textSecondary,
                         modifier = Modifier
                             .size(20.dp)
                             .align(Alignment.CenterVertically)
@@ -206,9 +232,9 @@ fun NearbyReportsScreen(
                             label = { Text(label) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Color(0xFF06D6A0),
-                                selectedLabelColor = Color.White,
+                                selectedLabelColor = textPrimary,
                                 containerColor = Color.White.copy(alpha = 0.1f),
-                                labelColor = Color.White.copy(alpha = 0.7f),
+                                labelColor = textSecondary,
                             )
                         )
                     }
@@ -230,8 +256,11 @@ fun NearbyReportsScreen(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "15km radius • ${reports.size} reports",
-                            color = Color.White.copy(alpha = 0.7f),
+                            text = stringResource(
+                                if (isMizo) R.string.report_location_summary_mz else R.string.report_location_summary_en,
+                                reports.size
+                            ),
+                            color = textSecondary,
                             fontSize = 13.sp,
                         )
                     }
@@ -240,7 +269,7 @@ fun NearbyReportsScreen(
                 // Content
                 when {
                     userLat == null || userLon == null -> {
-                        NoLocationView()
+                        NoLocationView(isMizo = isMizo)
                     }
                     isLoading -> {
                         Box(
@@ -251,7 +280,7 @@ fun NearbyReportsScreen(
                         }
                     }
                     reports.isEmpty() -> {
-                        EmptyReportsView(selectedTimeFilter)
+                        EmptyReportsView(selectedTimeFilter, isMizo = isMizo)
                     }
                     else -> {
                         LazyColumn(
@@ -266,7 +295,8 @@ fun NearbyReportsScreen(
                                     isSelected = selectedReport?.id == report.id,
                                     onClick = {
                                         selectedReport = if (selectedReport?.id == report.id) null else report
-                                    }
+                                    },
+                                    isMizo = isMizo,
                                 )
                             }
                             // Banner Ad
@@ -283,7 +313,7 @@ fun NearbyReportsScreen(
 }
 
 @Composable
-private fun NoLocationView() {
+private fun NoLocationView(isMizo: Boolean = true) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -299,14 +329,22 @@ private fun NoLocationView() {
                 modifier = Modifier.size(64.dp)
             )
             Text(
-                text = "GPS Required",
-                color = Color.White,
+                text = langString(
+                    R.string.report_no_location_title_mz,
+                    R.string.report_no_location_title_en,
+                    isMizo
+                ),
+                color = appTextPrimary(),
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp,
             )
             Text(
-                text = "Nearby reports en tur chuan GPS on rawh",
-                color = Color.White.copy(alpha = 0.7f),
+                text = langString(
+                    R.string.report_nearby_no_location_body_mz,
+                    R.string.report_nearby_no_location_body_en,
+                    isMizo
+                ),
+                color = appTextSecondary(0.7f),
                 fontSize = 14.sp,
             )
         }
@@ -314,7 +352,7 @@ private fun NoLocationView() {
 }
 
 @Composable
-private fun EmptyReportsView(minutes: Int) {
+private fun EmptyReportsView(minutes: Int, isMizo: Boolean = true) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -328,14 +366,21 @@ private fun EmptyReportsView(minutes: Int) {
                 fontSize = 48.sp,
             )
             Text(
-                text = "Report a awm lo",
-                color = Color.White,
+                text = langString(
+                    R.string.report_no_reports_title_mz,
+                    R.string.report_no_reports_title_en,
+                    isMizo
+                ),
+                color = appTextPrimary(),
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp,
             )
             Text(
-                text = "15km chhung leh $minutes minute chhung-ah report a awm lo.\nI report thawn tur i duh em?",
-                color = Color.White.copy(alpha = 0.7f),
+                text = stringResource(
+                    if (isMizo) R.string.report_no_reports_message_mz else R.string.report_no_reports_message_en,
+                    minutes
+                ),
+                color = appTextSecondary(0.7f),
                 fontSize = 14.sp,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             )
@@ -348,6 +393,7 @@ private fun ReportCard(
     report: NearbyReport,
     isSelected: Boolean,
     onClick: () -> Unit,
+    isMizo: Boolean = true,
 ) {
     val rainIntensity = RainIntensity.fromLevel(report.rainIntensity)
     val backgroundColor = when (report.rainIntensity) {
@@ -412,16 +458,18 @@ private fun ReportCard(
 
                     Column {
                         Text(
-                            text = rainIntensity.labelMizo,
-                            color = Color.White,
+                            text = if (isMizo) rainIntensity.labelMizo else rainIntensity.labelEnglish,
+                            color = appTextPrimary(),
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
                         )
-                        Text(
-                            text = rainIntensity.labelEnglish,
-                            color = Color.White.copy(alpha = 0.6f),
-                            fontSize = 12.sp,
-                        )
+                        if (isMizo) {
+                            Text(
+                                text = rainIntensity.labelEnglish,
+                                color = appTextSecondary(0.6f),
+                                fontSize = 12.sp,
+                            )
+                        }
                     }
                 }
 
@@ -436,8 +484,8 @@ private fun ReportCard(
                         )
                     }
                     Text(
-                        text = formatTimeAgo(report.timestampAuto),
-                        color = Color.White.copy(alpha = 0.5f),
+                        text = formatTimeAgoLabel(report.timestampAuto, isMizo = isMizo),
+                        color = appTextMuted(0.5f),
                         fontSize = 11.sp,
                     )
                 }
@@ -455,13 +503,13 @@ private fun ReportCard(
                             Icon(
                                 Icons.Default.LocationOn,
                                 contentDescription = null,
-                                tint = Color.White.copy(alpha = 0.6f),
+                                tint = appIconTint(0.6f),
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(Modifier.width(4.dp))
                             Text(
                                 text = name,
-                                color = Color.White.copy(alpha = 0.8f),
+                                color = appTextSecondary(0.8f),
                                 fontSize = 13.sp,
                             )
                         }
@@ -471,8 +519,12 @@ private fun ReportCard(
                     report.skyCondition?.let { level ->
                         val sky = SkyCondition.fromLevel(level)
                         DetailRow(
-                            label = "Van:",
-                            value = "${sky.labelMizo} (${sky.labelEnglish})"
+                            label = langString(
+                                R.string.report_sky_label_mz,
+                                R.string.report_sky_label_en,
+                                isMizo
+                            ),
+                            value = if (isMizo) "${sky.labelMizo} (${sky.labelEnglish})" else sky.labelEnglish,
                         )
                     }
 
@@ -480,8 +532,12 @@ private fun ReportCard(
                     report.windStrength?.let { level ->
                         val wind = WindStrength.fromLevel(level)
                         DetailRow(
-                            label = "Thli:",
-                            value = "${wind.labelMizo} (${wind.labelEnglish})"
+                            label = langString(
+                                R.string.report_wind_label_mz,
+                                R.string.report_wind_label_en,
+                                isMizo
+                            ),
+                            value = if (isMizo) "${wind.labelMizo} (${wind.labelEnglish})" else wind.labelEnglish,
                         )
                     }
 
@@ -489,8 +545,11 @@ private fun ReportCard(
                     report.userReputation?.let { rep ->
                         val repPercent = (rep * 100).toInt()
                         Text(
-                            text = "⭐ Reporter reputation: $repPercent%",
-                            color = if (repPercent >= 70) Color(0xFF06D6A0) else Color.White.copy(alpha = 0.6f),
+                            text = stringResource(
+                                if (isMizo) R.string.report_reporter_reputation_mz else R.string.report_reporter_reputation_en,
+                                repPercent
+                            ),
+                            color = if (repPercent >= 70) Color(0xFF06D6A0) else appTextSecondary(0.6f),
                             fontSize = 12.sp,
                         )
                     }
@@ -505,13 +564,13 @@ private fun DetailRow(label: String, value: String) {
     Row {
         Text(
             text = label,
-            color = Color.White.copy(alpha = 0.5f),
+            color = appTextMuted(0.5f),
             fontSize = 12.sp,
         )
         Spacer(Modifier.width(4.dp))
         Text(
             text = value,
-            color = Color.White.copy(alpha = 0.8f),
+            color = appTextSecondary(0.8f),
             fontSize = 12.sp,
         )
     }
@@ -520,24 +579,58 @@ private fun DetailRow(label: String, value: String) {
 /**
  * Format timestamp to relative time (e.g., "5 min ago")
  */
-private fun formatTimeAgo(isoTimestamp: String): String {
-    return try {
-        val instant = Instant.parse(isoTimestamp)
-        val duration = Duration.between(instant, Instant.now())
-        val minutes = duration.toMinutes()
+@Composable
+private fun formatTimeAgoLabel(isoTimestamp: String, isMizo: Boolean = true): String {
+    val instant = runCatching { Instant.parse(isoTimestamp) }.getOrNull() ?: return isoTimestamp
+    val duration = Duration.between(instant, Instant.now())
+    val minutes = duration.toMinutes()
 
-        when {
-            minutes < 1 -> "Tun chauh"
-            minutes < 60 -> "$minutes min hmasa"
-            minutes < 120 -> "1 dar hmasa"
-            minutes < 180 -> "${minutes / 60} dar hmasa"
-            else -> {
-                val formatter = DateTimeFormatter.ofPattern("h:mm a")
-                    .withZone(ZoneId.systemDefault())
-                formatter.format(instant)
-            }
-        }
-    } catch (e: Exception) {
-        isoTimestamp
+    val relative = timeAgoLabel(minutes, isMizo)
+    return if (relative.isNotBlank()) {
+        relative
+    } else {
+        val formatter = DateTimeFormatter.ofPattern("h:mm a")
+            .withZone(ZoneId.systemDefault())
+        formatter.format(instant)
     }
+}
+
+@Composable
+private fun timeFilterLabel(minutes: Int, isMizo: Boolean): String {
+    return when (minutes) {
+        30 -> langString(R.string.report_time_filter_30_mz, R.string.report_time_filter_30_en, isMizo)
+        60 -> langString(R.string.report_time_filter_60_mz, R.string.report_time_filter_60_en, isMizo)
+        120 -> langString(R.string.report_time_filter_120_mz, R.string.report_time_filter_120_en, isMizo)
+        180 -> langString(R.string.report_time_filter_180_mz, R.string.report_time_filter_180_en, isMizo)
+        else -> stringResource(
+            if (isMizo) R.string.report_time_minutes_ago_mz else R.string.report_time_minutes_ago_en,
+            minutes
+        )
+    }
+}
+
+@Composable
+private fun timeAgoLabel(minutes: Long, isMizo: Boolean): String {
+    return when {
+        minutes < 1 -> langString(R.string.report_time_just_now_mz, R.string.report_time_just_now_en, isMizo)
+        minutes < 60 -> stringResource(
+            if (isMizo) R.string.report_time_minutes_ago_mz else R.string.report_time_minutes_ago_en,
+            minutes
+        )
+        minutes < 120 -> langString(R.string.report_time_hour_ago_mz, R.string.report_time_hour_ago_en, isMizo)
+        minutes < 180 -> stringResource(
+            if (isMizo) R.string.report_time_hours_ago_mz else R.string.report_time_hours_ago_en,
+            (minutes / 60)
+        )
+        else -> ""
+    }
+}
+
+@Composable
+private fun langString(
+    @StringRes mizoRes: Int,
+    @StringRes englishRes: Int,
+    isMizo: Boolean,
+): String {
+    return stringResource(if (isMizo) mizoRes else englishRes)
 }

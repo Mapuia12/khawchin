@@ -2,7 +2,7 @@ package com.mapuia.khawchinthlirna
 
 import android.app.Application
 import com.google.android.gms.ads.MobileAds
-import com.google.android.gms.ads.RequestConfiguration
+import com.google.firebase.appcheck.FirebaseAppCheck
 import com.mapuia.khawchinthlirna.di.appModule
 import com.mapuia.khawchinthlirna.service.NotificationChannels
 import com.mapuia.khawchinthlirna.util.InterstitialAdManager
@@ -15,13 +15,12 @@ class KhawchinThlirnaApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        // Initialize Ads SDK (no test device IDs for production release)
-        // To add test devices during development, uncomment below:
-        // val testDeviceIds = listOf("YOUR_DEVICE_ID_HERE")
-        // MobileAds.setRequestConfiguration(
-        //     RequestConfiguration.Builder().setTestDeviceIds(testDeviceIds).build()
-        // )
+        // Initialize Ads SDK
         MobileAds.initialize(this) {}
+
+        // Initialize Firebase App Check
+        val appCheck = FirebaseAppCheck.getInstance()
+        AppCheckInstaller.install(appCheck)
         
         // Initialize interstitial ads (preload first ad)
         InterstitialAdManager.init(this)

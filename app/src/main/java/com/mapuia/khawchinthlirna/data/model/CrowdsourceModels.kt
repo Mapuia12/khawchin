@@ -56,15 +56,16 @@ enum class RainIntensity(
     val labelMizo: String,
     val labelEnglish: String,
     val description: String,
+    val descriptionEnglish: String,
     val mmPerHour: String,
 ) {
-    NO_RAIN(0, "Ruah Sur Lo", "No Rain", "Khua a thiang, ruah a sur lo", "0 mm/hr"),
-    DRIZZLE(1, "Ruah Phingphisiau", "Drizzle", "Ruah mal, a hmi te te a tla", "0.1-2.5 mm/hr"),
-    LIGHT(2, "Ruah Tlem", "Light Rain", "Ruah a sur cherh cherh", "2.5-7.5 mm/hr"),
-    MODERATE(3, "Ruah Sur Pangngai", "Moderate", "Ruah a sur ve deuh, nihliap mamawh", "7.5-25 mm/hr"),
-    HEAVY(4, "Ruah Nasa", "Heavy", "Ruah a tam, tui a lian thei", "25-50 mm/hr"),
-    VERY_HEAVY(5, "Ruah Nasa Tak", "Very Heavy", "Ruah a sur buan buan, pawn chhuah a harsa", "50-100 mm/hr"),
-    EXTREME(6, "Ruahpui / Hlauhawm", "Extreme", "A hlauhawm thei, in chhungah awm rawh", ">100 mm/hr");
+    NO_RAIN(0, "Ruah Sur Lo", "No Rain", "Khua a thiang, ruah a sur lo", "Clear, no rain", "0 mm/hr"),
+    DRIZZLE(1, "Ruah Phingphisiau", "Drizzle", "Ruah mal, a hmi te te a tla", "Light drizzle, tiny drops", "0.1-2.5 mm/hr"),
+    LIGHT(2, "Ruah Tlem", "Light Rain", "Ruah a sur cherh cherh", "Light rain", "2.5-7.5 mm/hr"),
+    MODERATE(3, "Ruah Sur Pangngai", "Moderate", "Ruah a sur ve deuh, nihliap mamawh", "Moderate rain, umbrella needed", "7.5-25 mm/hr"),
+    HEAVY(4, "Ruah Nasa", "Heavy", "Ruah a tam, tui a lian thei", "Heavy rain, flooding possible", "25-50 mm/hr"),
+    VERY_HEAVY(5, "Ruah Nasa Tak", "Very Heavy", "Ruah a sur buan buan, pawn chhuah a harsa", "Very heavy rain, hard to go outside", "50-100 mm/hr"),
+    EXTREME(6, "Ruahpui / Hlauhawm", "Extreme", "A hlauhawm thei, in chhungah awm rawh", "Dangerous, stay indoors", ">100 mm/hr");
 
     companion object {
         fun fromLevel(level: Int): RainIntensity = entries.find { it.level == level } ?: NO_RAIN

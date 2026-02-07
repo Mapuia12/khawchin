@@ -101,6 +101,16 @@ data class WeatherDoc(
     @get:PropertyName("weather_systems")
     @set:PropertyName("weather_systems")
     var weatherSystems: WeatherSystems? = null,
+
+    // Nowcast metadata (sources + method)
+    @get:PropertyName("nowcast")
+    @set:PropertyName("nowcast")
+    var nowcast: NowcastMeta? = null,
+
+    // Per-location cyclone impact assessment
+    @get:PropertyName("cyclone_impact")
+    @set:PropertyName("cyclone_impact")
+    var cycloneImpact: List<CycloneImpact>? = null,
 ) {
     /**
      * Check if document has valid data (supports multiple formats)
@@ -901,6 +911,77 @@ data class SeasonalOutlookMonthly(
     val months: List<String> = emptyList(),
 )
 
+/** Skill report summary from backend verification runs */
+@IgnoreExtraProperties
+data class SkillReport(
+    @get:PropertyName("period_start")
+    @set:PropertyName("period_start")
+    var periodStart: String? = null,
+
+    @get:PropertyName("period_end")
+    @set:PropertyName("period_end")
+    var periodEnd: String? = null,
+
+    @get:PropertyName("sample_count")
+    @set:PropertyName("sample_count")
+    var sampleCount: Int = 0,
+
+    @get:PropertyName("overall_mae")
+    @set:PropertyName("overall_mae")
+    var overallMae: Double? = null,
+
+    @get:PropertyName("overall_brier")
+    @set:PropertyName("overall_brier")
+    var overallBrier: Double? = null,
+
+    @get:PropertyName("overall_bias")
+    @set:PropertyName("overall_bias")
+    var overallBias: Double? = null,
+
+    @get:PropertyName("hit_rate")
+    @set:PropertyName("hit_rate")
+    var hitRate: Double? = null,
+
+    @get:PropertyName("false_alarm_rate")
+    @set:PropertyName("false_alarm_rate")
+    var falseAlarmRate: Double? = null,
+
+    @get:PropertyName("per_model_mae")
+    @set:PropertyName("per_model_mae")
+    var perModelMae: Map<String, Double>? = null,
+
+    @get:PropertyName("per_model_count")
+    @set:PropertyName("per_model_count")
+    var perModelCount: Map<String, Long>? = null,
+
+    val ts: String? = null,
+)
+
+// --- Nowcast Models (sources used for short-term adjustments) ---
+
+@IgnoreExtraProperties
+data class NowcastSourceDetail(
+    val name: String = "",
+    val value: Double? = null,
+    val confidence: Double? = null,
+    val weight: Double? = null,
+)
+
+@IgnoreExtraProperties
+data class NowcastMeta(
+    val method: String = "",
+    val sources: List<String> = emptyList(),
+    @get:PropertyName("nowcast_value")
+    @set:PropertyName("nowcast_value")
+    var nowcastValue: Double? = null,
+    @get:PropertyName("hours_adjusted")
+    @set:PropertyName("hours_adjusted")
+    var hoursAdjusted: Int = 0,
+    @get:PropertyName("source_details")
+    @set:PropertyName("source_details")
+    var sourceDetails: List<NowcastSourceDetail> = emptyList(),
+)
+
 // --- Weather Systems Models (Bay of Bengal cyclones, Western Disturbance, etc.) ---
 
 /** Cyclone impact assessment */
@@ -926,6 +1007,43 @@ data class CycloneImpactAssessment(
     @set:PropertyName("impact_areas")
     var impactAreas: List<Map<String, Any>>? = null,
     
+    val trajectory: List<Map<String, Any>>? = null,
+)
+
+/** Per-location cyclone impact */
+@IgnoreExtraProperties
+data class CycloneImpact(
+    @get:PropertyName("cyclone_name")
+    @set:PropertyName("cyclone_name")
+    var cycloneName: String? = null,
+    val source: String? = null,
+    @get:PropertyName("motion_quality")
+    @set:PropertyName("motion_quality")
+    var motionQuality: String? = null,
+    @get:PropertyName("closest_approach_km")
+    @set:PropertyName("closest_approach_km")
+    var closestApproachKm: Double? = null,
+    @get:PropertyName("eta_hours")
+    @set:PropertyName("eta_hours")
+    var etaHours: Int? = null,
+    @get:PropertyName("wind_radius_km")
+    @set:PropertyName("wind_radius_km")
+    var windRadiusKm: Double? = null,
+    @get:PropertyName("rain_radius_km")
+    @set:PropertyName("rain_radius_km")
+    var rainRadiusKm: Double? = null,
+    @get:PropertyName("expected_wind_kmh")
+    @set:PropertyName("expected_wind_kmh")
+    var expectedWindKmh: Double? = null,
+    @get:PropertyName("wind_level")
+    @set:PropertyName("wind_level")
+    var windLevel: String? = null,
+    @get:PropertyName("rain_risk")
+    @set:PropertyName("rain_risk")
+    var rainRisk: String? = null,
+    @get:PropertyName("impact_level")
+    @set:PropertyName("impact_level")
+    var impactLevel: String? = null,
     val trajectory: List<Map<String, Any>>? = null,
 )
 
@@ -1002,6 +1120,21 @@ data class WesternDisturbanceStatus(
     val systems: List<Map<String, Any>>? = null,
 )
 
+/** Easterly moisture surge status */
+@IgnoreExtraProperties
+data class EasterlySurgeStatus(
+    val active: Boolean = false,
+    val approaching: Boolean = false,
+    val intensity: String = "none",
+    @get:PropertyName("rain_expected")
+    @set:PropertyName("rain_expected")
+    var rainExpected: Boolean = false,
+    @get:PropertyName("eta_hours")
+    @set:PropertyName("eta_hours")
+    var etaHours: Int? = null,
+    val systems: List<Map<String, Any>>? = null,
+)
+
 /** Weather systems tracking from backend */
 @IgnoreExtraProperties
 data class WeatherSystems(
@@ -1020,6 +1153,10 @@ data class WeatherSystems(
     var westernDisturbance: WesternDisturbanceStatus? = null,
     
     val norwesters: Map<String, Any>? = null,
+
+    @get:PropertyName("easterly_surge")
+    @set:PropertyName("easterly_surge")
+    var easterlySurge: EasterlySurgeStatus? = null,
     
     val timestamp: String? = null,
 )

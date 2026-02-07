@@ -5,6 +5,7 @@ import com.google.firebase.firestore.FirebaseFirestoreException
 import com.mapuia.khawchinthlirna.data.model.NearbyReport
 import com.mapuia.khawchinthlirna.data.model.RainIntensity
 import com.mapuia.khawchinthlirna.data.model.ReportRequest
+import com.mapuia.khawchinthlirna.util.AppLog
 import kotlinx.coroutines.tasks.await
 import java.time.Instant
 
@@ -81,9 +82,11 @@ class CrowdsourceRepository(
         data["report_type"] = rainLabel.labelMizo
 
         try {
-
-            android.util.Log.d("CROWD", "submitReport called. userId param=$userId, authUid=${com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid}")
-            android.util.Log.d("CROWD", "payload preview: lat=${data["lat"]} lon=${data["lon"]} rain_intensity=${data["rain_intensity"]} timestamp_auto=${data["timestamp_auto"]}")
+            AppLog.d("CROWD", "submitReport called")
+            AppLog.d(
+                "CROWD",
+                "payload preview: lat=${data["lat"]} lon=${data["lon"]} rain_intensity=${data["rain_intensity"]}"
+            )
             db.collection(REPORTS_COLLECTION).add(data).await()
         } catch (e: FirebaseFirestoreException) {
             // Provide user-friendly error messages

@@ -85,7 +85,7 @@ class GamificationManager(
 
         // Update Firestore
         val updates = mutableMapOf<String, Any>(
-            "points" to currentPoints + pointsEarned,
+            "points" to FieldValue.increment(pointsEarned.toLong()),
             "total_reports" to FieldValue.increment(1),
             "last_active" to System.currentTimeMillis(),
         )

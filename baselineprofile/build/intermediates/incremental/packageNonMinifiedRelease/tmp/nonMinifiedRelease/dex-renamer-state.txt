@@ -1,4 +1,4 @@
-#Sat Jan 24 15:36:36 MMT 2026
+#Fri Feb 06 13:01:32 MMT 2026
 base.2=C\:\\Users\\Mapuia\\AndroidStudioProjects\\KhawchinThlirna\\baselineprofile\\build\\intermediates\\dex\\nonMinifiedRelease\\mergeProjectDexNonMinifiedRelease\\2\\classes.dex
 path.2=2/classes.dex
 base.1=C\:\\Users\\Mapuia\\AndroidStudioProjects\\KhawchinThlirna\\baselineprofile\\build\\intermediates\\dex\\nonMinifiedRelease\\mergeProjectDexNonMinifiedRelease\\0\\classes.dex

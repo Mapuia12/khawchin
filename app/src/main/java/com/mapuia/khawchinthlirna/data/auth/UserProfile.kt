@@ -75,11 +75,11 @@ data class UserProfile(
      */
     val trustLevelNameMz: String
         get() = when (trustLevel) {
-            1 -> "Thar"
-            2 -> "Thawktu"
-            3 -> "Rinawm"
-            4 -> "Thiamna nei"
-            5 -> "Pawmzui"
+            1 -> "Bul tan"
+            2 -> "Thahnemngai"
+            3 -> "Rintlak"
+            4 -> "Mithiam"
+            5 -> "Innghahna"
             else -> "Hriat loh"
         }
 
@@ -139,16 +139,16 @@ object Badges {
      * Get badge display name in Mizo
      */
     fun getNameMz(badgeId: String): String = when (badgeId) {
-        FIRST_REPORT -> "Report Hmasa Ber"
-        EARLY_BIRD -> "Zing Thawktu"
-        NIGHT_OWL -> "Zan Thawktu"
-        STORM_CHASER -> "Thlipui Zawntu"
-        ACCURACY_STAR -> "Dikna Star"
-        TRUSTED_REPORTER -> "Rinawm Reporter"
-        WEEKLY_WARRIOR -> "Kar Tin Thawktu"
+        FIRST_REPORT -> "Report 1st"
+        EARLY_BIRD -> "Zing vengtu"
+        NIGHT_OWL -> "Zan vengtu"
+        STORM_CHASER -> "Thlipui Viltu"
+        ACCURACY_STAR -> "Report Dik Ber"
+        TRUSTED_REPORTER -> "Reporter Rintlak"
+        WEEKLY_WARRIOR -> "Kar Tluana Thawk"
         HELPER -> "Puitu"
-        VETERAN -> "Kawng Lama"
-        MIZORAM_EXPLORER -> "Mizoram Zawntu"
+        VETERAN -> "Sul Hnu Ngah"
+        MIZORAM_EXPLORER -> "Mizoram Daidarhtu"
         else -> badgeId
     }
 

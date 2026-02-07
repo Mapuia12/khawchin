@@ -18,19 +18,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import androidx.annotation.StringRes
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mapuia.khawchinthlirna.R
 import com.mapuia.khawchinthlirna.ui.components.BannerAd
-
-// Premium color palette
-private val PremiumGradient = Brush.verticalGradient(
-    listOf(
-        Color(0xFF0F0C29),
-        Color(0xFF302B63),
-        Color(0xFF24243E),
-    )
-)
+import com.mapuia.khawchinthlirna.ui.theme.appBackgroundGradient
+import com.mapuia.khawchinthlirna.ui.theme.appIconTint
+import com.mapuia.khawchinthlirna.ui.theme.appTextMuted
+import com.mapuia.khawchinthlirna.ui.theme.appTextPrimary
+import com.mapuia.khawchinthlirna.ui.theme.appTextSecondary
 
 private val AccentCyan = Color(0xFF06D6A0)
 private val AccentPurple = Color(0xFF8338EC)
@@ -38,6 +37,11 @@ private val AccentGold = Color(0xFFFFD166)
 private val AccentRed = Color(0xFFEF476F)
 private val GlassWhite = Color.White.copy(alpha = 0.12f)
 private val GlassBorder = Color.White.copy(alpha = 0.2f)
+
+// Dark dialog colors - consistent across light/dark mode
+private val DialogContainerColor = Color(0xFF1C1B2E)
+private val DialogTitleColor = Color.White
+private val DialogTextColor = Color.White.copy(alpha = 0.87f)
 
 // Glass Card Composable
 @Composable
@@ -83,11 +87,16 @@ fun SettingsScreen(
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
+    val backgroundGradient = appBackgroundGradient()
+    val textPrimary = appTextPrimary()
+    val textSecondary = appTextSecondary(0.8f)
+    val textMuted = appTextMuted(0.6f)
+    val iconTint = appIconTint()
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(PremiumGradient)
+            .background(backgroundGradient)
     ) {
         Scaffold(
             containerColor = Color.Transparent,
@@ -95,9 +104,13 @@ fun SettingsScreen(
                 TopAppBar(
                     title = { 
                         Text(
-                            if (isMizo) "Settings" else "Settings",
+                            langString(
+                                R.string.settings_title_mz,
+                                R.string.settings_title_en,
+                                isMizo
+                            ),
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = textPrimary
                         )
                     },
                     navigationIcon = {
@@ -111,8 +124,12 @@ fun SettingsScreen(
                             ) {
                                 Icon(
                                     Icons.AutoMirrored.Filled.ArrowBack, 
-                                    contentDescription = "Back",
-                                    tint = Color.White
+                                    contentDescription = langString(
+                                        R.string.ui_back_mz,
+                                        R.string.ui_back_en,
+                                        isMizo
+                                    ),
+                                    tint = iconTint
                                 )
                             }
                         }
@@ -132,7 +149,11 @@ fun SettingsScreen(
                 // Language & Appearance Section
                 item {
                     SettingsSectionHeader(
-                        title = if (isMizo) "Ṭawng leh Display" else "Language & Appearance",
+                        title = langString(
+                            R.string.settings_section_language_display_mz,
+                            R.string.settings_section_language_display_en,
+                            isMizo
+                        ),
                         icon = Icons.Default.Palette
                     )
                 }
@@ -141,24 +162,56 @@ fun SettingsScreen(
                     GlassCard {
                         SettingsItem(
                             icon = Icons.Default.Language,
-                            title = if (isMizo) "Ṭawng" else "Language",
-                            subtitle = if (currentLanguage == "mz") "Mizo" else "English",
+                            title = langString(
+                                R.string.settings_language_title_mz,
+                                R.string.settings_language_title_en,
+                                isMizo
+                            ),
+                            subtitle = if (currentLanguage == "mz") {
+                                langString(
+                                    R.string.settings_language_mizo_mz,
+                                    R.string.settings_language_mizo_en,
+                                    isMizo
+                                )
+                            } else {
+                                langString(
+                                    R.string.settings_language_english_mz,
+                                    R.string.settings_language_english_en,
+                                    isMizo
+                                )
+                            },
                             onClick = { showLanguageDialog = true },
                             accentColor = AccentCyan
                         )
 
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
-                            color = Color.White.copy(alpha = 0.1f)
+                            color = appTextMuted(0.1f)
                         )
 
                         SettingsItem(
                             icon = Icons.Default.DarkMode,
-                            title = if (isMizo) "Theme" else "Theme",
+                            title = langString(
+                                R.string.settings_theme_title_mz,
+                                R.string.settings_theme_title_en,
+                                isMizo
+                            ),
                             subtitle = when (darkModeEnabled) {
-                                true -> if (isMizo) "Thim" else "Dark"
-                                false -> if (isMizo) "Eng" else "Light"
-                                null -> if (isMizo) "System angin" else "System default"
+                                true -> langString(
+                                    R.string.settings_theme_dark_mz,
+                                    R.string.settings_theme_dark_en,
+                                    isMizo
+                                )
+                                false -> langString(
+                                    R.string.settings_theme_light_mz,
+                                    R.string.settings_theme_light_en,
+                                    isMizo
+                                )
+                                null -> langString(
+                                    R.string.settings_theme_system_mz,
+                                    R.string.settings_theme_system_en,
+                                    isMizo
+                                )
                             },
                             onClick = { showThemeDialog = true },
                             accentColor = AccentPurple
@@ -166,13 +219,29 @@ fun SettingsScreen(
 
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
-                            color = Color.White.copy(alpha = 0.1f)
+                            color = appTextMuted(0.1f)
                         )
 
                         SettingsItem(
                             icon = Icons.Default.Thermostat,
-                            title = if (isMizo) "Temperature Unit" else "Temperature Unit",
-                            subtitle = if (temperatureUnit == "celsius") "Celsius (°C)" else "Fahrenheit (°F)",
+                            title = langString(
+                                R.string.settings_temp_unit_title_mz,
+                                R.string.settings_temp_unit_title_en,
+                                isMizo
+                            ),
+                            subtitle = if (temperatureUnit == "celsius") {
+                                langString(
+                                    R.string.settings_temp_unit_celsius_mz,
+                                    R.string.settings_temp_unit_celsius_en,
+                                    isMizo
+                                )
+                            } else {
+                                langString(
+                                    R.string.settings_temp_unit_fahrenheit_mz,
+                                    R.string.settings_temp_unit_fahrenheit_en,
+                                    isMizo
+                                )
+                            },
                             onClick = {
                                 onTemperatureUnitChange(if (temperatureUnit == "celsius") "fahrenheit" else "celsius")
                             },
@@ -184,7 +253,11 @@ fun SettingsScreen(
                 // Notifications Section
                 item {
                     SettingsSectionHeader(
-                        title = if (isMizo) "Hriattirna" else "Notifications",
+                        title = langString(
+                            R.string.settings_section_notifications_mz,
+                            R.string.settings_section_notifications_en,
+                            isMizo
+                        ),
                         icon = Icons.Default.Notifications
                     )
                 }
@@ -193,8 +266,16 @@ fun SettingsScreen(
                     GlassCard {
                         SettingsToggleItem(
                             icon = Icons.Default.Notifications,
-                            title = if (isMizo) "Hriattirna" else "Notifications",
-                            subtitle = if (isMizo) "Weather updates leh report status" else "Weather updates and report status",
+                            title = langString(
+                                R.string.settings_notifications_title_mz,
+                                R.string.settings_notifications_title_en,
+                                isMizo
+                            ),
+                            subtitle = langString(
+                                R.string.settings_notifications_subtitle_mz,
+                                R.string.settings_notifications_subtitle_en,
+                                isMizo
+                            ),
                             isChecked = notificationsEnabled,
                             onToggle = onNotificationsToggle,
                             accentColor = AccentCyan
@@ -202,13 +283,21 @@ fun SettingsScreen(
 
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
-                            color = Color.White.copy(alpha = 0.1f)
+                            color = appTextMuted(0.1f)
                         )
 
                         SettingsToggleItem(
                             icon = Icons.Default.Warning,
-                            title = if (isMizo) "Khaw chin ṭha lo Hriattirna" else "Severe Weather Alerts",
-                            subtitle = if (isMizo) "Thlipui, ruahtui lian, etc." else "Storms, heavy rain, etc.",
+                            title = langString(
+                                R.string.settings_severe_alerts_title_mz,
+                                R.string.settings_severe_alerts_title_en,
+                                isMizo
+                            ),
+                            subtitle = langString(
+                                R.string.settings_severe_alerts_subtitle_mz,
+                                R.string.settings_severe_alerts_subtitle_en,
+                                isMizo
+                            ),
                             isChecked = severeWeatherAlertsEnabled,
                             onToggle = onSevereWeatherAlertsToggle,
                             enabled = notificationsEnabled,
@@ -220,7 +309,11 @@ fun SettingsScreen(
                 // Data & Storage Section
                 item {
                     SettingsSectionHeader(
-                        title = if (isMizo) "Data & Storage" else "Data & Storage",
+                        title = langString(
+                            R.string.settings_section_data_storage_mz,
+                            R.string.settings_section_data_storage_en,
+                            isMizo
+                        ),
                         icon = Icons.Default.Storage
                     )
                 }
@@ -229,8 +322,16 @@ fun SettingsScreen(
                     GlassCard {
                         SettingsItem(
                             icon = Icons.Default.DeleteSweep,
-                            title = if (isMizo) "Cache ṭhiat" else "Clear Cache",
-                            subtitle = if (isMizo) "Cached weather data paih rawh" else "Clear cached weather data",
+                            title = langString(
+                                R.string.settings_clear_cache_title_mz,
+                                R.string.settings_clear_cache_title_en,
+                                isMizo
+                            ),
+                            subtitle = langString(
+                                R.string.settings_clear_cache_subtitle_mz,
+                                R.string.settings_clear_cache_subtitle_en,
+                                isMizo
+                            ),
                             onClick = { showClearCacheDialog = true },
                             accentColor = AccentPurple
                         )
@@ -240,7 +341,11 @@ fun SettingsScreen(
                 // About Section
                 item {
                     SettingsSectionHeader(
-                        title = if (isMizo) "App chungchang" else "About",
+                        title = langString(
+                            R.string.settings_section_about_mz,
+                            R.string.settings_section_about_en,
+                            isMizo
+                        ),
                         icon = Icons.Default.Info
                     )
                 }
@@ -249,20 +354,32 @@ fun SettingsScreen(
                     GlassCard {
                         SettingsItem(
                             icon = Icons.Default.Info,
-                            title = if (isMizo) "App chungchang" else "About",
-                            subtitle = "Khawchin v1.0",
+                            title = langString(
+                                R.string.settings_about_title_mz,
+                                R.string.settings_about_title_en,
+                                isMizo
+                            ),
+                            subtitle = langString(
+                                R.string.settings_about_subtitle_mz,
+                                R.string.settings_about_subtitle_en,
+                                isMizo
+                            ),
                             onClick = onAboutClick,
                             accentColor = AccentCyan
                         )
 
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
-                            color = Color.White.copy(alpha = 0.1f)
+                            color = appTextMuted(0.1f)
                         )
 
                         SettingsItem(
                             icon = Icons.Default.PrivacyTip,
-                            title = if (isMizo) "Privacy Policy" else "Privacy Policy",
+                            title = langString(
+                                R.string.settings_privacy_title_mz,
+                                R.string.settings_privacy_title_en,
+                                isMizo
+                            ),
                             onClick = onPrivacyPolicyClick,
                             accentColor = AccentPurple
                         )
@@ -272,7 +389,11 @@ fun SettingsScreen(
                 // Danger Zone
                 item {
                     SettingsSectionHeader(
-                        title = if (isMizo) "Account" else "Account",
+                        title = langString(
+                            R.string.settings_section_account_mz,
+                            R.string.settings_section_account_en,
+                            isMizo
+                        ),
                         icon = Icons.Default.Security,
                         isDanger = true
                     )
@@ -282,8 +403,16 @@ fun SettingsScreen(
                     GlassCard {
                         SettingsItem(
                             icon = Icons.Default.DeleteForever,
-                            title = if (isMizo) "Account paih" else "Delete Account",
-                            subtitle = if (isMizo) "I data zawng zawng paih rawh" else "Remove all your data",
+                            title = langString(
+                                R.string.settings_delete_account_title_mz,
+                                R.string.settings_delete_account_title_en,
+                                isMizo
+                            ),
+                            subtitle = langString(
+                                R.string.settings_delete_account_subtitle_mz,
+                                R.string.settings_delete_account_subtitle_en,
+                                isMizo
+                            ),
                             onClick = { showDeleteAccountDialog = true },
                             isDanger = true,
                             accentColor = AccentRed
@@ -308,11 +437,26 @@ fun SettingsScreen(
     if (showLanguageDialog) {
         AlertDialog(
             onDismissRequest = { showLanguageDialog = false },
-            title = { Text(if (isMizo) "Ṭawng thlan rawh" else "Select Language") },
+            containerColor = DialogContainerColor,
+            titleContentColor = DialogTitleColor,
+            textContentColor = DialogTextColor,
+            title = {
+                Text(
+                    langString(
+                        R.string.settings_language_dialog_title_mz,
+                        R.string.settings_language_dialog_title_en,
+                        isMizo
+                    )
+                )
+            },
             text = {
                 Column {
                     LanguageOption(
-                        name = "Mizo",
+                        name = langString(
+                            R.string.settings_language_mizo_mz,
+                            R.string.settings_language_mizo_en,
+                            isMizo
+                        ),
                         isSelected = currentLanguage == "mz",
                         onClick = {
                             onLanguageChange("mz")
@@ -320,7 +464,11 @@ fun SettingsScreen(
                         }
                     )
                     LanguageOption(
-                        name = "English",
+                        name = langString(
+                            R.string.settings_language_english_mz,
+                            R.string.settings_language_english_en,
+                            isMizo
+                        ),
                         isSelected = currentLanguage == "en",
                         onClick = {
                             onLanguageChange("en")
@@ -331,7 +479,13 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showLanguageDialog = false }) {
-                    Text(if (isMizo) "Cancel" else "Cancel")
+                    Text(
+                        langString(
+                            R.string.settings_cancel_mz,
+                            R.string.settings_cancel_en,
+                            isMizo
+                        )
+                    )
                 }
             }
         )
@@ -341,11 +495,26 @@ fun SettingsScreen(
     if (showThemeDialog) {
         AlertDialog(
             onDismissRequest = { showThemeDialog = false },
-            title = { Text(if (isMizo) "Theme thlan rawh" else "Select Theme") },
+            containerColor = DialogContainerColor,
+            titleContentColor = DialogTitleColor,
+            textContentColor = DialogTextColor,
+            title = {
+                Text(
+                    langString(
+                        R.string.settings_theme_dialog_title_mz,
+                        R.string.settings_theme_dialog_title_en,
+                        isMizo
+                    )
+                )
+            },
             text = {
                 Column {
                     ThemeOption(
-                        name = if (isMizo) "Eng" else "Light",
+                        name = langString(
+                            R.string.settings_theme_light_mz,
+                            R.string.settings_theme_light_en,
+                            isMizo
+                        ),
                         isSelected = darkModeEnabled == false,
                         onClick = {
                             onDarkModeToggle(false)
@@ -353,7 +522,11 @@ fun SettingsScreen(
                         }
                     )
                     ThemeOption(
-                        name = if (isMizo) "Thim" else "Dark",
+                        name = langString(
+                            R.string.settings_theme_dark_mz,
+                            R.string.settings_theme_dark_en,
+                            isMizo
+                        ),
                         isSelected = darkModeEnabled == true,
                         onClick = {
                             onDarkModeToggle(true)
@@ -361,7 +534,11 @@ fun SettingsScreen(
                         }
                     )
                     ThemeOption(
-                        name = if (isMizo) "System angin" else "System default",
+                        name = langString(
+                            R.string.settings_theme_system_mz,
+                            R.string.settings_theme_system_en,
+                            isMizo
+                        ),
                         isSelected = darkModeEnabled == null,
                         onClick = {
                             onDarkModeToggle(null)
@@ -372,7 +549,13 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showThemeDialog = false }) {
-                    Text(if (isMizo) "Cancel" else "Cancel")
+                    Text(
+                        langString(
+                            R.string.settings_cancel_mz,
+                            R.string.settings_cancel_en,
+                            isMizo
+                        )
+                    )
                 }
             }
         )
@@ -382,11 +565,25 @@ fun SettingsScreen(
     if (showClearCacheDialog) {
         AlertDialog(
             onDismissRequest = { showClearCacheDialog = false },
-            title = { Text(if (isMizo) "Cache ṭhiat?" else "Clear Cache?") },
+            containerColor = DialogContainerColor,
+            titleContentColor = DialogTitleColor,
+            textContentColor = DialogTextColor,
+            title = {
+                Text(
+                    langString(
+                        R.string.settings_clear_cache_dialog_title_mz,
+                        R.string.settings_clear_cache_dialog_title_en,
+                        isMizo
+                    )
+                )
+            },
             text = {
                 Text(
-                    if (isMizo) "Cached weather data a paih dawn a, offline mode hman theih ni tawh lo ang."
-                    else "This will clear cached weather data. Offline mode won't work until data is refreshed."
+                    langString(
+                        R.string.settings_clear_cache_dialog_body_mz,
+                        R.string.settings_clear_cache_dialog_body_en,
+                        isMizo
+                    )
                 )
             },
             confirmButton = {
@@ -394,12 +591,24 @@ fun SettingsScreen(
                     onClearCache()
                     showClearCacheDialog = false
                 }) {
-                    Text(if (isMizo) "Paih rawh" else "Clear")
+                    Text(
+                        langString(
+                            R.string.settings_clear_cache_confirm_mz,
+                            R.string.settings_clear_cache_confirm_en,
+                            isMizo
+                        )
+                    )
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearCacheDialog = false }) {
-                    Text(if (isMizo) "Cancel" else "Cancel")
+                    Text(
+                        langString(
+                            R.string.settings_cancel_mz,
+                            R.string.settings_cancel_en,
+                            isMizo
+                        )
+                    )
                 }
             }
         )
@@ -409,16 +618,26 @@ fun SettingsScreen(
     if (showDeleteAccountDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteAccountDialog = false },
+            containerColor = DialogContainerColor,
+            titleContentColor = DialogTitleColor,
+            textContentColor = DialogTextColor,
             title = {
                 Text(
-                    if (isMizo) "⚠️ Account paih?" else "⚠️ Delete Account?",
+                    langString(
+                        R.string.settings_delete_account_dialog_title_mz,
+                        R.string.settings_delete_account_dialog_title_en,
+                        isMizo
+                    ),
                     color = MaterialTheme.colorScheme.error
                 )
             },
             text = {
                 Text(
-                    if (isMizo) "I account leh i data zawng zawng a paih vek dawn. Hei hi ruahman theih a ni lo!"
-                    else "This will permanently delete your account and all your data. This action cannot be undone!"
+                    langString(
+                        R.string.settings_delete_account_dialog_body_mz,
+                        R.string.settings_delete_account_dialog_body_en,
+                        isMizo
+                    )
                 )
             },
             confirmButton = {
@@ -431,16 +650,37 @@ fun SettingsScreen(
                         containerColor = MaterialTheme.colorScheme.error
                     )
                 ) {
-                    Text(if (isMizo) "Paih rawh" else "Delete")
+                    Text(
+                        langString(
+                            R.string.settings_delete_account_confirm_mz,
+                            R.string.settings_delete_account_confirm_en,
+                            isMizo
+                        )
+                    )
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteAccountDialog = false }) {
-                    Text(if (isMizo) "cancel" else "Cancel")
+                    Text(
+                        langString(
+                            R.string.settings_cancel_mz,
+                            R.string.settings_cancel_en,
+                            isMizo
+                        )
+                    )
                 }
             }
         )
     }
+}
+
+@Composable
+private fun langString(
+    @StringRes mizoRes: Int,
+    @StringRes englishRes: Int,
+    isMizo: Boolean,
+): String {
+    return stringResource(if (isMizo) mizoRes else englishRes)
 }
 
 @Composable
@@ -465,7 +705,7 @@ private fun SettingsSectionHeader(
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
             letterSpacing = 0.5.sp,
-            color = if (isDanger) AccentRed else Color.White.copy(alpha = 0.7f)
+            color = if (isDanger) AccentRed else appTextSecondary(0.7f)
         )
     }
 }
@@ -508,13 +748,13 @@ private fun SettingsItem(
                 text = title,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
-                color = if (isDanger) AccentRed else Color.White
+                color = if (isDanger) AccentRed else appTextPrimary()
             )
             if (subtitle != null) {
                 Text(
                     text = subtitle,
                     fontSize = 12.sp,
-                    color = Color.White.copy(alpha = 0.5f)
+                    color = appTextMuted(0.5f)
                 )
             }
         }
@@ -523,7 +763,7 @@ private fun SettingsItem(
             Icons.Default.ChevronRight,
             contentDescription = null,
             modifier = Modifier.size(20.dp),
-            tint = Color.White.copy(alpha = 0.4f)
+            tint = appIconTint(0.6f)
         )
     }
 }
@@ -566,13 +806,13 @@ private fun SettingsToggleItem(
                 text = title,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
-                color = if (enabled) Color.White else Color.White.copy(alpha = 0.5f)
+                color = if (enabled) appTextPrimary() else appTextMuted(0.5f)
             )
             if (subtitle != null) {
                 Text(
                     text = subtitle,
                     fontSize = 12.sp,
-                    color = Color.White.copy(alpha = if (enabled) 0.5f else 0.3f)
+                    color = appTextMuted(if (enabled) 0.5f else 0.3f)
                 )
             }
         }
@@ -582,10 +822,10 @@ private fun SettingsToggleItem(
             onCheckedChange = onToggle,
             enabled = enabled,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
+                checkedThumbColor = appTextPrimary(),
                 checkedTrackColor = accentColor,
-                uncheckedThumbColor = Color.White.copy(alpha = 0.8f),
-                uncheckedTrackColor = Color.White.copy(alpha = 0.2f),
+                uncheckedThumbColor = appTextSecondary(0.8f),
+                uncheckedTrackColor = appTextMuted(0.2f),
                 uncheckedBorderColor = Color.Transparent
             )
         )
@@ -607,10 +847,14 @@ private fun LanguageOption(
     ) {
         RadioButton(
             selected = isSelected,
-            onClick = onClick
+            onClick = onClick,
+            colors = RadioButtonDefaults.colors(
+                selectedColor = AccentCyan,
+                unselectedColor = Color.White.copy(alpha = 0.7f)
+            )
         )
         Spacer(modifier = Modifier.width(12.dp))
-        Text(text = name)
+        Text(text = name, color = Color.White)
     }
 }
 
@@ -629,9 +873,13 @@ private fun ThemeOption(
     ) {
         RadioButton(
             selected = isSelected,
-            onClick = onClick
+            onClick = onClick,
+            colors = RadioButtonDefaults.colors(
+                selectedColor = AccentCyan,
+                unselectedColor = Color.White.copy(alpha = 0.7f)
+            )
         )
         Spacer(modifier = Modifier.width(12.dp))
-        Text(text = name)
+        Text(text = name, color = Color.White)
     }
 }

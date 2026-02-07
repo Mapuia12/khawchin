@@ -2,7 +2,11 @@ package com.mapuia.khawchinthlirna.data
 
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import com.mapuia.khawchinthlirna.data.model.WeatherDoc
+import com.mapuia.khawchinthlirna.data.model.SkillReport
+import com.mapuia.khawchinthlirna.data.model.ImergDoc
+import com.mapuia.khawchinthlirna.data.model.ForecastSnapshot
 import com.mapuia.khawchinthlirna.util.AppLog
 import kotlinx.coroutines.delay
 import com.google.firebase.auth.FirebaseAuth
@@ -28,6 +32,128 @@ class WeatherRepository(
     private val db: FirebaseFirestore,
     private val cache: WeatherCache? = null,
 ) {
+
+    /** Get latest skill report (global, not grid-specific). */
+    suspend fun getLatestSkillReport(): SkillReport? {
+        fun mapSkillReport(doc: com.google.firebase.firestore.DocumentSnapshot): SkillReport? {
+            return try {
+                val perModelMae = (doc.get("per_model_mae") as? Map<*, *>)
+                    ?.mapNotNull { (k, v) ->
+                        val key = k as? String
+                        val value = (v as? Number)?.toDouble()
+                        if (key != null && value != null) key to value else null
+                    }
+                    ?.toMap()
+                val perModelCount = (doc.get("per_model_count") as? Map<*, *>)
+                    ?.mapNotNull { (k, v) ->
+                        val key = k as? String
+                        val value = (v as? Number)?.toLong()
+                        if (key != null && value != null) key to value else null
+                    }
+                    ?.toMap()
+
+                SkillReport(
+                    periodStart = doc.getString("period_start"),
+                    periodEnd = doc.getString("period_end"),
+                    sampleCount = doc.getLong("sample_count")?.toInt() ?: 0,
+                    overallMae = (doc.get("overall_mae") as? Number)?.toDouble(),
+                    overallBrier = (doc.get("overall_brier") as? Number)?.toDouble(),
+                    overallBias = (doc.get("overall_bias") as? Number)?.toDouble(),
+                    hitRate = (doc.get("hit_rate") as? Number)?.toDouble(),
+                    falseAlarmRate = (doc.get("false_alarm_rate") as? Number)?.toDouble(),
+                    perModelMae = perModelMae,
+                    perModelCount = perModelCount,
+                    ts = doc.getString("ts"),
+                )
+            } catch (_: Exception) {
+                null
+            }
+        }
+        suspend fun fetchFallback(): SkillReport? {
+            return try {
+                val fallback = db.collection(WeatherConstants.SKILL_REPORT_COLLECTION)
+                    .orderBy(FieldPath.documentId(), Query.Direction.DESCENDING)
+                    .limit(1)
+                    .get()
+                    .await()
+
+                fallback.documents.firstOrNull()?.let { mapSkillReport(it) }
+            } catch (e2: Exception) {
+                AppLog.e("WeatherRepo", "Skill report fetch (docId) failed: ${e2.message}")
+                try {
+                    val anyDocs = db.collection(WeatherConstants.SKILL_REPORT_COLLECTION)
+                        .limit(10)
+                        .get()
+                        .await()
+
+                    anyDocs.documents
+                        .mapNotNull { doc ->
+                            val ts = doc.getString("ts")
+                            val score = ts ?: doc.id
+                            mapSkillReport(doc)?.let { it to score }
+                        }
+                        .maxByOrNull { it.second }
+                        ?.first
+                } catch (e3: Exception) {
+                    AppLog.e("WeatherRepo", "Skill report fetch (fallback) failed: ${e3.message}")
+                    null
+                }
+            }
+        }
+
+        return try {
+            AppLog.d("WeatherRepo", "Fetching skill report from collection: ${WeatherConstants.SKILL_REPORT_COLLECTION}")
+            val snapshot = db.collection(WeatherConstants.SKILL_REPORT_COLLECTION)
+                .orderBy("ts", Query.Direction.DESCENDING)
+                .limit(1)
+                .get()
+                .await()
+
+            AppLog.d(
+                "WeatherRepo",
+                "Skill report query (ts) docs=${snapshot.size()} ids=${snapshot.documents.joinToString { it.id }}"
+            )
+
+            snapshot.documents.firstOrNull()?.let { mapSkillReport(it) }
+                ?: fetchFallback()
+        } catch (e: Exception) {
+            AppLog.e("WeatherRepo", "Skill report fetch (ts) failed: ${e.message}")
+            fetchFallback()
+        }
+    }
+
+    /** Get latest IMERG satellite precipitation for a grid ID (if available). */
+    suspend fun getImergByGridId(gridId: String): ImergDoc? {
+        return try {
+            val doc = db.collection(WeatherConstants.IMERG_COLLECTION)
+                .document(gridId)
+                .get()
+                .await()
+            doc.toObject(ImergDoc::class.java)?.also {
+                if (it.gridId.isNullOrBlank()) it.gridId = doc.id
+            }
+        } catch (e: Exception) {
+            AppLog.e("WeatherRepo", "IMERG fetch failed for $gridId: ${e.message}")
+            null
+        }
+    }
+
+    /** Get latest forecast snapshot for a grid ID (if available). */
+    suspend fun getForecastSnapshotByGridId(gridId: String): ForecastSnapshot? {
+        return try {
+            val doc = db.collection(WeatherConstants.FORECAST_SNAPSHOT_COLLECTION)
+                .document(gridId)
+                .get()
+                .await()
+            doc.toObject(ForecastSnapshot::class.java)?.also {
+                if (it.gridId.isNullOrBlank()) it.gridId = doc.id
+                if (it.runTime == null) it.runTime = doc.get("run_time")
+            }
+        } catch (e: Exception) {
+            AppLog.e("WeatherRepo", "Forecast snapshot fetch failed for $gridId: ${e.message}")
+            null
+        }
+    }
 
     /**
      * Get weather by grid ID. If document doesn't exist, automatically
@@ -282,6 +408,10 @@ class WeatherRepository(
         userLon: Double?,
         accuracyMeters: Double = 150.0,
         severity: Int = 3,
+        rainIntensity: Int? = null,
+        windStrength: Int? = null,
+        skyCondition: Int? = null,
+        reportSource: String? = null,
     ) {
         // Keep payload minimal and aligned with backend function.
         // Validate inputs
@@ -300,6 +430,7 @@ class WeatherRepository(
 
         val severityClamped = severity.coerceIn(1, 5)
 
+        val rainIntensityValue = (rainIntensity ?: severityClamped).coerceIn(0, 6)
         val data = hashMapOf<String, Any>(
             "lat" to userLat,
             "lon" to userLon,
@@ -312,12 +443,15 @@ class WeatherRepository(
             // Required by Firestore rules
             "user_id" to currentUser.uid,
             // rain_intensity is required by rules (use severity as approximation)
-            "rain_intensity" to severityClamped,
+            "rain_intensity" to rainIntensityValue,
         )
 
         if (!gridId.isNullOrBlank()) {
             data["grid_id"] = gridId
         }
+        windStrength?.let { data["wind_strength"] = it.coerceIn(0, 4) }
+        skyCondition?.let { data["sky_condition"] = it.coerceIn(0, 4) }
+        reportSource?.takeIf { it.isNotBlank() }?.let { data["report_source"] = it }
 
         db.collection(WeatherConstants.REPORTS_COLLECTION).add(data).await()
     }

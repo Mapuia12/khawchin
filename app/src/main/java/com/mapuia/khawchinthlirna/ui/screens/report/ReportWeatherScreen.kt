@@ -74,6 +74,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -86,7 +87,14 @@ import com.mapuia.khawchinthlirna.data.auth.AuthManager
 import com.mapuia.khawchinthlirna.data.auth.UserProfile
 import com.mapuia.khawchinthlirna.data.ReverseGeocoder
 import com.mapuia.khawchinthlirna.ui.components.BannerAd
+import androidx.annotation.StringRes
+import com.mapuia.khawchinthlirna.R
 import kotlinx.coroutines.launch
+import com.mapuia.khawchinthlirna.ui.theme.appBackgroundGradient
+import com.mapuia.khawchinthlirna.ui.theme.appIconTint
+import com.mapuia.khawchinthlirna.ui.theme.appTextMuted
+import com.mapuia.khawchinthlirna.ui.theme.appTextPrimary
+import com.mapuia.khawchinthlirna.ui.theme.appTextSecondary
 
 /**
  * Full-featured Report Weather Screen.
@@ -107,11 +115,42 @@ fun ReportWeatherScreen(
         locationName: String?,
     ) -> Result<Unit>,
     onNavigateToRainGuide: () -> Unit = {},
+    isMizo: Boolean = true,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val authManager: AuthManager = koinInject()
     val reverseGeocoder = remember { ReverseGeocoder(context) }
+    val textPrimary = appTextPrimary()
+    val textSecondary = appTextSecondary(0.8f)
+    val textMuted = appTextMuted(0.6f)
+    val iconTint = appIconTint()
+
+    val signInSuccessMessage = langString(
+        R.string.report_sign_in_success_mz,
+        R.string.report_sign_in_success_en,
+        isMizo
+    )
+    val signInFailedMessage = langString(
+        R.string.report_sign_in_failed_mz,
+        R.string.report_sign_in_failed_en,
+        isMizo
+    )
+    val gpsRequiredMessage = langString(
+        R.string.report_gps_required_toast_mz,
+        R.string.report_gps_required_toast_en,
+        isMizo
+    )
+    val submitSuccessMessage = langString(
+        R.string.report_submit_success_toast_mz,
+        R.string.report_submit_success_toast_en,
+        isMizo
+    )
+    val submitFailedFallback = langString(
+        R.string.report_submit_failed_toast_mz,
+        R.string.report_submit_failed_toast_en,
+        isMizo
+    )
 
     // Auth state
     var userProfile by remember { mutableStateOf<UserProfile?>(null) }
@@ -132,9 +171,17 @@ fun ReportWeatherScreen(
             isSigningIn = false
             if (signInResult.isSuccess) {
                 userProfile = authManager.getUserProfile()
-                Toast.makeText(context, "Sign in a hlawhtling e!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    signInSuccessMessage,
+                    Toast.LENGTH_SHORT
+                ).show()
             } else {
-                Toast.makeText(context, "Sign in a hlawhchham tlat.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    signInFailedMessage,
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }
@@ -160,13 +207,7 @@ fun ReportWeatherScreen(
         }
     }
 
-    val backgroundGradient = Brush.verticalGradient(
-        listOf(
-            Color(0xFF0F0C29),
-            Color(0xFF302B63),
-            Color(0xFF24243E),
-        )
-    )
+    val backgroundGradient = appBackgroundGradient()
 
     Box(
         modifier = Modifier
@@ -179,8 +220,12 @@ fun ReportWeatherScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "Khawchin Report-na", // Changed from Report Weather
-                            color = Color.White,
+                            text = langString(
+                                R.string.report_title_mz,
+                                R.string.report_title_en,
+                                isMizo
+                            ),
+                            color = textPrimary,
                             fontWeight = FontWeight.Bold,
                         )
                     },
@@ -188,8 +233,12 @@ fun ReportWeatherScreen(
                         IconButton(onClick = onBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Kirna",
-                                tint = Color.White
+                                contentDescription = langString(
+                                    R.string.report_back_mz,
+                                    R.string.report_back_en,
+                                    isMizo
+                                ),
+                                tint = iconTint
                             )
                         }
                     },
@@ -197,8 +246,12 @@ fun ReportWeatherScreen(
                         IconButton(onClick = onNavigateToRainGuide) {
                             Icon(
                                 Icons.AutoMirrored.Filled.HelpOutline,
-                                contentDescription = "Ruah sur dan Sawifiahna",
-                                tint = Color.White
+                                contentDescription = langString(
+                                    R.string.report_rain_guide_mz,
+                                    R.string.report_rain_guide_en,
+                                    isMizo
+                                ),
+                                tint = iconTint
                             )
                         }
                     },
@@ -215,65 +268,81 @@ fun ReportWeatherScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                // User Profile Card - Sign in to earn points
-                UserProfileCard(
-                    userProfile = userProfile,
-                    isAnonymous = authManager.isAnonymous,
-                    isSigningIn = isSigningIn,
-                    onSignInClick = { signInLauncher.launch(authManager.getGoogleSignInIntent()) }
-                )
-
                 // Location indicator
                 if (userLat != null && userLon != null) {
                     LocationCard(
                         locationName = locationName,
                         isLoading = isAutoDetectingLocation,
-                        onLocationNameChange = { locationName = it }
+                        onLocationNameChange = { locationName = it },
+                        isMizo = isMizo,
                     )
                 } else {
-                    NoLocationCard()
+                    NoLocationCard(isMizo = isMizo)
                 }
 
                 // Rain Intensity Selector (Required)
                 SectionCard(
-                    title = "Ruah Sur Dan (Tih ngei ngei tur) *", // Rain Intensity
+                    title = langString(
+                        R.string.report_rain_intensity_title_mz,
+                        R.string.report_rain_intensity_title_en,
+                        isMizo
+                    ),
                     icon = Icons.Default.WaterDrop,
+                    isMizo = isMizo,
                 ) {
                     RainIntensitySelector(
                         selected = rainIntensity,
-                        onSelect = { rainIntensity = it }
+                        onSelect = { rainIntensity = it },
+                        isMizo = isMizo,
                     )
                 }
 
                 // Sky Condition Selector (Optional)
                 SectionCard(
-                    title = "Van Dinhmun (Sky Condition)",
+                    title = langString(
+                        R.string.report_sky_condition_title_mz,
+                        R.string.report_sky_condition_title_en,
+                        isMizo
+                    ),
                     icon = Icons.Default.Cloud,
                     optional = true,
+                    isMizo = isMizo,
                 ) {
                     SkyConditionSelector(
                         selected = skyCondition,
-                        onSelect = { skyCondition = if (skyCondition == it) null else it }
+                        onSelect = { skyCondition = if (skyCondition == it) null else it },
+                        isMizo = isMizo,
                     )
                 }
 
                 // Wind Strength Selector (Optional)
                 SectionCard(
-                    title = "Thli Tleh Dan (Wind Strength)",
+                    title = langString(
+                        R.string.report_wind_strength_title_mz,
+                        R.string.report_wind_strength_title_en,
+                        isMizo
+                    ),
                     icon = Icons.Default.Cloud,
                     optional = true,
+                    isMizo = isMizo,
                 ) {
                     WindStrengthSelector(
                         selected = windStrength,
-                        onSelect = { windStrength = if (windStrength == it) null else it }
+                        onSelect = { windStrength = if (windStrength == it) null else it },
+                        isMizo = isMizo,
                     )
                 }
 
                 // Notes Section (Optional)
                 SectionCard(
-                    title = "Thil dang sawi duh (Notes)",
+                    title = langString(
+                        R.string.report_notes_title_mz,
+                        R.string.report_notes_title_en,
+                        isMizo
+                    ),
                     icon = Icons.Default.Cloud,
                     optional = true,
+                    isMizo = isMizo,
                 ) {
                     OutlinedTextField(
                         value = notes,
@@ -281,15 +350,19 @@ fun ReportWeatherScreen(
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = {
                             Text(
-                                "Sawi belh duh i neih chuan hetah ziak rawh...",
-                                color = Color.White.copy(alpha = 0.5f)
+                                langString(
+                                    R.string.report_notes_placeholder_mz,
+                                    R.string.report_notes_placeholder_en,
+                                    isMizo
+                                ),
+                                color = appTextMuted(0.5f)
                             )
                         },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
+                            focusedTextColor = textPrimary,
+                            unfocusedTextColor = textPrimary,
                             focusedBorderColor = Color(0xFF06D6A0),
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                            unfocusedBorderColor = appTextMuted(0.3f),
                             cursorColor = Color(0xFF06D6A0),
                         ),
                         maxLines = 4,
@@ -305,7 +378,7 @@ fun ReportWeatherScreen(
                         if (userLat == null || userLon == null) {
                             Toast.makeText(
                                 context,
-                                "Report thehlut turin GPS a in-on a ngai",
+                                gpsRequiredMessage,
                                 Toast.LENGTH_SHORT
                             ).show()
                             return@Button
@@ -325,9 +398,11 @@ fun ReportWeatherScreen(
 
                             result.fold(
                                 onSuccess = {
+                                    // Refresh user profile to show updated points
+                                    userProfile = authManager.getUserProfile()
                                     Toast.makeText(
                                         context,
-                                        "Ka lawm e! Report thehluh a hlawhtling.", // Fixed Mizo translation
+                                        submitSuccessMessage,
                                         Toast.LENGTH_SHORT
                                     ).show()
                                     onBack()
@@ -335,7 +410,7 @@ fun ReportWeatherScreen(
                                 onFailure = { error ->
                                     Toast.makeText(
                                         context,
-                                        error.message ?: "Report thehluh a hlawhchham tlat",
+                                        error.message ?: submitFailedFallback,
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -355,13 +430,25 @@ fun ReportWeatherScreen(
                     if (isSubmitting) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(24.dp),
-                            color = Color.White,
+                            color = textPrimary,
                             strokeWidth = 2.dp,
                         )
                         Spacer(Modifier.width(8.dp))
                     }
                     Text(
-                        text = if (isSubmitting) "Thehlut mek..." else "Report Ang",
+                        text = if (isSubmitting) {
+                            langString(
+                                R.string.report_submitting_mz,
+                                R.string.report_submitting_en,
+                                isMizo
+                            )
+                        } else {
+                            langString(
+                                R.string.report_submit_report_mz,
+                                R.string.report_submit_report_en,
+                                isMizo
+                            )
+                        },
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                     )
@@ -381,6 +468,7 @@ private fun SectionCard(
     title: String,
     icon: ImageVector,
     optional: Boolean = false,
+    isMizo: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     Card(
@@ -408,15 +496,19 @@ private fun SectionCard(
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text = title,
-                    color = Color.White,
+                    color = appTextPrimary(),
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp,
                     modifier = Modifier.weight(1f)
                 )
                 if (optional) {
                     Text(
-                        text = "Dah kher a ngai lo", // Optional
-                        color = Color.White.copy(alpha = 0.5f),
+                        text = langString(
+                            R.string.report_optional_mz,
+                            R.string.report_optional_en,
+                            isMizo
+                        ),
+                        color = appTextMuted(0.5f),
                         fontSize = 11.sp,
                     )
                 }
@@ -431,6 +523,7 @@ private fun LocationCard(
     locationName: String,
     isLoading: Boolean,
     onLocationNameChange: (String) -> Unit,
+    isMizo: Boolean = true,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -455,8 +548,12 @@ private fun LocationCard(
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Hmun Hming (Location)",
-                    color = Color.White.copy(alpha = 0.7f),
+                    text = langString(
+                        R.string.report_location_label_mz,
+                        R.string.report_location_label_en,
+                        isMizo
+                    ),
+                    color = appTextSecondary(0.7f),
                     fontSize = 12.sp,
                 )
                 if (isLoading) {
@@ -468,8 +565,12 @@ private fun LocationCard(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "I awmna hmun zawn mek...",
-                            color = Color.White.copy(alpha = 0.7f),
+                            text = langString(
+                                R.string.report_detecting_location_mz,
+                                R.string.report_detecting_location_en,
+                                isMizo
+                            ),
+                            color = appTextSecondary(0.7f),
                             fontSize = 14.sp,
                         )
                     }
@@ -480,14 +581,18 @@ private fun LocationCard(
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = {
                             Text(
-                                "Hmun hming ziak lut rawh",
-                                color = Color.White.copy(alpha = 0.5f),
+                                text = langString(
+                                    R.string.report_location_placeholder_mz,
+                                    R.string.report_location_placeholder_en,
+                                    isMizo
+                                ),
+                                color = appTextSecondary(0.5f),
                                 fontSize = 14.sp,
                             )
                         },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
+                            focusedTextColor = appTextPrimary(),
+                            unfocusedTextColor = appTextPrimary(),
                             focusedBorderColor = Color(0xFF06D6A0),
                             unfocusedBorderColor = Color.Transparent,
                             cursorColor = Color(0xFF06D6A0),
@@ -502,7 +607,7 @@ private fun LocationCard(
 }
 
 @Composable
-private fun NoLocationCard() {
+private fun NoLocationCard(isMizo: Boolean = true) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -526,14 +631,22 @@ private fun NoLocationCard() {
             Spacer(Modifier.width(12.dp))
             Column {
                 Text(
-                    text = "GPS On A Ngai",
+                    text = langString(
+                        R.string.report_no_location_title_mz,
+                        R.string.report_no_location_title_en,
+                        isMizo
+                    ),
                     color = Color(0xFFFF6B6B),
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp,
                 )
                 Text(
-                    text = "Report thehlut turin khawngaihin GPS on rawh",
-                    color = Color.White.copy(alpha = 0.7f),
+                    text = langString(
+                        R.string.report_no_location_body_mz,
+                        R.string.report_no_location_body_en,
+                        isMizo
+                    ),
+                    color = appTextSecondary(0.7f),
                     fontSize = 12.sp,
                 )
             }
@@ -546,6 +659,7 @@ fun RainIntensitySelector(
     selected: Int,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    isMizo: Boolean = true,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -555,7 +669,8 @@ fun RainIntensitySelector(
             RainIntensityChip(
                 intensity = intensity,
                 isSelected = selected == intensity.level,
-                onClick = { onSelect(intensity.level) }
+                onClick = { onSelect(intensity.level) },
+                isMizo = isMizo,
             )
         }
     }
@@ -566,6 +681,7 @@ private fun RainIntensityChip(
     intensity: RainIntensity,
     isSelected: Boolean,
     onClick: () -> Unit,
+    isMizo: Boolean = true,
 ) {
     val backgroundColor by animateColorAsState(
         targetValue = if (isSelected) {
@@ -609,7 +725,7 @@ private fun RainIntensityChip(
             )
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp)
-            .semantics { contentDescription = "${intensity.labelMizo} - ${intensity.labelEnglish}" },
+            .semantics { contentDescription = "${intensity.labelEnglish} - ${intensity.labelMizo}" },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -622,21 +738,23 @@ private fun RainIntensityChip(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = intensity.labelMizo,
-                    color = Color.White,
+                    text = if (isMizo) intensity.labelMizo else intensity.labelEnglish,
+                    color = appTextPrimary(),
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp,
                 )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = "(${intensity.labelEnglish})",
-                    color = Color.White.copy(alpha = 0.6f),
-                    fontSize = 12.sp,
-                )
+                if (isMizo) {
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "(${intensity.labelEnglish})",
+                        color = appTextSecondary(0.6f),
+                        fontSize = 12.sp,
+                    )
+                }
             }
             Text(
-                text = intensity.description,
-                color = Color.White.copy(alpha = 0.5f),
+                text = if (isMizo) intensity.description else intensity.descriptionEnglish,
+                color = appTextMuted(0.5f),
                 fontSize = 11.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -645,8 +763,12 @@ private fun RainIntensityChip(
         if (isSelected) {
             Icon(
                 imageVector = Icons.Default.Check,
-                contentDescription = "Selected",
-                tint = Color.White,
+                contentDescription = langString(
+                    R.string.report_selected_mz,
+                    R.string.report_selected_en,
+                    isMizo
+                ),
+                tint = appIconTint(),
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -658,6 +780,7 @@ fun SkyConditionSelector(
     selected: Int?,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    isMizo: Boolean = true,
 ) {
     Row(
         modifier = modifier
@@ -667,8 +790,8 @@ fun SkyConditionSelector(
     ) {
         SkyCondition.entries.forEach { condition ->
             ConditionChip(
-                label = condition.labelMizo,
-                subLabel = condition.labelEnglish,
+                label = if (isMizo) condition.labelMizo else condition.labelEnglish,
+                subLabel = if (isMizo) condition.labelEnglish else "",
                 isSelected = selected == condition.level,
                 onClick = { onSelect(condition.level) },
                 emoji = when (condition.level) {
@@ -689,6 +812,7 @@ fun WindStrengthSelector(
     selected: Int?,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    isMizo: Boolean = true,
 ) {
     Row(
         modifier = modifier
@@ -698,8 +822,8 @@ fun WindStrengthSelector(
     ) {
         WindStrength.entries.forEach { strength ->
             ConditionChip(
-                label = strength.labelMizo,
-                subLabel = strength.labelEnglish,
+                label = if (isMizo) strength.labelMizo else strength.labelEnglish,
+                subLabel = if (isMizo) strength.labelEnglish else "",
                 isSelected = selected == strength.level,
                 onClick = { onSelect(strength.level) },
                 emoji = when (strength.level) {
@@ -723,6 +847,8 @@ private fun ConditionChip(
     onClick: () -> Unit,
     emoji: String,
 ) {
+    val textPrimary = appTextPrimary()
+    val textSecondary = appTextSecondary(0.5f)
     val backgroundColor by animateColorAsState(
         targetValue = if (isSelected) Color(0xFF3A86FF).copy(alpha = 0.7f)
         else Color.White.copy(alpha = 0.08f),
@@ -748,14 +874,14 @@ private fun ConditionChip(
         Spacer(Modifier.height(4.dp))
         Text(
             text = label,
-            color = Color.White,
+            color = textPrimary,
             fontWeight = FontWeight.Medium,
             fontSize = 12.sp,
             textAlign = TextAlign.Center,
         )
         Text(
             text = subLabel,
-            color = Color.White.copy(alpha = 0.5f),
+            color = textSecondary,
             fontSize = 10.sp,
             textAlign = TextAlign.Center,
         )
@@ -771,7 +897,12 @@ private fun UserProfileCard(
     isAnonymous: Boolean,
     isSigningIn: Boolean,
     onSignInClick: () -> Unit,
+    isMizo: Boolean = true,
 ) {
+    val textPrimary = appTextPrimary()
+    val textSecondary = appTextSecondary(0.7f)
+    val textMuted = appTextMuted(0.5f)
+    val iconTint = appIconTint()
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -809,7 +940,11 @@ private fun UserProfileCard(
                 if (userProfile?.photoUrl != null) {
                     AsyncImage(
                         model = userProfile.photoUrl,
-                        contentDescription = "Profile",
+                        contentDescription = langString(
+                            R.string.report_profile_cd_mz,
+                            R.string.report_profile_cd_en,
+                            isMizo
+                        ),
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape),
@@ -819,7 +954,7 @@ private fun UserProfileCard(
                     Icon(
                         Icons.Default.Person,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = iconTint,
                         modifier = Modifier.size(28.dp)
                     )
                 }
@@ -831,20 +966,32 @@ private fun UserProfileCard(
             ) {
                 if (isAnonymous) {
                     Text(
-                        text = "Sign in rawh",
-                        color = Color.White,
+                        text = langString(
+                            R.string.report_sign_in_prompt_mz,
+                            R.string.report_sign_in_prompt_en,
+                            isMizo
+                        ),
+                        color = textPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
                     )
                     Text(
-                        text = "Points leh badges i hlawh thei ang!",
-                        color = Color.White.copy(alpha = 0.7f),
+                        text = langString(
+                            R.string.report_sign_in_subtitle_mz,
+                            R.string.report_sign_in_subtitle_en,
+                            isMizo
+                        ),
+                        color = textSecondary,
                         fontSize = 12.sp
                     )
                 } else {
                     Text(
-                        text = userProfile?.displayName ?: "User",
-                        color = Color.White,
+                        text = userProfile?.displayName ?: langString(
+                            R.string.report_user_mz,
+                            R.string.report_user_en,
+                            isMizo
+                        ),
+                        color = textPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
                     )
@@ -853,19 +1000,25 @@ private fun UserProfileCard(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "⭐ ${userProfile?.points ?: 0} points",
+                            text = stringResource(
+                                if (isMizo) R.string.report_points_label_mz else R.string.report_points_label_en,
+                                userProfile?.points ?: 0
+                            ),
                             color = Color(0xFFFFD166),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
                             text = "•",
-                            color = Color.White.copy(alpha = 0.5f),
+                            color = textMuted,
                             fontSize = 12.sp
                         )
                         Text(
-                            text = "📊 ${userProfile?.totalReports ?: 0} reports",
-                            color = Color.White.copy(alpha = 0.7f),
+                            text = stringResource(
+                                if (isMizo) R.string.report_reports_label_mz else R.string.report_reports_label_en,
+                                userProfile?.totalReports ?: 0
+                            ),
+                            color = textSecondary,
                             fontSize = 12.sp
                         )
                     }
@@ -889,7 +1042,7 @@ private fun UserProfileCard(
                     if (isSigningIn) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(16.dp),
-                            color = Color.White,
+                            color = textPrimary,
                             strokeWidth = 2.dp
                         )
                     } else {
@@ -901,7 +1054,11 @@ private fun UserProfileCard(
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            text = "Lut Rawh", // Sign In
+                            text = langString(
+                                R.string.report_sign_in_button_mz,
+                                R.string.report_sign_in_button_en,
+                                isMizo
+                            ),
                             color = Color.Black,
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp
@@ -911,4 +1068,13 @@ private fun UserProfileCard(
             }
         }
     }
+}
+
+@Composable
+private fun langString(
+    @StringRes mizoRes: Int,
+    @StringRes englishRes: Int,
+    isMizo: Boolean,
+): String {
+    return stringResource(if (isMizo) mizoRes else englishRes)
 }

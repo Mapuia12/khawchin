@@ -13,6 +13,9 @@ object WeatherConstants {
     // Firestore collections (must match security rules)
     const val WEATHER_COLLECTION = "weather_v69_grid"
     const val REPORTS_COLLECTION = "crowd_reports"  // Match Firestore rules: match /crowd_reports/{reportId}
+    const val SKILL_REPORT_COLLECTION = "skill_report"
+    const val IMERG_COLLECTION = "imerg_late_grid"
+    const val FORECAST_SNAPSHOT_COLLECTION = "forecast_snapshots"
     
     // Grid validation pattern: 2 decimal places (e.g., "23.73_92.72")
     val GRID_ID_PATTERN = Regex("^\\d{2}\\.\\d{2}_\\d{2}\\.\\d{2}$")

@@ -39,23 +39,30 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringArrayResource
+import androidx.compose.ui.res.stringResource
+import androidx.annotation.StringRes
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mapuia.khawchinthlirna.R
 import com.mapuia.khawchinthlirna.ui.components.BannerAd
+import com.mapuia.khawchinthlirna.ui.theme.appBackgroundGradient
+import com.mapuia.khawchinthlirna.ui.theme.appIconTint
+import com.mapuia.khawchinthlirna.ui.theme.appTextMuted
+import com.mapuia.khawchinthlirna.ui.theme.appTextPrimary
+import com.mapuia.khawchinthlirna.ui.theme.appTextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppGuideScreen(
     onBack: () -> Unit,
+    isMizo: Boolean = true,
 ) {
-    val backgroundGradient = Brush.verticalGradient(
-        listOf(
-            Color(0xFF0F0C29),
-            Color(0xFF302B63),
-            Color(0xFF24243E),
-        )
-    )
+    val backgroundGradient = appBackgroundGradient()
+    val textPrimary = appTextPrimary()
+    val textSecondary = appTextSecondary(0.8f)
+    val iconTint = appIconTint()
 
     Box(
         modifier = Modifier
@@ -68,8 +75,12 @@ fun AppGuideScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "App Hman Dan", // App Guide
-                            color = Color.White,
+                            text = langString(
+                                R.string.app_guide_title_mz,
+                                R.string.app_guide_title_en,
+                                isMizo
+                            ),
+                            color = textPrimary,
                             fontWeight = FontWeight.Bold,
                         )
                     },
@@ -77,8 +88,12 @@ fun AppGuideScreen(
                         IconButton(onClick = onBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Kirna",
-                                tint = Color.White
+                                contentDescription = langString(
+                                    R.string.ui_back_mz,
+                                    R.string.ui_back_en,
+                                    isMizo
+                                ),
+                                tint = iconTint
                             )
                         }
                     },
@@ -96,8 +111,12 @@ fun AppGuideScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "Khawchin Thlirna app hman dan kaihhruaina (Guide).",
-                    color = Color.White.copy(alpha = 0.8f),
+                    text = langString(
+                        R.string.app_guide_intro_mz,
+                        R.string.app_guide_intro_en,
+                        isMizo
+                    ),
+                    color = textSecondary,
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
                 )
@@ -107,12 +126,11 @@ fun AppGuideScreen(
                     number = 1,
                     icon = Icons.Default.Home,
                     iconColor = Color(0xFF00D4FF),
-                    title = "Khawchin En Dan",
-                    titleEnglish = "Home Screen leh Forecast",
-                    steps = listOf(
-                        "Home screen-ah tun huna khawchin dinhmun a lang nghal ang.",
-                        "A hnuai lamah scroll la, darkar tin leh ni tin thlirlawkna i hmu ang."
-                    )
+                    titleMz = stringResource(R.string.app_guide_section1_title_mz),
+                    titleEn = stringResource(R.string.app_guide_section1_title_en),
+                    stepsMz = stringArrayResource(R.array.app_guide_section1_steps_mz).toList(),
+                    stepsEn = stringArrayResource(R.array.app_guide_section1_steps_en).toList(),
+                    isMizo = isMizo,
                 )
 
                 // Section 2: Report thawn dan
@@ -120,14 +138,11 @@ fun AppGuideScreen(
                     number = 2,
                     icon = Icons.Default.Send,
                     iconColor = Color(0xFF06D6A0),
-                    title = "Report Thehluh Dan",
-                    titleEnglish = "Khawchin Report Thawnna",
-                    steps = listOf(
-                        "'+' button emaw 'Report Weather' tih kha hmet rawh.",
-                        "Ruah sur dan (Rain Intensity) thlang rawh - Tih ngei ngei tur.",
-                        "Van awmdan, thli leh note te i duh chuan belh rawh - Tih kher a ngai lo.",
-                        "A tawpah 'Submit' hmet rawh le!"
-                    )
+                    titleMz = stringResource(R.string.app_guide_section2_title_mz),
+                    titleEn = stringResource(R.string.app_guide_section2_title_en),
+                    stepsMz = stringArrayResource(R.array.app_guide_section2_steps_mz).toList(),
+                    stepsEn = stringArrayResource(R.array.app_guide_section2_steps_en).toList(),
+                    isMizo = isMizo,
                 )
 
                 // Section 3: Points leh Badges
@@ -135,13 +150,11 @@ fun AppGuideScreen(
                     number = 3,
                     icon = Icons.Default.EmojiEvents,
                     iconColor = Color(0xFFFFD166),
-                    title = "Points leh Badges",
-                    titleEnglish = "Lawmman leh Chawimawina",
-                    steps = listOf(
-                        "Report i thehluh apiangin Points i hmu zel ang.",
-                        "Achievement hrang hrang ti hlawhtling la, Badge la khawm rawh.",
-                        "Leaderboard-ah midang nen inkhaikhin rawh u!"
-                    )
+                    titleMz = stringResource(R.string.app_guide_section3_title_mz),
+                    titleEn = stringResource(R.string.app_guide_section3_title_en),
+                    stepsMz = stringArrayResource(R.array.app_guide_section3_steps_mz).toList(),
+                    stepsEn = stringArrayResource(R.array.app_guide_section3_steps_en).toList(),
+                    isMizo = isMizo,
                 )
 
                 // Section 4: Tips
@@ -149,13 +162,11 @@ fun AppGuideScreen(
                     number = 4,
                     icon = Icons.Default.Lightbulb,
                     iconColor = Color(0xFF8338EC),
-                    title = "Thurawn (Tips)",
-                    titleEnglish = "Hriat Tur Pawimawhte",
-                    steps = listOf(
-                        "I awmna hmun tak atangin report thehlut thin rawh.",
-                        "Thu dik chiah report rawh - dawt report chuan i 'Trust Level' a ti hniam ang.",
-                        "Report i thehluh ngun chuan i 'Trust Level' a sang zel ang."
-                    )
+                    titleMz = stringResource(R.string.app_guide_section4_title_mz),
+                    titleEn = stringResource(R.string.app_guide_section4_title_en),
+                    stepsMz = stringArrayResource(R.array.app_guide_section4_steps_mz).toList(),
+                    stepsEn = stringArrayResource(R.array.app_guide_section4_steps_en).toList(),
+                    isMizo = isMizo,
                 )
 
                 BannerAd(modifier = Modifier.fillMaxWidth())
@@ -171,9 +182,11 @@ private fun GuideSection(
     number: Int,
     icon: ImageVector,
     iconColor: Color,
-    title: String,
-    titleEnglish: String,
-    steps: List<String>,
+    titleMz: String,
+    titleEn: String,
+    stepsMz: List<String>,
+    stepsEn: List<String>,
+    isMizo: Boolean = true,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -199,7 +212,7 @@ private fun GuideSection(
                 ) {
                     Text(
                         text = number.toString(),
-                        color = Color.White,
+                        color = Color.Black,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                     )
@@ -222,22 +235,25 @@ private fun GuideSection(
                 Spacer(Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = title,
-                        color = Color.White,
+                        text = if (isMizo) titleMz else titleEn,
+                        color = appTextPrimary(),
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                     )
-                    Text(
-                        text = titleEnglish,
-                        color = Color.White.copy(alpha = 0.6f),
-                        fontSize = 12.sp,
-                    )
+                    if (isMizo) {
+                        Text(
+                            text = titleEn,
+                            color = appTextMuted(0.6f),
+                            fontSize = 12.sp,
+                        )
+                    }
                 }
             }
 
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                val steps = if (isMizo) stepsMz else stepsEn
                 steps.forEachIndexed { index, step ->
                     Row {
                         Box(
@@ -257,7 +273,7 @@ private fun GuideSection(
                         Spacer(Modifier.width(12.dp))
                         Text(
                             text = step,
-                            color = Color.White.copy(alpha = 0.85f),
+                            color = appTextSecondary(0.85f),
                             fontSize = 14.sp,
                             lineHeight = 20.sp,
                             modifier = Modifier.weight(1f)
@@ -267,4 +283,13 @@ private fun GuideSection(
             }
         }
     }
+}
+
+@Composable
+private fun langString(
+    @StringRes mizoRes: Int,
+    @StringRes englishRes: Int,
+    isMizo: Boolean,
+): String {
+    return stringResource(if (isMizo) mizoRes else englishRes)
 }

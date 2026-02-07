@@ -4,17 +4,23 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.graphics.Color as AndroidColor
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.SystemBarStyle
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import com.google.firebase.messaging.FirebaseMessaging
+import com.mapuia.khawchinthlirna.data.preferences.PreferencesManager
 import com.mapuia.khawchinthlirna.ui.theme.KhawchinThlirnaTheme
 import com.mapuia.khawchinthlirna.util.AppLog
 
@@ -23,6 +29,8 @@ class MainActivity : ComponentActivity() {
     companion object {
         private const val TAG = "MainActivity"
     }
+    
+    private lateinit var preferencesManager: PreferencesManager
     
     // Permission request launcher
     private val requestPermissionLauncher = registerForActivityResult(
@@ -39,14 +47,36 @@ class MainActivity : ComponentActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.auto(
+                AndroidColor.TRANSPARENT,
+                AndroidColor.TRANSPARENT,
+            ),
+            navigationBarStyle = SystemBarStyle.auto(
+                AndroidColor.TRANSPARENT,
+                AndroidColor.TRANSPARENT,
+            ),
+        )
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        
+        // Initialize preferences manager
+        preferencesManager = PreferencesManager(this)
         
         // Request notification permission on app start (Android 13+)
         askNotificationPermission()
 
         setContent {
-            KhawchinThlirnaTheme {
+            // Observe dark mode preference from DataStore
+            val darkModePreference by preferencesManager.darkModeFlow.collectAsState(initial = null)
+            
+            // Determine actual dark mode: null = follow system
+            val useDarkTheme = when (darkModePreference) {
+                true -> true
+                false -> false
+                null -> isSystemInDarkTheme()
+            }
+            
+            KhawchinThlirnaTheme(darkTheme = useDarkTheme) {
                 // A surface container using the 'background' color from the theme
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     MainScreen()

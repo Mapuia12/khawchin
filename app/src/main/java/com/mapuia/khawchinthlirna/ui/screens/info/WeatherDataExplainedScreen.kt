@@ -41,23 +41,28 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import androidx.annotation.StringRes
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mapuia.khawchinthlirna.R
 import com.mapuia.khawchinthlirna.ui.components.BannerAd
+import com.mapuia.khawchinthlirna.ui.theme.appBackgroundGradient
+import com.mapuia.khawchinthlirna.ui.theme.appIconTint
+import com.mapuia.khawchinthlirna.ui.theme.appTextMuted
+import com.mapuia.khawchinthlirna.ui.theme.appTextPrimary
+import com.mapuia.khawchinthlirna.ui.theme.appTextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeatherDataExplainedScreen(
     onBack: () -> Unit,
+    isMizo: Boolean = true,
 ) {
-    val backgroundGradient = Brush.verticalGradient(
-        listOf(
-            Color(0xFF0F0C29),
-            Color(0xFF302B63),
-            Color(0xFF24243E),
-        )
-    )
+    val backgroundGradient = appBackgroundGradient()
+    val textPrimary = appTextPrimary()
+    val iconTint = appIconTint()
 
     Box(
         modifier = Modifier
@@ -70,8 +75,12 @@ fun WeatherDataExplainedScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "Khawchin Data Hrilhfiahna", // Weather Data Explained
-                            color = Color.White,
+                            text = langString(
+                                R.string.weather_data_title_mz,
+                                R.string.weather_data_title_en,
+                                isMizo
+                            ),
+                            color = textPrimary,
                             fontWeight = FontWeight.Bold,
                         )
                     },
@@ -79,8 +88,12 @@ fun WeatherDataExplainedScreen(
                         IconButton(onClick = onBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Kirna",
-                                tint = Color.White
+                                contentDescription = langString(
+                                    R.string.ui_back_mz,
+                                    R.string.ui_back_en,
+                                    isMizo
+                                ),
+                                tint = iconTint
                             )
                         }
                     },
@@ -101,84 +114,150 @@ fun WeatherDataExplainedScreen(
                 WeatherMetricCard(
                     icon = Icons.Default.Thermostat,
                     iconColor = Color(0xFFFF6B6B),
-                    title = "Temperature (°C)",
-                    titleMizo = "Khaw Lum/Vawh Lam",
-                    description = "Actual air temperature measured at your location.",
-                    descriptionMizo = "I awmna hmuna boruak lum leh vawh dan dik tak.",
-                    tip = "\"Feels like\" (A lan dan) hian thli leh boruak hnawng a huam tel a, a vawh dan tak tak a ni."
+                    titleEn = stringResource(R.string.wd_temp_title_en),
+                    titleMz = stringResource(R.string.wd_temp_title_mz),
+                    descriptionEn = stringResource(R.string.wd_temp_desc_en),
+                    descriptionMz = stringResource(R.string.wd_temp_desc_mz),
+                    tipEn = stringResource(R.string.wd_temp_tip_en),
+                    tipMz = stringResource(R.string.wd_temp_tip_mz),
+                    isMizo = isMizo,
                 )
 
                 // Precipitation Probability
                 WeatherMetricCard(
                     icon = Icons.Default.WaterDrop,
                     iconColor = Color(0xFF3A86FF),
-                    title = "Precipitation Probability (%)",
-                    titleMizo = "Ruah Sur Thei Dinhmun",
-                    description = "The chance of rain occurring in that hour.",
-                    descriptionMizo = "Darkar 1 chhunga ruah sur thei chance zat.",
-                    tip = "80%+ a nih chuan nihliap ken a ngai ang!"
+                    titleEn = stringResource(R.string.wd_precip_title_en),
+                    titleMz = stringResource(R.string.wd_precip_title_mz),
+                    descriptionEn = stringResource(R.string.wd_precip_desc_en),
+                    descriptionMz = stringResource(R.string.wd_precip_desc_mz),
+                    tipEn = stringResource(R.string.wd_precip_tip_en),
+                    tipMz = stringResource(R.string.wd_precip_tip_mz),
+                    isMizo = isMizo,
                 )
 
                 // Wind Speed & Gusts
                 WeatherMetricCard(
                     icon = Icons.Default.Air,
                     iconColor = Color(0xFF00D4FF),
-                    title = "Wind Speed & Gusts",
-                    titleMizo = "Thli Tleh Chak Lam",
-                    description = "Average wind speed vs maximum sudden gusts.",
-                    descriptionMizo = "Thli tleh dan pangngai leh a thawk thut (Gust) chak dan.",
-                    tip = "Thli a na chuan pawn chhuah fimkhur a ngai."
+                    titleEn = stringResource(R.string.wd_wind_title_en),
+                    titleMz = stringResource(R.string.wd_wind_title_mz),
+                    descriptionEn = stringResource(R.string.wd_wind_desc_en),
+                    descriptionMz = stringResource(R.string.wd_wind_desc_mz),
+                    tipEn = stringResource(R.string.wd_wind_tip_en),
+                    tipMz = stringResource(R.string.wd_wind_tip_mz),
+                    isMizo = isMizo,
                 )
 
                 // Humidity
                 WeatherMetricCard(
                     icon = Icons.Default.WaterDrop,
                     iconColor = Color(0xFF06D6A0),
-                    title = "Humidity (%)",
-                    titleMizo = "Boruak Hnawng Lam",
-                    description = "Amount of moisture in the air.",
-                    descriptionMizo = "Boruaka tui (moisture) awm zat.",
-                    tip = "Hnawng a tam chuan khua a lum zualin a hriat."
+                    titleEn = stringResource(R.string.wd_humidity_title_en),
+                    titleMz = stringResource(R.string.wd_humidity_title_mz),
+                    descriptionEn = stringResource(R.string.wd_humidity_desc_en),
+                    descriptionMz = stringResource(R.string.wd_humidity_desc_mz),
+                    tipEn = stringResource(R.string.wd_humidity_tip_en),
+                    tipMz = stringResource(R.string.wd_humidity_tip_mz),
+                    isMizo = isMizo,
                 )
 
                 // UV Index
                 WeatherMetricCard(
                     icon = Icons.Default.WbSunny,
                     iconColor = Color(0xFFFFD166),
-                    title = "UV Index",
-                    titleMizo = "Ni Zung Chak Lam (UV)",
-                    description = "Measures sun's UV radiation strength.",
-                    descriptionMizo = "Ni zung hlauhawm (UV radiation) chak lam tehna.",
-                    tip = "6+ a nih chuan ni sa hnuaiah rei tak awm loh tur."
+                    titleEn = stringResource(R.string.wd_uv_title_en),
+                    titleMz = stringResource(R.string.wd_uv_title_mz),
+                    descriptionEn = stringResource(R.string.wd_uv_desc_en),
+                    descriptionMz = stringResource(R.string.wd_uv_desc_mz),
+                    tipEn = stringResource(R.string.wd_uv_tip_en),
+                    tipMz = stringResource(R.string.wd_uv_tip_mz),
+                    isMizo = isMizo,
                 )
 
                 // UV Index Color Guide
-                UVIndexGuide()
+                UVIndexGuide(isMizo = isMizo)
 
                 // Visibility
                 WeatherMetricCard(
                     icon = Icons.Default.Visibility,
                     iconColor = Color(0xFF8338EC),
-                    title = "Visibility",
-                    titleMizo = "Khaw Hmuh Theih Chin",
-                    description = "How far you can see clearly.",
-                    descriptionMizo = "Khaw hla lam hmuh theih chin (Km in).",
-                    tip = "A tlem chuan motor khalh fimkhur tur (Meikhu/Ruah vang)."
+                    titleEn = stringResource(R.string.wd_visibility_title_en),
+                    titleMz = stringResource(R.string.wd_visibility_title_mz),
+                    descriptionEn = stringResource(R.string.wd_visibility_desc_en),
+                    descriptionMz = stringResource(R.string.wd_visibility_desc_mz),
+                    tipEn = stringResource(R.string.wd_visibility_tip_en),
+                    tipMz = stringResource(R.string.wd_visibility_tip_mz),
+                    isMizo = isMizo,
                 )
 
                 // Pressure
                 WeatherMetricCard(
                     icon = Icons.Default.Compress,
                     iconColor = Color(0xFFFF006E),
-                    title = "Pressure (hPa)",
-                    titleMizo = "Boruak Rit Lam (Pressure)",
-                    description = "Atmospheric pressure at your location.",
-                    descriptionMizo = "I awmnaa boruak rit lam (Atmospheric pressure).",
-                    tip = "A san chuan khua a tha ang; a hniam chuan ruah a sur thei."
+                    titleEn = stringResource(R.string.wd_pressure_title_en),
+                    titleMz = stringResource(R.string.wd_pressure_title_mz),
+                    descriptionEn = stringResource(R.string.wd_pressure_desc_en),
+                    descriptionMz = stringResource(R.string.wd_pressure_desc_mz),
+                    tipEn = stringResource(R.string.wd_pressure_tip_en),
+                    tipMz = stringResource(R.string.wd_pressure_tip_mz),
+                    isMizo = isMizo,
                 )
 
                 // Marine Risk
-                MarineRiskGuide()
+                MarineRiskGuide(isMizo = isMizo)
+
+                // Satellite IMERG
+                WeatherMetricCard(
+                    icon = Icons.Default.WaterDrop,
+                    iconColor = Color(0xFF7C3AED),
+                    titleEn = stringResource(R.string.wd_satellite_title_en),
+                    titleMz = stringResource(R.string.wd_satellite_title_mz),
+                    descriptionEn = stringResource(R.string.wd_satellite_desc_en),
+                    descriptionMz = stringResource(R.string.wd_satellite_desc_mz),
+                    tipEn = stringResource(R.string.wd_satellite_tip_en),
+                    tipMz = stringResource(R.string.wd_satellite_tip_mz),
+                    isMizo = isMizo,
+                )
+
+                // Bias Correction
+                WeatherMetricCard(
+                    icon = Icons.Default.Compress,
+                    iconColor = Color(0xFF06D6A0),
+                    titleEn = stringResource(R.string.wd_bias_title_en),
+                    titleMz = stringResource(R.string.wd_bias_title_mz),
+                    descriptionEn = stringResource(R.string.wd_bias_desc_en),
+                    descriptionMz = stringResource(R.string.wd_bias_desc_mz),
+                    tipEn = stringResource(R.string.wd_bias_tip_en),
+                    tipMz = stringResource(R.string.wd_bias_tip_mz),
+                    isMizo = isMizo,
+                )
+
+                // Nowcast Sources
+                WeatherMetricCard(
+                    icon = Icons.Default.Air,
+                    iconColor = Color(0xFF00D4FF),
+                    titleEn = stringResource(R.string.wd_nowcast_title_en),
+                    titleMz = stringResource(R.string.wd_nowcast_title_mz),
+                    descriptionEn = stringResource(R.string.wd_nowcast_desc_en),
+                    descriptionMz = stringResource(R.string.wd_nowcast_desc_mz),
+                    tipEn = stringResource(R.string.wd_nowcast_tip_en),
+                    tipMz = stringResource(R.string.wd_nowcast_tip_mz),
+                    isMizo = isMizo,
+                )
+
+                // Weather Systems
+                WeatherMetricCard(
+                    icon = Icons.Default.Sailing,
+                    iconColor = Color(0xFFFF6D00),
+                    titleEn = stringResource(R.string.wd_systems_title_en),
+                    titleMz = stringResource(R.string.wd_systems_title_mz),
+                    descriptionEn = stringResource(R.string.wd_systems_desc_en),
+                    descriptionMz = stringResource(R.string.wd_systems_desc_mz),
+                    tipEn = stringResource(R.string.wd_systems_tip_en),
+                    tipMz = stringResource(R.string.wd_systems_tip_mz),
+                    isMizo = isMizo,
+                )
 
                 BannerAd(modifier = Modifier.fillMaxWidth())
 
@@ -192,11 +271,13 @@ fun WeatherDataExplainedScreen(
 private fun WeatherMetricCard(
     icon: ImageVector,
     iconColor: Color,
-    title: String,
-    titleMizo: String,
-    description: String,
-    descriptionMizo: String,
-    tip: String,
+    titleEn: String,
+    titleMz: String,
+    descriptionEn: String,
+    descriptionMz: String,
+    tipEn: String,
+    tipMz: String,
+    isMizo: Boolean = true,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -229,13 +310,13 @@ private fun WeatherMetricCard(
                 Spacer(Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = title,
-                        color = Color.White,
+                        text = if (isMizo) titleMz else titleEn,
+                        color = appTextPrimary(),
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
                     )
                     Text(
-                        text = titleMizo,
+                        text = if (isMizo) titleEn else titleMz,
                         color = iconColor.copy(alpha = 0.8f),
                         fontSize = 12.sp,
                     )
@@ -243,18 +324,20 @@ private fun WeatherMetricCard(
             }
 
             Text(
-                text = description,
-                color = Color.White.copy(alpha = 0.85f),
+                text = if (isMizo) descriptionMz else descriptionEn,
+                color = appTextSecondary(0.85f),
                 fontSize = 14.sp,
                 lineHeight = 20.sp,
             )
 
-            Text(
-                text = descriptionMizo,
-                color = Color.White.copy(alpha = 0.6f),
-                fontSize = 13.sp,
-                lineHeight = 18.sp,
-            )
+            if (isMizo) {
+                Text(
+                    text = descriptionEn,
+                    color = appTextMuted(0.6f),
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                )
+            }
 
             // Tip box
             Box(
@@ -271,8 +354,8 @@ private fun WeatherMetricCard(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = tip,
-                        color = Color.White.copy(alpha = 0.9f),
+                        text = if (isMizo) tipMz else tipEn,
+                        color = appTextSecondary(0.9f),
                         fontSize = 12.sp,
                         lineHeight = 16.sp,
                     )
@@ -283,7 +366,7 @@ private fun WeatherMetricCard(
 }
 
 @Composable
-private fun UVIndexGuide() {
+private fun UVIndexGuide(isMizo: Boolean = true) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -296,8 +379,12 @@ private fun UVIndexGuide() {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "UV Index Color Guide",
-                color = Color.White,
+                text = langString(
+                    R.string.wd_uv_guide_title_mz,
+                    R.string.wd_uv_guide_title_en,
+                    isMizo
+                ),
+                color = appTextPrimary(),
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,
             )
@@ -306,10 +393,30 @@ private fun UVIndexGuide() {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                UVLevelBox(range = "0-2", label = "Hniam", color = Color(0xFF06D6A0), modifier = Modifier.weight(1f))
-                UVLevelBox(range = "3-5", label = "Pangngai", color = Color(0xFFFFD166), modifier = Modifier.weight(1f))
-                UVLevelBox(range = "6-7", label = "Sang", color = Color(0xFFFF9F1C), modifier = Modifier.weight(1f))
-                UVLevelBox(range = "8+", label = "Sang Lutuk", color = Color(0xFFFF3D00), modifier = Modifier.weight(1f))
+                UVLevelBox(
+                    range = stringResource(R.string.wd_uv_range_0_2),
+                    label = langString(R.string.wd_uv_low_mz, R.string.wd_uv_low_en, isMizo),
+                    color = Color(0xFF06D6A0),
+                    modifier = Modifier.weight(1f)
+                )
+                UVLevelBox(
+                    range = stringResource(R.string.wd_uv_range_3_5),
+                    label = langString(R.string.wd_uv_moderate_mz, R.string.wd_uv_moderate_en, isMizo),
+                    color = Color(0xFFFFD166),
+                    modifier = Modifier.weight(1f)
+                )
+                UVLevelBox(
+                    range = stringResource(R.string.wd_uv_range_6_7),
+                    label = langString(R.string.wd_uv_high_mz, R.string.wd_uv_high_en, isMizo),
+                    color = Color(0xFFFF9F1C),
+                    modifier = Modifier.weight(1f)
+                )
+                UVLevelBox(
+                    range = stringResource(R.string.wd_uv_range_8_plus),
+                    label = langString(R.string.wd_uv_very_high_mz, R.string.wd_uv_very_high_en, isMizo),
+                    color = Color(0xFFFF3D00),
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }
@@ -331,20 +438,20 @@ private fun UVLevelBox(
     ) {
         Text(
             text = range,
-            color = Color.White,
+            color = appTextPrimary(),
             fontWeight = FontWeight.Bold,
             fontSize = 16.sp,
         )
         Text(
             text = label,
-            color = Color.White.copy(alpha = 0.8f),
+            color = appTextSecondary(0.8f),
             fontSize = 10.sp,
         )
     }
 }
 
 @Composable
-private fun MarineRiskGuide() {
+private fun MarineRiskGuide(isMizo: Boolean = true) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -376,13 +483,21 @@ private fun MarineRiskGuide() {
                 Spacer(Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = "Tuifinriat Ralveng", // Marine Risk
-                        color = Color.White,
+                        text = langString(
+                            R.string.wd_marine_title_mz,
+                            R.string.wd_marine_title_en,
+                            isMizo
+                        ),
+                        color = appTextPrimary(),
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
                     )
                     Text(
-                        text = "Tuipui hnaih a awmte tan bik",
+                        text = langString(
+                            R.string.wd_marine_subtitle_mz,
+                            R.string.wd_marine_subtitle_en,
+                            isMizo
+                        ),
                         color = Color(0xFF00B4DB).copy(alpha = 0.8f),
                         fontSize = 12.sp,
                     )
@@ -393,23 +508,39 @@ private fun MarineRiskGuide() {
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 MarineRiskLevel(
-                    level = "GREEN",
-                    label = "Him - Tuifinriat chung a thiang a, hlauhawm a awm lo",
+                    level = stringResource(R.string.wd_marine_level_green),
+                    label = langString(
+                        R.string.wd_marine_green_mz,
+                        R.string.wd_marine_green_en,
+                        isMizo
+                    ),
                     color = Color(0xFF06D6A0)
                 )
                 MarineRiskLevel(
-                    level = "YELLOW",
-                    label = "Fimkhur - Fimkhur a ngai, lawng te chhuah loh tur",
+                    level = stringResource(R.string.wd_marine_level_yellow),
+                    label = langString(
+                        R.string.wd_marine_yellow_mz,
+                        R.string.wd_marine_yellow_en,
+                        isMizo
+                    ),
                     color = Color(0xFFFFD166)
                 )
                 MarineRiskLevel(
-                    level = "ORANGE",
-                    label = "Hlauhawm - Experience nei lo tan chhuah a him lo",
+                    level = stringResource(R.string.wd_marine_level_orange),
+                    label = langString(
+                        R.string.wd_marine_orange_mz,
+                        R.string.wd_marine_orange_en,
+                        isMizo
+                    ),
                     color = Color(0xFFFF9F1C)
                 )
                 MarineRiskLevel(
-                    level = "RED",
-                    label = "Chhuah Loh Tur - A hlauhawm hle, chhuah loh tawp tur!",
+                    level = stringResource(R.string.wd_marine_level_red),
+                    label = langString(
+                        R.string.wd_marine_red_mz,
+                        R.string.wd_marine_red_en,
+                        isMizo
+                    ),
                     color = Color(0xFFFF3D00)
                 )
             }
@@ -447,9 +578,18 @@ private fun MarineRiskLevel(
             )
             Text(
                 text = label,
-                color = Color.White.copy(alpha = 0.8f),
+                color = appTextSecondary(0.8f),
                 fontSize = 12.sp,
             )
         }
     }
+}
+
+@Composable
+private fun langString(
+    @StringRes mizoRes: Int,
+    @StringRes englishRes: Int,
+    isMizo: Boolean,
+): String {
+    return stringResource(if (isMizo) mizoRes else englishRes)
 }

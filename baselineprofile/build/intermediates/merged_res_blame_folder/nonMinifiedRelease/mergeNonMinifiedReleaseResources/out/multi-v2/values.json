@@ -4,7 +4,7 @@
             "outputFile": "com.mapuia.khawchinthlirna.baselineprofile-mergeNonMinifiedReleaseResources-16:/values/values.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\Mapuia\\.gradle\\caches\\8.13\\transforms\\aaab6d1a874452f728b7a9b4eda0e77c\\transformed\\core-1.9.0\\res\\values\\values.xml",
+                    "source": "C:\\Users\\Mapuia\\.gradle\\caches\\8.13\\transforms\\456f1e590935fa0e08ec17cbc4aa0360\\transformed\\core-1.9.0\\res\\values\\values.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,89,90,94,95,96,97,103,113,146,167,200",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -23,24 +23,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Mapuia\\.gradle\\caches\\8.13\\transforms\\f3f4471990b557b17733b8689621f4ec\\transformed\\lifecycle-runtime-2.3.1\\res\\values\\values.xml",
-                    "from": {
-                        "startLines": "2",
-                        "startColumns": "4",
-                        "startOffsets": "55",
-                        "endColumns": "42",
-                        "endOffsets": "93"
-                    },
-                    "to": {
-                        "startLines": "82",
-                        "startColumns": "4",
-                        "startOffsets": "4925",
-                        "endColumns": "42",
-                        "endOffsets": "4963"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\Mapuia\\.gradle\\caches\\8.13\\transforms\\c403d3e0377b532bfb640ca9ad82e1ad\\transformed\\startup-runtime-1.1.1\\res\\values\\values.xml",
+                    "source": "C:\\Users\\Mapuia\\.gradle\\caches\\8.13\\transforms\\e4acaa091e76463d20a17cfbd23f5b06\\transformed\\startup-runtime-1.1.1\\res\\values\\values.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",
@@ -57,7 +40,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Mapuia\\.gradle\\caches\\8.13\\transforms\\026b45216e86b082227c02dc93dbc164\\transformed\\core-1.7.0\\res\\values\\values.xml",
+                    "source": "C:\\Users\\Mapuia\\.gradle\\caches\\8.13\\transforms\\6ef28ad50486536acd996d6dea5b62f3\\transformed\\core-1.7.0\\res\\values\\values.xml",
                     "from": {
                         "startLines": "4,11",
                         "startColumns": "0,0",
@@ -73,6 +56,23 @@
                         "endLines": "103,110",
                         "endColumns": "8,8",
                         "endOffsets": "6317,6687"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Mapuia\\.gradle\\caches\\8.13\\transforms\\925b6a8ec278a951bb8ce99ed6f8c1f8\\transformed\\lifecycle-runtime-2.3.1\\res\\values\\values.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "42",
+                        "endOffsets": "93"
+                    },
+                    "to": {
+                        "startLines": "82",
+                        "startColumns": "4",
+                        "startOffsets": "4925",
+                        "endColumns": "42",
+                        "endOffsets": "4963"
                     }
                 }
             ]

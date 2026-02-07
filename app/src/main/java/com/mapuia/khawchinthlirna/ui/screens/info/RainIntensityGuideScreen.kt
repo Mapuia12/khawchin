@@ -33,25 +33,31 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.annotation.StringRes
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mapuia.khawchinthlirna.R
 import com.mapuia.khawchinthlirna.data.model.RainIntensity
 import com.mapuia.khawchinthlirna.ui.components.BannerAd
+import com.mapuia.khawchinthlirna.ui.theme.appBackgroundGradient
+import com.mapuia.khawchinthlirna.ui.theme.appIconTint
+import com.mapuia.khawchinthlirna.ui.theme.appTextMuted
+import com.mapuia.khawchinthlirna.ui.theme.appTextPrimary
+import com.mapuia.khawchinthlirna.ui.theme.appTextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RainIntensityGuideScreen(
     onBack: () -> Unit,
+    isMizo: Boolean = true,
 ) {
-    val backgroundGradient = Brush.verticalGradient(
-        listOf(
-            Color(0xFF0F0C29),
-            Color(0xFF302B63),
-            Color(0xFF24243E),
-        )
-    )
+    val backgroundGradient = appBackgroundGradient()
+    val textPrimary = appTextPrimary()
+    val textSecondary = appTextSecondary(0.8f)
+    val iconTint = appIconTint()
 
     Box(
         modifier = Modifier
@@ -64,8 +70,12 @@ fun RainIntensityGuideScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "Ruah Sur Dan Hrilhfiahna", // Changed from Guide
-                            color = Color.White,
+                            text = langString(
+                                R.string.rain_guide_title_mz,
+                                R.string.rain_guide_title_en,
+                                isMizo
+                            ),
+                            color = textPrimary,
                             fontWeight = FontWeight.Bold,
                         )
                     },
@@ -73,8 +83,12 @@ fun RainIntensityGuideScreen(
                         IconButton(onClick = onBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Kirna",
-                                tint = Color.White
+                                contentDescription = langString(
+                                    R.string.ui_back_mz,
+                                    R.string.ui_back_en,
+                                    isMizo
+                                ),
+                                tint = iconTint
                             )
                         }
                     },
@@ -92,8 +106,12 @@ fun RainIntensityGuideScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Report i thehluh dawna ruah sur dan (Rain Intensity) level hrang hrang hrilhfiahna.",
-                    color = Color.White.copy(alpha = 0.8f),
+                    text = langString(
+                        R.string.rain_guide_intro_mz,
+                        R.string.rain_guide_intro_en,
+                        isMizo
+                    ),
+                    color = textSecondary,
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
                 )
@@ -101,7 +119,7 @@ fun RainIntensityGuideScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 RainIntensity.entries.forEach { intensity ->
-                    RainLevelCard(intensity = intensity)
+                    RainLevelCard(intensity = intensity, isMizo = isMizo)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -119,19 +137,31 @@ fun RainIntensityGuideScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Thurawn (Tips)",
+                            text = langString(
+                                R.string.rain_guide_tips_title_mz,
+                                R.string.rain_guide_tips_title_en,
+                                isMizo
+                            ),
                             color = Color(0xFF06D6A0),
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
                         )
                         Text(
-                            text = "• I awmna hmuna ruah sur dan dik tak chiah report thin rawh.",
-                            color = Color.White.copy(alpha = 0.8f),
+                            text = langString(
+                                R.string.rain_guide_tip1_mz,
+                                R.string.rain_guide_tip1_en,
+                                isMizo
+                            ),
+                            color = appTextSecondary(0.8f),
                             fontSize = 13.sp,
                         )
                         Text(
-                            text = "• Report dik i thehluh apiangin i 'Reputation' a sang zel ang.",
-                            color = Color.White.copy(alpha = 0.8f),
+                            text = langString(
+                                R.string.rain_guide_tip2_mz,
+                                R.string.rain_guide_tip2_en,
+                                isMizo
+                            ),
+                            color = appTextSecondary(0.8f),
                             fontSize = 13.sp,
                         )
                     }
@@ -148,6 +178,7 @@ fun RainIntensityGuideScreen(
 @Composable
 private fun RainLevelCard(
     intensity: RainIntensity,
+    isMizo: Boolean = true,
 ) {
     val backgroundColor = when (intensity.level) {
         0 -> Color(0xFF06D6A0)
@@ -209,7 +240,10 @@ private fun RainLevelCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Level ${intensity.level}",
+                        text = stringResource(
+                            if (isMizo) R.string.rain_guide_level_mz else R.string.rain_guide_level_en,
+                            intensity.level
+                        ),
                         color = backgroundColor,
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
@@ -217,30 +251,41 @@ private fun RainLevelCard(
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = intensity.mmPerHour,
-                        color = Color.White.copy(alpha = 0.5f),
+                        color = appTextMuted(0.5f),
                         fontSize = 11.sp,
                     )
                 }
 
                 Text(
-                    text = intensity.labelMizo,
-                    color = Color.White,
+                    text = if (isMizo) intensity.labelMizo else intensity.labelEnglish,
+                    color = appTextPrimary(),
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                 )
 
-                Text(
-                    text = intensity.labelEnglish,
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 13.sp,
-                )
+                if (isMizo) {
+                    Text(
+                        text = intensity.labelEnglish,
+                        color = appTextSecondary(0.7f),
+                        fontSize = 13.sp,
+                    )
+                }
 
                 Text(
-                    text = intensity.description,
-                    color = Color.White.copy(alpha = 0.5f),
+                    text = if (isMizo) intensity.description else intensity.descriptionEnglish,
+                    color = appTextMuted(0.5f),
                     fontSize = 12.sp,
                 )
             }
         }
     }
+}
+
+@Composable
+private fun langString(
+    @StringRes mizoRes: Int,
+    @StringRes englishRes: Int,
+    isMizo: Boolean,
+): String {
+    return stringResource(if (isMizo) mizoRes else englishRes)
 }

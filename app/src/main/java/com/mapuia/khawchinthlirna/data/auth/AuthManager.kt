@@ -12,6 +12,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Source
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -277,9 +278,46 @@ class AuthManager(
     suspend fun getUserProfile(): UserProfile? {
         val user = auth.currentUser ?: return null
         return try {
-            val doc = firestore.collection(USERS_COLLECTION).document(user.uid).get().await()
+            val doc = try {
+                firestore.collection(USERS_COLLECTION)
+                    .document(user.uid)
+                    .get(Source.SERVER)
+                    .await()
+            } catch (e: Exception) {
+                firestore.collection(USERS_COLLECTION)
+                    .document(user.uid)
+                    .get(Source.CACHE)
+                    .await()
+            }
             if (doc.exists()) {
-                doc.toObject(UserProfile::class.java)
+                val badges = (doc.get("badges") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                val favoriteLocations = (doc.get("favorite_locations") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                val totalReports = doc.getLong("total_reports")?.toInt()
+                    ?: doc.getLong("reports")?.toInt()
+                    ?: 0
+                val points = doc.getLong("points")?.toInt()
+                    ?: doc.getLong("total_points")?.toInt()
+                    ?: 0
+                UserProfile(
+                    uid = doc.getString("uid") ?: user.uid,
+                    displayName = doc.getString("display_name") ?: (user.displayName ?: "Mizo User"),
+                    email = doc.getString("email") ?: user.email,
+                    photoUrl = doc.getString("photo_url") ?: user.photoUrl?.toString(),
+                    isAnonymous = doc.getBoolean("is_anonymous") ?: user.isAnonymous,
+                    reputation = doc.getDouble("reputation") ?: 0.5,
+                    totalReports = totalReports,
+                    accurateReports = doc.getLong("accurate_reports")?.toInt() ?: 0,
+                    trustLevel = doc.getLong("trust_level")?.toInt() ?: 1,
+                    points = points,
+                    badges = badges,
+                    createdAt = doc.getLong("created_at") ?: 0L,
+                    lastActive = doc.getLong("last_active") ?: 0L,
+                    preferredLanguage = doc.getString("preferred_language") ?: "mz",
+                    notificationEnabled = doc.getBoolean("notification_enabled") ?: true,
+                    severeWeatherAlerts = doc.getBoolean("severe_weather_alerts") ?: true,
+                    homeLocation = doc.getString("home_location"),
+                    favoriteLocations = favoriteLocations
+                )
             } else {
                 // Create profile if doesn't exist
                 createUserProfile(user)

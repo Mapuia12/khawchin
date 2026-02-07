@@ -7,7 +7,10 @@ import androidx.lifecycle.viewModelScope
 import com.mapuia.khawchinthlirna.data.LocationProvider
 import com.mapuia.khawchinthlirna.data.ReverseGeocoder
 import com.mapuia.khawchinthlirna.data.WeatherRepository
+import com.mapuia.khawchinthlirna.data.model.SkillReport
 import com.mapuia.khawchinthlirna.data.model.WeatherDoc
+import com.mapuia.khawchinthlirna.data.model.ImergDoc
+import com.mapuia.khawchinthlirna.data.model.ForecastSnapshot
 import com.mapuia.khawchinthlirna.data.WeatherConstants
 import com.mapuia.khawchinthlirna.data.LoadingState
 import com.mapuia.khawchinthlirna.util.AppLog
@@ -34,6 +37,9 @@ data class WeatherUiState(
     val userLon: Double? = null,
     val userPlaceName: String? = null,
     val weather: WeatherDoc? = null,
+    val imerg: ImergDoc? = null,
+    val forecastSnapshot: ForecastSnapshot? = null,
+    val skillReport: SkillReport? = null,
     val locationPermissionState: LocationPermissionState = LocationPermissionState.UNKNOWN,
 )
 
@@ -126,11 +132,26 @@ class WeatherViewModel(
                     }
                 }
 
+                val skillReport = repository.getLatestSkillReport()
+                AppLog.d(
+                    "WeatherVM",
+                    "Skill report fetched: ${skillReport != null} sample=${skillReport?.sampleCount} perModelMae=${skillReport?.perModelMae?.size} perModelCount=${skillReport?.perModelCount?.size}"
+                )
+                AppLog.d("WeatherVM", "Skill report fetched: ${skillReport != null}, sampleCount=${skillReport?.sampleCount}, perModelMae=${skillReport?.perModelMae?.keys}")
+
+                // Satellite IMERG + forecast snapshot (same grid as the weather doc)
+                val dataGridId = (doc?.gridId ?: resolvedGridId).takeIf { it.isNotBlank() }
+                val imerg = if (doc != null && dataGridId != null) repository.getImergByGridId(dataGridId) else null
+                val snapshot = if (doc != null && dataGridId != null) repository.getForecastSnapshotByGridId(dataGridId) else null
+
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         isRefreshing = false,
                         weather = doc,
+                        imerg = imerg,
+                        forecastSnapshot = snapshot,
+                        skillReport = skillReport,
                         errorMessage = if (doc == null) {
                             "Dik lo a awm tlat, khawchin data a awm lo ($resolvedGridId). Internet i check ang u."
                         } else null,
@@ -174,12 +195,36 @@ class WeatherViewModel(
                     return@launch
                 }
 
-                // Map the UI options to a 1..5 integer severity scale for backend clustering.
-                val severity = when (optionMizo) {
-                    "Ruah a sur" -> 4
-                    "Thli a na" -> 4
-                    "Khua a tha" -> 2
-                    else -> 3
+                // Map quick-report options to structured fields for better backend use.
+                val severity: Int
+                val rainIntensity: Int?
+                val windStrength: Int?
+                val skyCondition: Int?
+                when (optionMizo) {
+                    "Ruah a sur" -> {
+                        severity = 4
+                        rainIntensity = 4
+                        windStrength = null
+                        skyCondition = null
+                    }
+                    "Thli a na" -> {
+                        severity = 4
+                        rainIntensity = 0
+                        windStrength = 4
+                        skyCondition = null
+                    }
+                    "Khua a tha" -> {
+                        severity = 1
+                        rainIntensity = 0
+                        windStrength = 0
+                        skyCondition = 0
+                    }
+                    else -> {
+                        severity = 3
+                        rainIntensity = 1
+                        windStrength = null
+                        skyCondition = null
+                    }
                 }
 
                 repository.submitCrowdReport(
@@ -189,6 +234,10 @@ class WeatherViewModel(
                     userLon = resolvedLon,
                     accuracyMeters = accuracy,
                     severity = severity,
+                    rainIntensity = rainIntensity,
+                    windStrength = windStrength,
+                    skyCondition = skyCondition,
+                    reportSource = "quick_dialog",
                 )
 
                 onDone(true, null)

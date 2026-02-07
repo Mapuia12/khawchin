@@ -17,8 +17,8 @@ android {
         applicationId = "com.mapuia.khawchinthlirna"
         minSdk = 28
         targetSdk = 36
-        versionCode = 1  // Increment for each Play Store release
-        versionName = "1.0.0"
+        versionCode = 3  // Increment for each Play Store release
+        versionName = "1.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -98,6 +98,8 @@ dependencies {
     implementation(libs.firebase.firestore.ktx)
     implementation(libs.firebase.auth.ktx)
     implementation(libs.firebase.messaging.ktx)
+    implementation(libs.firebase.appcheck.playintegrity)
+    debugImplementation(libs.firebase.appcheck.debug)
 
     // Location & Auth
     implementation(libs.play.services.location)

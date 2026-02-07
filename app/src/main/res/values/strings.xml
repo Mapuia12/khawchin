@@ -10,7 +10,7 @@
     
     <!-- Report Weather Screen -->
     <string name="report_title">Report Weather</string>
-    <string name="report_rain_intensity">Ruah Sur Tak Dan / Rain Intensity</string>
+    <string name="report_rain_intensity">Ruah Sur Nasat Dan / Rain Intensity</string>
     <string name="report_sky_condition">Van Lam Din hmun / Sky Condition</string>
     <string name="report_wind_strength">Thli Thleh Chak Lam / Wind Strength</string>
     <string name="report_notes">Notes</string>
@@ -87,6 +87,302 @@
     <string name="info_crowdsourcing">Mipui Tanhona Kalhmang</string>
     <string name="info_rain_guide">Ruah Sur Dan Hrilhfiahna</string>
     <string name="info_weather_data">Khawchin Data Hrilhfiahna</string>
+
+    <!-- Common UI (Mizo/English) -->
+    <string name="ui_back_mz">Kirna</string>
+    <string name="ui_back_en">Back</string>
+    <string name="ui_go_mz">Kalna</string>
+    <string name="ui_go_en">Go</string>
+    <string name="ui_refresh_weather_mz">Khawchin refresh</string>
+    <string name="ui_refresh_weather_en">Refresh weather</string>
+
+    <!-- Info Hub (Mizo/English) -->
+    <string name="info_hub_desc_mz">Khawchin Thlirna app hman dan leh thil pawimawh hriat tur te.</string>
+    <string name="info_hub_desc_en">How to use the Khawchin Thlirna app and important things to know.</string>
+    <string name="info_hub_title_mz">Tanpuina &amp; Hriat Tur</string>
+    <string name="info_hub_title_en">Help &amp; Information</string>
+    <string name="info_menu_app_title_mz">App Hman Dan</string>
+    <string name="info_menu_app_title_en">App Guide</string>
+    <string name="info_menu_app_subtitle_mz">App hman dan kimchang</string>
+    <string name="info_menu_app_subtitle_en">How to use the app</string>
+    <string name="info_menu_crowd_title_mz">Mipui Tanhona Tangkai Dan</string>
+    <string name="info_menu_crowd_title_en">How Crowdsourcing Works</string>
+    <string name="info_menu_crowd_subtitle_mz">Mipui report tangkai dan</string>
+    <string name="info_menu_crowd_subtitle_en">How public reports help</string>
+    <string name="info_menu_rain_title_mz">Ruah Sur Dan Hrilhfiahna</string>
+    <string name="info_menu_rain_title_en">Rain Intensity Guide</string>
+    <string name="info_menu_rain_subtitle_mz">Ruah sur nasat lam tehfung</string>
+    <string name="info_menu_rain_subtitle_en">Rain intensity levels</string>
+    <string name="info_menu_weather_title_mz">Khawchin Data Hrilhfiahna</string>
+    <string name="info_menu_weather_title_en">Weather Data Explained</string>
+    <string name="info_menu_weather_subtitle_mz">Khawchin thumal hrang hrangte</string>
+    <string name="info_menu_weather_subtitle_en">Weather terms and meanings</string>
+
+    <!-- App Guide (Mizo/English) -->
+    <string name="app_guide_intro_mz">Khawchin Thlirna app hman dan kaihhruaina.</string>
+    <string name="app_guide_intro_en">Guide to using the Khawchin Thlirna app.</string>
+    <string name="app_guide_title_mz">App Hman Dan</string>
+    <string name="app_guide_title_en">App Guide</string>
+    <string name="app_guide_section1_title_mz">Khawchin En Dan</string>
+    <string name="app_guide_section1_title_en">Home Screen &amp; Forecast</string>
+    <string-array name="app_guide_section1_steps_mz">
+        <item>Home screen-ah tun huna khawchin dinhmun a lang nghal ang.</item>
+        <item>A hnuai lamah scroll la, darkar tin leh ni tin thlirlawkna i hmu ang.</item>
+    </string-array>
+    <string-array name="app_guide_section1_steps_en">
+        <item>On the home screen, the current weather shows first.</item>
+        <item>Scroll down to see hourly and daily forecasts.</item>
+    </string-array>
+    <string name="app_guide_section2_title_mz">Report Thehluh Dan</string>
+    <string name="app_guide_section2_title_en">How to Submit a Report</string>
+    <string-array name="app_guide_section2_steps_mz">
+        <item>&quot;+&quot; button emaw &quot;Report Weather&quot; tih kha hmet rawh.</item>
+        <item>Ruah sur dan thlang rawh - Tih ngei ngei tur.</item>
+        <item>Van awmdan, thli leh note te i duh chuan belh rawh - Tih kher a ngai lo.</item>
+        <item>A tawpah &quot;Submit&quot; hmet rawh le!</item>
+    </string-array>
+    <string-array name="app_guide_section2_steps_en">
+        <item>Tap the &quot;+&quot; button or &quot;Report Weather&quot;.</item>
+        <item>Select rain intensity (required).</item>
+        <item>Add sky condition, wind and notes if you want (optional).</item>
+        <item>Finally, tap &quot;Submit&quot;.</item>
+    </string-array>
+    <string name="app_guide_section3_title_mz">Points leh Badges</string>
+    <string name="app_guide_section3_title_en">Points and Badges</string>
+    <string-array name="app_guide_section3_steps_mz">
+        <item>Report i thehluh apiangin Points i hmu zel ang.</item>
+        <item>Achievement hrang hrang ti hlawhtling la, Badge la khawm rawh.</item>
+        <item>Leaderboard-ah midang nen inkhaikhin rawh u!</item>
+    </string-array>
+    <string-array name="app_guide_section3_steps_en">
+        <item>You earn points for each report.</item>
+        <item>Complete achievements to collect badges.</item>
+        <item>Compare with others on the leaderboard.</item>
+    </string-array>
+    <string name="app_guide_section4_title_mz">Thurawn</string>
+    <string name="app_guide_section4_title_en">Tips</string>
+    <string-array name="app_guide_section4_steps_mz">
+        <item>I awmna hmun tak atangin report thehlut thin rawh.</item>
+        <item>Thu dik chiah report rawh - dawt report chuan i &quot;Trust Level&quot; a ti hniam ang.</item>
+        <item>Report i thehluh ngun chuan i &quot;Trust Level&quot; a sang zel ang.</item>
+    </string-array>
+    <string-array name="app_guide_section4_steps_en">
+        <item>Submit reports from your actual location.</item>
+        <item>Report accurately; false reports lower your trust level.</item>
+        <item>Consistent reporting increases your trust level.</item>
+    </string-array>
+
+    <!-- Crowdsourcing Info (Mizo/English) -->
+    <string name="crowd_section1_title_mz">Eng nge Crowdsourcing chu?</string>
+    <string name="crowd_section1_title_en">What is Crowdsourcing?</string>
+    <string name="crowd_title_mz">Mipui Tanhona</string>
+    <string name="crowd_title_en">Crowdsourcing</string>
+    <string-array name="crowd_section1_points_mz">
+        <item>Community-based data - Mipui tangrualin khawchin kan khawnkhawmna a ni.</item>
+        <item>Real reports - Khawchin dinhmun dik tak, a hmun ngeia awm ten an report a ni.</item>
+        <item>Accuracy - Hei hian mi zawng zawng tana khawchin thlirlawkna (forecast) dik zawk siamna a tanpui a ni.</item>
+    </string-array>
+    <string-array name="crowd_section1_points_en">
+        <item>Community-based data: weather data collected together by people.</item>
+        <item>Real reports: actual conditions reported by people on-site.</item>
+        <item>Accuracy: helps improve forecasts for everyone.</item>
+    </string-array>
+    <string name="crowd_section2_title_mz">I Report Tangkai Dan</string>
+    <string name="crowd_section2_title_en">How Your Reports Help</string>
+    <string-array name="crowd_section2_points_mz">
+        <item>Combination - I report leh weather station data te kha chawhpawlh a ni.</item>
+        <item>Machine Learning - AI hmangin user rintlak dan (reputation) a zirin report hi teh a ni.</item>
+        <item>Influence - Report dik zawk = Reputation sang zawk = I thu a tlang zawk.</item>
+    </string-array>
+    <string-array name="crowd_section2_points_en">
+        <item>Combination: your reports are combined with station data.</item>
+        <item>Machine learning: AI weighs reports based on user reputation.</item>
+        <item>Influence: accurate reports raise reputation and influence.</item>
+    </string-array>
+    <string name="crowd_section3_title_mz">Reputation System</string>
+    <string name="crowd_section3_title_en">Reputation System</string>
+    <string-array name="crowd_section3_points_mz">
+        <item>Start - User thar te chu 50% reputation-ah an tan ang.</item>
+        <item>Increase - Report dik tak i thehluhin i reputation a sang zel ang.</item>
+        <item>Verify - I report leh weather station/midang report a inmilin score a sang thin.</item>
+        <item>Rewards - Reputation sang chuan Trust Level 4, badge leh leaderboard-ah hmun a chang thei.</item>
+    </string-array>
+    <string-array name="crowd_section3_points_en">
+        <item>Start: new users begin at 50% reputation.</item>
+        <item>Increase: accurate reports raise reputation.</item>
+        <item>Verify: matching stations/others increases score.</item>
+        <item>Rewards: high reputation unlocks trust levels, badges, and leaderboard.</item>
+    </string-array>
+    <string name="crowd_section4_title_mz">Privacy</string>
+    <string name="crowd_section4_title_en">Privacy</string>
+    <string-array name="crowd_section4_points_mz">
+        <item>Location - I awmna (Location) hi khawchin mapping atan chauh hman a ni.</item>
+        <item>Safe - Mimal chanchin engmah midang hmuh turin a lang lo.</item>
+        <item>Anonymous - Hming thup (Anonymous) pawhin a tel theih.</item>
+    </string-array>
+    <string-array name="crowd_section4_points_en">
+        <item>Location is used only for weather mapping.</item>
+        <item>Safe: personal details are not shown to others.</item>
+        <item>Anonymous users can participate.</item>
+    </string-array>
+    <string name="crowd_section5_title_mz">Forecast Tihhmasawn</string>
+    <string name="crowd_section5_title_en">Improving Forecast Accuracy</string>
+    <string-array name="crowd_section5_points_mz">
+        <item>Nowcast - I report atangin khawchin dik lo a awmin minute 30 chhungin siamthat a ni.</item>
+        <item>Learning - AI chuan i awmna hmun (tlang/ruam) a zira khawchin danglam dan a zir zel.</item>
+        <item>Microclimate - Satellite-in a hmuh phak loh, i awmna hmun bik khawchin hriat nan a tangkai.</item>
+        <item>Blending - Station Weight 70% + Mipui Report 30% in data chawhpawlh a ni.</item>
+        <item>Trust - Report dik thawn thin mi te chuan forecast-ah influence an nei zawk.</item>
+    </string-array>
+    <string-array name="crowd_section5_points_en">
+        <item>Nowcast: reports can fix short‑term forecasts within 30 minutes.</item>
+        <item>Learning: AI learns local differences (hills/plains).</item>
+        <item>Microclimate: detects local weather that satellites miss.</item>
+        <item>Blending: 70% station data + 30% public reports.</item>
+        <item>Trust: reliable reporters have more influence.</item>
+    </string-array>
+
+    <!-- Rain Intensity Guide (Mizo/English) -->
+    <string name="rain_guide_intro_mz">Report i thehluh dawna ruah sur dan (Rain Intensity) level hrang hrang hrilhfiahna.</string>
+    <string name="rain_guide_intro_en">Explanation of rain intensity levels used in reports.</string>
+    <string name="rain_guide_title_mz">Ruah Sur Dan Hrilhfiahna</string>
+    <string name="rain_guide_title_en">Rain Intensity Guide</string>
+    <string name="rain_guide_tips_title_mz">Thurawn (Tips)</string>
+    <string name="rain_guide_tips_title_en">Tips</string>
+    <string name="rain_guide_tip1_mz">• I awmna hmuna ruah sur dan dik tak chiah report thin rawh.</string>
+    <string name="rain_guide_tip1_en">• Report the rain intensity at your exact location.</string>
+    <string name="rain_guide_tip2_mz">• Report dik i thehluh apiangin i "Reputation" a sang zel ang.</string>
+    <string name="rain_guide_tip2_en">• Accurate reports increase your reputation.</string>
+    <string name="rain_guide_level_mz">Level %1$d</string>
+    <string name="rain_guide_level_en">Level %1$d</string>
+
+    <!-- Weather Data Explained (Mizo/English) -->
+    <string name="wd_temp_title_mz">Khaw Lum/Vawh Lam</string>
+    <string name="wd_temp_title_en">Temperature (°C)</string>
+    <string name="weather_data_title_mz">Khawchin Data Hrilhfiahna</string>
+    <string name="weather_data_title_en">Weather Data Explained</string>
+    <string name="wd_temp_desc_mz">I awmna hmuna boruak lum leh vawh dan dik tak.</string>
+    <string name="wd_temp_desc_en">Actual air temperature measured at your location.</string>
+    <string name="wd_temp_tip_mz">"Feels like" (A nihna tak) hian thli leh boruak hnawng a huam tel a, a vawh dan tak tak a ni.</string>
+    <string name="wd_temp_tip_en">"Feels like" accounts for wind and humidity; it can feel colder or warmer.</string>
+
+    <string name="wd_precip_title_mz">Ruah Sur Thei Dinhmun</string>
+    <string name="wd_precip_title_en">Precipitation Probability (%)</string>
+    <string name="wd_precip_desc_mz">Chumi darkar chhunga ruah sur thei zat.</string>
+    <string name="wd_precip_desc_en">Chance of rain during that hour.</string>
+    <string name="wd_precip_tip_mz" formatted="false">80%+ a nih chuan nihliap ken a ngai ang!</string>
+    <string name="wd_precip_tip_en" formatted="false">If it is 80%+, carry an umbrella.</string>
+
+    <string name="wd_wind_title_mz">Thli Tleh Chak Lam</string>
+    <string name="wd_wind_title_en">Wind Speed &amp; Gusts</string>
+    <string name="wd_wind_desc_mz">Thli tleh dan pangngai leh a thawk thut (Gust) chak dan.</string>
+    <string name="wd_wind_desc_en">Average wind speed and maximum gusts.</string>
+    <string name="wd_wind_tip_mz">Thli a na chuan pawn chhuah fimkhur a ngai.</string>
+    <string name="wd_wind_tip_en">If wind is strong, be careful outdoors.</string>
+
+    <string name="wd_humidity_title_mz">Boruak Hnawng Lam</string>
+    <string name="wd_humidity_title_en">Humidity (%)</string>
+    <string name="wd_humidity_desc_mz">Boruaka tui hu awm zat.</string>
+    <string name="wd_humidity_desc_en">Amount of moisture in the air.</string>
+    <string name="wd_humidity_tip_mz">Hnawng a tam chuan khua a lum zualin a hriat.</string>
+    <string name="wd_humidity_tip_en">High humidity makes it feel warmer.</string>
+
+    <string name="wd_uv_title_mz">Ni Zung Chak Lam (UV)</string>
+    <string name="wd_uv_title_en">UV Index</string>
+    <string name="wd_uv_desc_mz">Ni zung hlauhawm (UV radiation) chak lam tehna.</string>
+    <string name="wd_uv_desc_en">Strength of the sun UV radiation.</string>
+    <string name="wd_uv_tip_mz">6+ a nih chuan ni sa hnuaiah rei tak awm loh tur.</string>
+    <string name="wd_uv_tip_en">If 6+, avoid long exposure in direct sun.</string>
+
+    <string name="wd_visibility_title_mz">Khaw Hmuh Theih Chin</string>
+    <string name="wd_visibility_title_en">Visibility</string>
+    <string name="wd_visibility_desc_mz">Khaw hla lam hmuh theih chin (Km in).</string>
+    <string name="wd_visibility_desc_en">How far you can see clearly.</string>
+    <string name="wd_visibility_tip_mz">A tlem chuan motor khalh fimkhur tur (Meikhu/Ruah vang).</string>
+    <string name="wd_visibility_tip_en">Low visibility: drive carefully (fog/rain).</string>
+
+    <string name="wd_pressure_title_mz">Boruak Rit Lam</string>
+    <string name="wd_pressure_title_en">Pressure (hPa)</string>
+    <string name="wd_pressure_desc_mz">I awmnaa boruak rit lam.</string>
+    <string name="wd_pressure_desc_en">Atmospheric pressure at your location.</string>
+    <string name="wd_pressure_tip_mz">A san chuan khua a tha ang; a hniam chuan ruah a sur thei.</string>
+    <string name="wd_pressure_tip_en">Higher pressure often means fair weather; lower can mean rain.</string>
+
+    <string name="wd_uv_guide_title_mz">UV Index Color Guide</string>
+    <string name="wd_uv_guide_title_en">UV Index Color Guide</string>
+    <string name="wd_uv_range_0_2">0-2</string>
+    <string name="wd_uv_range_3_5">3-5</string>
+    <string name="wd_uv_range_6_7">6-7</string>
+    <string name="wd_uv_range_8_plus">8+</string>
+    <string name="wd_uv_low_mz">Hniam</string>
+    <string name="wd_uv_low_en">Low</string>
+    <string name="wd_uv_moderate_mz">Pangngai</string>
+    <string name="wd_uv_moderate_en">Moderate</string>
+    <string name="wd_uv_high_mz">Sang</string>
+    <string name="wd_uv_high_en">High</string>
+    <string name="wd_uv_very_high_mz">Sang Lutuk</string>
+    <string name="wd_uv_very_high_en">Very High</string>
+
+    <string name="wd_marine_title_mz">Tuifinriat Chung Vilna</string>
+    <string name="wd_marine_title_en">Marine Risk</string>
+    <string name="wd_marine_subtitle_mz">Tuipui hnaih a awmte tan bik</string>
+    <string name="wd_marine_subtitle_en">For those near the sea</string>
+    <string name="wd_marine_level_green">GREEN</string>
+    <string name="wd_marine_level_yellow">YELLOW</string>
+    <string name="wd_marine_level_orange">ORANGE</string>
+    <string name="wd_marine_level_red">RED</string>
+    <string name="wd_marine_green_mz">Him - Tuifinriat chung a thiang a, hlauhawm a awm lo</string>
+    <string name="wd_marine_green_en">Safe - Sea conditions are calm</string>
+    <string name="wd_marine_yellow_mz">Fimkhur - Fimkhur a ngai, lawng te chhuah loh tur</string>
+    <string name="wd_marine_yellow_en">Caution - Small boats should avoid</string>
+    <string name="wd_marine_orange_mz">Hlauhawm - Experience nei lo tan chhuah a him lo</string>
+    <string name="wd_marine_orange_en">Warning - Inexperienced should not go</string>
+    <string name="wd_marine_red_mz">Chhuah Loh Tur - A hlauhawm hle, chhuah loh tawp tur!</string>
+    <string name="wd_marine_red_en">Danger - Do not go to sea</string>
+
+    <!-- Weather Detail Screen (Mizo/English) -->
+    <string name="weather_details_title_mz">Weather Details</string>
+    <string name="weather_details_title_en">Weather Details</string>
+    <string name="weather_details_help_mz">Weather data help</string>
+    <string name="weather_details_help_en">Weather data help</string>
+    <string name="weather_hourly_forecast_mz">Hourly Forecast</string>
+    <string name="weather_hourly_forecast_en">Hourly Forecast</string>
+    <string name="weather_detailed_forecast_mz">Detailed Forecast</string>
+    <string name="weather_detailed_forecast_en">Detailed Forecast</string>
+    <string name="weather_feels_like_mz">Feels like</string>
+    <string name="weather_feels_like_en">Feels like</string>
+    <string name="weather_stat_rain_mz">Ruah</string>
+    <string name="weather_stat_rain_en">Rain</string>
+    <string name="weather_stat_wind_mz">Thli</string>
+    <string name="weather_stat_wind_en">Wind</string>
+    <string name="weather_stat_humidity_mz">Boruak Hnawng</string>
+    <string name="weather_stat_humidity_en">Humidity</string>
+    <string name="weather_stat_pressure_mz">Boruak Rit</string>
+    <string name="weather_stat_pressure_en">Pressure</string>
+    <string name="weather_stat_visibility_mz">A lang dan</string>
+    <string name="weather_stat_visibility_en">Visibility</string>
+    <string name="weather_stat_clouds_mz">Sum</string>
+    <string name="weather_stat_clouds_en">Clouds</string>
+    <string name="weather_gust_label_mz">Gust: %1$d</string>
+    <string name="weather_gust_label_en">Gust: %1$d</string>
+    <string name="weather_elevation_label_mz">📍 Elevation: %1$dm</string>
+    <string name="weather_elevation_label_en">📍 Elevation: %1$dm</string>
+    <string name="weather_dew_point_label_mz">💧 Dew point: %1$d°C</string>
+    <string name="weather_dew_point_label_en">💧 Dew point: %1$d°C</string>
+    <string name="weather_uv_label_mz">UV %1$d</string>
+    <string name="weather_uv_label_en">UV %1$d</string>
+    <string name="weather_data_source_title_mz">Data Source</string>
+    <string name="weather_data_source_title_en">Data Source</string>
+    <string name="weather_data_source_generated_mz">Generated: %1$s</string>
+    <string name="weather_data_source_generated_en">Generated: %1$s</string>
+    <string name="weather_data_source_models_mz">Models: %1$s</string>
+    <string name="weather_data_source_models_en">Models: %1$s</string>
+    <string name="weather_marine_yellow_mz">⚠️ Marine Caution - Fimkhur tur</string>
+    <string name="weather_marine_yellow_en">⚠️ Marine Caution - Fimkhur tur</string>
+    <string name="weather_marine_orange_mz">🟠 Marine Warning - Tuifinriat a him lo</string>
+    <string name="weather_marine_orange_en">🟠 Marine Warning - Tuifinriat a him lo</string>
+    <string name="weather_marine_red_mz">🔴 Marine Danger - Tuifinriat ah chhuah loh tur!</string>
+    <string name="weather_marine_red_en">🔴 Marine Danger - Tuifinriat ah chhuah loh tur!</string>
     
     <!-- Nearby Reports -->
     <string name="nearby_title">Hnai Vaia Report Te</string>
@@ -112,12 +408,12 @@
     <string name="channel_weather_alerts">Khawchin Warning</string>
     <string name="channel_weather_alerts_desc">Khawchin inthlak danglam hriattirna</string>
     <string name="channel_severe_weather">Khawchin Hlauhawm Warning</string>
-    <string name="channel_severe_weather_desc">Khawchin hlauhawm thil a awm a hriattirna</string>
+    <string name="channel_severe_weather_desc">Khawchin hlauhawm a awm thu hriattirna</string>
     <string name="channel_report_updates">Report Update</string>
     <string name="channel_report_updates_desc">I report thehluh chungchang update</string>
-    <string name="channel_achievements">Hlawhchhuah (Achievements)</string>
+    <string name="channel_achievements">Hlawhchhuah</string>
     <string name="channel_achievements_desc">Badge i dawn in hriattirna</string>
-    <string name="channel_general">A Tlangpui (General)</string>
+    <string name="channel_general">A Tlangpui</string>
     <string name="channel_general_desc">App hriattirna pangngai</string>
     
     <!-- Notifications -->
@@ -134,14 +430,64 @@
     <string name="profile_title">Ka Profile</string>
     <string name="profile_anonymous">Hming Thup</string>
     <string name="profile_sign_in_google">Google hmangin lut rawh</string>
-    <string name="profile_sign_out">Chhuak rawh (Sign Out)</string>
+    <string name="profile_sign_out">Chhuak Ang</string>
     <string name="profile_reports">Reports</string>
-    <string name="profile_accuracy">Dik Dan (Accuracy)</string>
+    <string name="profile_accuracy">Dik Dan</string>
     <string name="profile_points">Points</string>
-    <string name="profile_trust_level">Rintlak Chin</string>
+    <string name="profile_trust_level">Rintlak Dan</string>
     <string name="profile_badges">Badges</string>
     <string name="profile_no_badges">Badge i la nei lo! Report thehlut tan rawh le.</string>
     <string name="profile_badges_to_earn">Badge lak theih te</string>
+
+    <!-- User Profile (Mizo/English) -->
+    <string name="profile_title_mz">Ka Profile</string>
+    <string name="profile_title_en">My Profile</string>
+    <string name="profile_back_cd_mz">Kirna</string>
+    <string name="profile_back_cd_en">Back</string>
+    <string name="profile_sign_out_mz">Chhuak Ang</string>
+    <string name="profile_sign_out_en">Sign Out</string>
+    <string name="profile_guest_name_mz">Mikhual</string>
+    <string name="profile_guest_name_en">Guest User</string>
+    <string name="profile_anonymous_label_mz">Mikhual (Guest)</string>
+    <string name="profile_anonymous_label_en">Anonymous User</string>
+    <string name="profile_photo_cd_mz">Profile Photo</string>
+    <string name="profile_photo_cd_en">Profile Photo</string>
+    <string name="profile_sign_in_google_mz">Google hmangin lut rawh</string>
+    <string name="profile_sign_in_google_en">Sign in with Google</string>
+    <string name="profile_reports_label_mz">Reports</string>
+    <string name="profile_reports_label_en">Reports</string>
+    <string name="profile_accuracy_label_mz">Dik Dan</string>
+    <string name="profile_accuracy_label_en">Accuracy</string>
+    <string name="profile_points_label_mz">Points</string>
+    <string name="profile_points_label_en">Points</string>
+    <string name="profile_trust_level_label_mz">Rintlak Dan</string>
+    <string name="profile_trust_level_label_en">Trust Level</string>
+    <string name="profile_reputation_label_mz">Reputation</string>
+    <string name="profile_reputation_label_en">Reputation</string>
+    <string name="profile_badges_title_mz">Badges</string>
+    <string name="profile_badges_title_en">Badges</string>
+    <string name="profile_no_badges_title_mz">Badge i la nei lo!</string>
+    <string name="profile_no_badges_title_en">No badges yet!</string>
+    <string name="profile_no_badges_subtitle_mz">Report hmasa ber thehlut rawh le</string>
+    <string name="profile_no_badges_subtitle_en">Submit your first report</string>
+    <string name="profile_badges_to_earn_mz">Badge lak theih te</string>
+    <string name="profile_badges_to_earn_en">Badges to earn</string>
+    <string name="profile_activity_summary_mz">Khaikhawmna</string>
+    <string name="profile_activity_summary_en">Activity Summary</string>
+    <string name="profile_activity_total_reports_mz">Report thehluh zat</string>
+    <string name="profile_activity_total_reports_en">Total reports submitted</string>
+    <string name="profile_activity_verified_mz">Report dik/pawm te</string>
+    <string name="profile_activity_verified_en">Verified accurate reports</string>
+    <string name="profile_activity_badges_mz">Badge neih zat</string>
+    <string name="profile_activity_badges_en">Badges earned</string>
+    <string name="profile_next_level_1_mz">Level 2 kai turin report 10 thehlut rawh</string>
+    <string name="profile_next_level_1_en">Submit 10 reports to reach Level 2</string>
+    <string name="profile_next_level_2_mz" formatted="false">Level 3 kai turin accuracy 85% a ngai</string>
+    <string name="profile_next_level_2_en" formatted="false">Reach 85% accuracy for Level 3</string>
+    <string name="profile_next_level_3_mz">Level 4 kai turin report 50 thehlut rawh</string>
+    <string name="profile_next_level_3_en">Submit 50 reports for Level 4</string>
+    <string name="profile_next_level_4_mz" formatted="false">Level 5 kai turin accuracy 95% leh report 100</string>
+    <string name="profile_next_level_4_en" formatted="false">95% accuracy + 100 reports for Level 5</string>
     
     <!-- Settings -->
     <string name="settings_title">Settings</string>
@@ -159,10 +505,593 @@
     <string name="settings_delete_account">Account Delete Rawh</string>
     <string name="settings_delete_confirm">Hei hian i account leh data zawng zawng a nawt reh vek ang. Siam that theih a ni tawh lo ang!</string>
 
+    <!-- Settings (Mizo/English) -->
+    <string name="settings_title_mz">Settings</string>
+    <string name="settings_title_en">Settings</string>
+    <string name="settings_section_language_display_mz">Ṭawng leh Display</string>
+    <string name="settings_section_language_display_en">Language &amp; Appearance</string>
+    <string name="settings_language_title_mz">Ṭawng</string>
+    <string name="settings_language_title_en">Language</string>
+    <string name="settings_language_mizo_mz">Mizo</string>
+    <string name="settings_language_mizo_en">Mizo</string>
+    <string name="settings_language_english_mz">English</string>
+    <string name="settings_language_english_en">English</string>
+    <string name="settings_theme_title_mz">Hmelhmang</string>
+    <string name="settings_theme_title_en">Theme</string>
+    <string name="settings_theme_light_mz">Eng</string>
+    <string name="settings_theme_light_en">Light</string>
+    <string name="settings_theme_dark_mz">Thim</string>
+    <string name="settings_theme_dark_en">Dark</string>
+    <string name="settings_theme_system_mz">System angin</string>
+    <string name="settings_theme_system_en">System default</string>
+    <string name="settings_temp_unit_title_mz">Temperature Unit</string>
+    <string name="settings_temp_unit_title_en">Temperature Unit</string>
+    <string name="settings_temp_unit_celsius_mz">Celsius (°C)</string>
+    <string name="settings_temp_unit_celsius_en">Celsius (°C)</string>
+    <string name="settings_temp_unit_fahrenheit_mz">Fahrenheit (°F)</string>
+    <string name="settings_temp_unit_fahrenheit_en">Fahrenheit (°F)</string>
+    <string name="settings_section_notifications_mz">Hriattirna</string>
+    <string name="settings_section_notifications_en">Notifications</string>
+    <string name="settings_notifications_title_mz">Hriattirna</string>
+    <string name="settings_notifications_title_en">Notifications</string>
+    <string name="settings_notifications_subtitle_mz">Weather updates leh report status</string>
+    <string name="settings_notifications_subtitle_en">Weather updates and report status</string>
+    <string name="settings_severe_alerts_title_mz">Khaw chin ṭha lo Hriattirna</string>
+    <string name="settings_severe_alerts_title_en">Severe Weather Alerts</string>
+    <string name="settings_severe_alerts_subtitle_mz">Thlipui, ruahtui nasa, etc.</string>
+    <string name="settings_severe_alerts_subtitle_en">Storms, heavy rain, etc.</string>
+    <string name="settings_section_data_storage_mz">Data &amp; Storage</string>
+    <string name="settings_section_data_storage_en">Data &amp; Storage</string>
+    <string name="settings_clear_cache_title_mz">Cache Tifai</string>
+    <string name="settings_clear_cache_title_en">Clear Cache</string>
+    <string name="settings_clear_cache_subtitle_mz">Cached weather data paih rawh</string>
+    <string name="settings_clear_cache_subtitle_en">Clear cached weather data</string>
+    <string name="settings_section_about_mz">App chungchang</string>
+    <string name="settings_section_about_en">About</string>
+    <string name="settings_about_title_mz">App chungchang</string>
+    <string name="settings_about_title_en">About</string>
+    <string name="settings_about_subtitle_mz">Khawchin v1.0</string>
+    <string name="settings_about_subtitle_en">Khawchin v1.0</string>
+    <string name="settings_privacy_title_mz">Privacy Policy</string>
+    <string name="settings_privacy_title_en">Privacy Policy</string>
+    <string name="settings_section_account_mz">Account</string>
+    <string name="settings_section_account_en">Account</string>
+    <string name="settings_delete_account_title_mz">Account paih</string>
+    <string name="settings_delete_account_title_en">Delete Account</string>
+    <string name="settings_delete_account_subtitle_mz">I data zawng zawng paih rawh</string>
+    <string name="settings_delete_account_subtitle_en">Remove all your data</string>
+    <string name="settings_language_dialog_title_mz">Ṭawng thlang rawh</string>
+    <string name="settings_language_dialog_title_en">Select Language</string>
+    <string name="settings_theme_dialog_title_mz">Theme thlang rawh</string>
+    <string name="settings_theme_dialog_title_en">Select Theme</string>
+    <string name="settings_cancel_mz">Cancel</string>
+    <string name="settings_cancel_en">Cancel</string>
+    <string name="settings_clear_cache_dialog_title_mz">Cache Tifai?</string>
+    <string name="settings_clear_cache_dialog_title_en">Clear Cache?</string>
+    <string name="settings_clear_cache_dialog_body_mz">Cached weather data a paih dawn a, offline mode hman theih ni tawh lo ang.</string>
+    <string name="settings_clear_cache_dialog_body_en">This will clear cached weather data. Offline mode will not work until data is refreshed.</string>
+    <string name="settings_clear_cache_confirm_mz">Paih rawh</string>
+    <string name="settings_clear_cache_confirm_en">Clear</string>
+    <string name="settings_delete_account_dialog_title_mz">⚠️ Account paih?</string>
+    <string name="settings_delete_account_dialog_title_en">⚠️ Delete Account?</string>
+    <string name="settings_delete_account_dialog_body_mz">I account leh i data zawng zawng a paih vek dawn. Hei hi ruahman theih a ni lo!</string>
+    <string name="settings_delete_account_dialog_body_en">This will permanently delete your account and all your data. This action cannot be undone!</string>
+    <string name="settings_delete_account_confirm_mz">Paih rawh</string>
+    <string name="settings_delete_account_confirm_en">Delete</string>
+
     <!-- Common Actions -->
     <string name="action_cancel">Cancel</string>
     <string name="action_confirm">Confirm</string>
     <string name="action_delete">Delete</string>
     <string name="action_save">Save</string>
     <string name="action_clear">Clear</string>
+
+    <!-- Main Screen (Mizo/English) -->
+    <string name="main_exit_prompt_mz">App khar nan "Back" hmet nawn leh rawh</string>
+    <string name="main_exit_prompt_en">Press back again to exit</string>
+    <string name="main_report_option_required_mz">Report option thlang rawh</string>
+    <string name="main_report_option_required_en">Please select a report option</string>
+    <string name="main_report_gps_required_mz">GPS on rawh report thehluh tur</string>
+    <string name="main_report_gps_required_en">Turn on GPS to submit a report</string>
+    <string name="main_report_submit_success_mz">Ka lawm e! Report thawn a hlawhtling e.</string>
+    <string name="main_report_submit_success_en">Thanks! Report submitted successfully.</string>
+    <string name="main_report_submit_failed_mz">Report thawn a hlawhchham</string>
+    <string name="main_report_submit_failed_en">Report submission failed</string>
+    <string name="main_toast_sign_in_success_mz">Sign in a hlawhtling e!</string>
+    <string name="main_toast_sign_in_success_en">Sign in successful!</string>
+    <string name="main_toast_sign_in_failed_mz">Sign in a hlawhchham tlat.</string>
+    <string name="main_toast_sign_in_failed_en">Sign in failed.</string>
+    <string name="main_toast_signed_out_mz">Sign out a hlawhtling e.</string>
+    <string name="main_toast_signed_out_en">Signed out successfully.</string>
+    <string name="main_toast_cache_cleared_mz">Cache a paih e.</string>
+    <string name="main_toast_cache_cleared_en">Cache cleared.</string>
+    <string name="main_toast_account_deleted_mz">Account paih a hlawhtling e.</string>
+    <string name="main_toast_account_deleted_en">Account deleted.</string>
+    <string name="main_toast_about_mz">Khawchin Thlirna v1.0</string>
+    <string name="main_toast_about_en">Khawchin Thlirna v1.0</string>
+    <string name="main_badge_new_mz">🎖️ Badge thar: %1$s! +%2$d points</string>
+    <string name="main_badge_new_en">🎖️ New badge: %1$s! +%2$d points</string>
+    <string name="main_points_earned_mz">⭐ +%1$d points earned!</string>
+    <string name="main_points_earned_en">⭐ +%1$d points earned!</string>
+    <string name="main_nearby_title_mz">Nearby Reports</string>
+    <string name="main_nearby_title_en">Nearby Reports</string>
+    <string name="main_nearby_subtitle_mz">I vela mi dangte report en rawh</string>
+    <string name="main_nearby_subtitle_en">See nearby reports</string>
+    <string name="main_cd_weather_icon_mz">Khawchin icon</string>
+    <string name="main_cd_weather_icon_en">Weather icon</string>
+    <string name="main_cd_location_off_mz">Location permission off</string>
+    <string name="main_cd_location_off_en">Location permission off</string>
+    <string name="main_cd_error_mz">Error</string>
+    <string name="main_cd_error_en">Error</string>
+    <string name="main_status_location_off_title_mz">Location a off a ni</string>
+    <string name="main_status_location_off_title_en">Location is off</string>
+    <string name="main_status_location_off_desc_mz">GPS on rawh chuan khawchin a dik zawk ang</string>
+    <string name="main_status_location_off_desc_en">Turn on GPS for accurate weather</string>
+    <string name="main_status_turn_on_mz">On rawh</string>
+    <string name="main_status_turn_on_en">Turn on</string>
+    <string name="main_status_settings_mz">Settings</string>
+    <string name="main_status_settings_en">Settings</string>
+    <string name="main_status_error_title_mz">Khawchin a awm lo</string>
+    <string name="main_status_error_title_en">Weather unavailable</string>
+    <string name="main_status_loading_mz">Loading...</string>
+    <string name="main_status_loading_en">Loading...</string>
+    <string name="main_cd_open_menu_mz">Open menu</string>
+    <string name="main_cd_open_menu_en">Open menu</string>
+    <string name="main_menu_label_mz">Menu</string>
+    <string name="main_menu_label_en">Menu</string>
+    <string name="main_menu_profile_title_mz">Ka Profile</string>
+    <string name="main_menu_profile_title_en">My Profile</string>
+    <string name="main_menu_profile_subtitle_mz">I thilhlawh leh badge te</string>
+    <string name="main_menu_profile_subtitle_en">View your stats &amp; badges</string>
+    <string name="main_menu_report_title_mz">Khawchin reportna</string>
+    <string name="main_menu_report_title_en">Weather report</string>
+    <string name="main_menu_report_subtitle_mz">Khawchin report thehluh</string>
+    <string name="main_menu_report_subtitle_en">Submit weather report</string>
+    <string name="main_menu_app_guide_title_mz">App hman dan</string>
+    <string name="main_menu_app_guide_title_en">App guide</string>
+    <string name="main_menu_app_guide_subtitle_mz">App hman dan</string>
+    <string name="main_menu_app_guide_subtitle_en">How to use this app</string>
+    <string name="main_menu_crowd_title_mz">Report a ṭangkai dan</string>
+    <string name="main_menu_crowd_title_en">Crowdsourcing</string>
+    <string name="main_menu_crowd_subtitle_mz">Report tangkai dan</string>
+    <string name="main_menu_crowd_subtitle_en">How reports help</string>
+    <string name="main_menu_rain_title_mz">Ruah Sur Tam Dan Hrilhfiahna</string>
+    <string name="main_menu_rain_title_en">Rain intensity guide</string>
+    <string name="main_menu_rain_subtitle_mz">Ruah sur dan hrilhfiahna</string>
+    <string name="main_menu_rain_subtitle_en">Rain intensity guide</string>
+    <string name="main_menu_weather_title_mz">Khawchin data chiang zâwk</string>
+    <string name="main_menu_weather_title_en">Weather data explained</string>
+    <string name="main_menu_weather_subtitle_mz">Khawchin data hriatthiam</string>
+    <string name="main_menu_weather_subtitle_en">Understanding weather data</string>
+    <string name="main_menu_settings_title_mz">Settings</string>
+    <string name="main_menu_settings_title_en">Settings</string>
+    <string name="main_menu_settings_subtitle_mz">Theme, language &amp; dangte</string>
+    <string name="main_menu_settings_subtitle_en">Theme, language &amp; more</string>
+    <string name="main_hourly_forecast_mz">Darkar Tin Thlirlawkna</string>
+    <string name="main_hourly_forecast_en">Hourly Forecast</string>
+    <string name="main_now_mz">Tunah</string>
+    <string name="main_now_en">Now</string>
+    <string name="main_current_conditions_mz">Current Conditions</string>
+    <string name="main_current_conditions_en">Current Conditions</string>
+    <string name="main_location_nearby_mz">I awmna hnaivai</string>
+    <string name="main_location_nearby_en">Nearby</string>
+    <string name="main_feels_like_mz">A nihna tak</string>
+    <string name="main_feels_like_en">Feels Like</string>
+    <string name="main_air_quality_mz">Air Quality</string>
+    <string name="main_air_quality_en">Air Quality</string>
+    <string name="main_aqi_label_mz">AQI</string>
+    <string name="main_aqi_label_en">AQI</string>
+    <string name="main_unit_kmh">km/h</string>
+    <string name="main_unit_ugm3">µg/m³</string>
+    <string name="main_unit_mm_per_hr">mm/hr</string>
+    <string name="main_unit_percent">%</string>
+    <string name="main_unit_hpa">hPa</string>
+    <string name="main_unit_km">km</string>
+    <string name="main_unit_celsius">°C</string>
+    <string name="main_unit_mm">mm</string>
+    <string name="main_daylight_duration_mz">%1$dh %2$dm</string>
+    <string name="main_daylight_duration_en">%1$dh %2$dm</string>
+    <string name="main_day_mon_mz">Thawhtanni</string>
+    <string name="main_day_mon_en">Monday</string>
+    <string name="main_day_tue_mz">Thawhlehni</string>
+    <string name="main_day_tue_en">Tuesday</string>
+    <string name="main_day_wed_mz">Nilaini</string>
+    <string name="main_day_wed_en">Wednesday</string>
+    <string name="main_day_thu_mz">Ningani</string>
+    <string name="main_day_thu_en">Thursday</string>
+    <string name="main_day_fri_mz">Zirtawpni</string>
+    <string name="main_day_fri_en">Friday</string>
+    <string name="main_day_sat_mz">Inrinni</string>
+    <string name="main_day_sat_en">Saturday</string>
+    <string name="main_day_sun_mz">Pathianni</string>
+    <string name="main_day_sun_en">Sunday</string>
+    <string name="main_cardinal_n">N</string>
+    <string name="main_cardinal_s">S</string>
+    <string name="main_cardinal_e">E</string>
+    <string name="main_cardinal_w">W</string>
+    <string name="main_daily_forecast_10_mz">Ni 10 Chhung Forecast</string>
+    <string name="main_daily_forecast_10_en">10-Day Forecast</string>
+    <string name="main_daily_forecast_7_mz">Kar Khat Chhung Khawchin</string>
+    <string name="main_daily_forecast_7_en">7-Day Forecast</string>
+    <string name="main_confidence_label_mz">A Rintlak Dan</string>
+    <string name="main_confidence_label_en">Confidence</string>
+    <string name="main_confidence_header_mz">🎯 A Rintlak Dan:</string>
+    <string name="main_confidence_header_en">🎯 Confidence:</string>
+    <string name="main_confidence_very_high_mz">Rintlak Tak</string>
+    <string name="main_confidence_very_high_en">Very High</string>
+    <string name="main_confidence_high_mz">Rintlak</string>
+    <string name="main_confidence_high_en">High</string>
+    <string name="main_confidence_medium_mz">Pangngai</string>
+    <string name="main_confidence_medium_en">Moderate</string>
+    <string name="main_confidence_low_mz">Pawm theih</string>
+    <string name="main_confidence_low_en">Low</string>
+    <string name="main_confidence_very_low_mz">A tawk lo</string>
+    <string name="main_confidence_very_low_en">Very Low</string>
+    <string name="main_confidence_high_short_mz">Rintlak</string>
+    <string name="main_confidence_high_short_en">High</string>
+    <string name="main_confidence_medium_short_mz">Pangngai</string>
+    <string name="main_confidence_medium_short_en">Medium</string>
+    <string name="main_confidence_low_short_mz">Pawm ve theih</string>
+    <string name="main_confidence_low_short_en">Low</string>
+    <string name="main_uv_level_extreme_mz">Hlauhawm</string>
+    <string name="main_uv_level_extreme_en">Extreme</string>
+    <string name="main_uv_level_very_high_mz">Sang lutuk</string>
+    <string name="main_uv_level_very_high_en">Very High</string>
+    <string name="main_uv_level_high_mz">Sang</string>
+    <string name="main_uv_level_high_en">High</string>
+    <string name="main_uv_level_moderate_mz">Pangngai</string>
+    <string name="main_uv_level_moderate_en">Moderate</string>
+    <string name="main_uv_level_low_mz">Hniam</string>
+    <string name="main_uv_level_low_en">Low</string>
+    <string name="main_data_source_title_mz">Data Source</string>
+    <string name="main_data_source_title_en">Data Source</string>
+    <string name="main_data_source_updated_mz">Updated %1$s</string>
+    <string name="main_data_source_updated_en">Updated %1$s</string>
+    <string name="main_data_source_stale_mz">⚠️ %1$s</string>
+    <string name="main_data_source_stale_en">⚠️ %1$s</string>
+    <string name="main_data_source_age_mz">%1$dh hlui</string>
+    <string name="main_data_source_age_en">%1$dh old</string>
+    <string name="main_skill_report_title_mz">Skill Report</string>
+    <string name="main_skill_report_title_en">Skill Report</string>
+    <string name="main_skill_report_samples_mz">Samples: %1$d</string>
+    <string name="main_skill_report_samples_en">Samples: %1$d</string>
+    <string name="main_skill_report_mae_mz">MAE %1$s</string>
+    <string name="main_skill_report_mae_en">MAE %1$s</string>
+    <string name="main_skill_report_brier_mz">Brier %1$s</string>
+    <string name="main_skill_report_brier_en">Brier %1$s</string>
+    <string name="main_skill_report_bias_mz">Bias %1$s</string>
+    <string name="main_skill_report_bias_en">Bias %1$s</string>
+    <string name="main_skill_report_hit_mz">Hit %1$s</string>
+    <string name="main_skill_report_hit_en">Hit %1$s</string>
+    <string name="main_skill_report_fa_mz">FA %1$s</string>
+    <string name="main_skill_report_fa_en">FA %1$s</string>
+    <string name="main_skill_report_best_mz">Best: %1$s</string>
+    <string name="main_skill_report_best_en">Best: %1$s</string>
+    <string name="main_skill_report_unavailable_mz">Data a fetch sak theih loh (Ruah a sur lo anih avangin zero a ni thei)</string>
+    <string name="main_skill_report_unavailable_en">Data unavailable (may be zero due to no rain)</string>
+    <string name="main_bay_of_bengal_weather_mz">Bay of Bengal Khawchin</string>
+    <string name="main_bay_of_bengal_weather_en">Bay of Bengal Weather</string>
+    <string name="main_tropical_cyclone_mz">Tropical Cyclone %1$s</string>
+    <string name="main_tropical_cyclone_en">Tropical Cyclone %1$s</string>
+    <string name="main_expand_mz">Expand</string>
+    <string name="main_expand_en">Expand</string>
+    <string name="main_collapse_mz">Collapse</string>
+    <string name="main_collapse_en">Collapse</string>
+    <string name="main_cyclone_distance_mz">📍 Km %1$d vela hla</string>
+    <string name="main_cyclone_distance_en">📍 %1$d km away</string>
+    <string name="main_kmh_format_mz">%1$d km/h</string>
+    <string name="main_kmh_format_en">%1$d km/h</string>
+    <string name="main_eta_hours_mz">~%1$dh hnuah</string>
+    <string name="main_eta_hours_en">~%1$dh</string>
+    <string name="main_cyclone_default_name_mz">Thlipui</string>
+    <string name="main_cyclone_default_name_en">Cyclone</string>
+    <string name="main_cyclone_location_west_bob_mz">Bay of Bengal khawthlang lamah</string>
+    <string name="main_cyclone_location_west_bob_en">in the western Bay of Bengal</string>
+    <string name="main_cyclone_location_central_bob_mz">Bay of Bengal lai takah</string>
+    <string name="main_cyclone_location_central_bob_en">in the central Bay of Bengal</string>
+    <string name="main_cyclone_location_bangladesh_south_mz">Bangladesh chhim lam tuipuiah</string>
+    <string name="main_cyclone_location_bangladesh_south_en">in southern Bangladesh waters</string>
+    <string name="main_cyclone_location_andaman_mz">Andaman tuifinriatah</string>
+    <string name="main_cyclone_location_andaman_en">in the Andaman Sea</string>
+    <string name="main_cyclone_eta_sentence_mz">Darkar %1$d hnu velah a rawn thleng thei. </string>
+    <string name="main_cyclone_eta_sentence_en">Could arrive in about %1$d hours. </string>
+    <string name="main_cyclone_msg_high_mz">⚠️ %1$s (%2$s) chu %3$s a awm a, kan awmna lam a rawn pan mek. %4$sThli na tak leh ruahtui tam tak a thlen thei a, fimkhur hle tur!</string>
+    <string name="main_cyclone_msg_high_en">⚠️ %1$s (%2$s) is %3$s and moving toward our region. %4$sStrong winds and heavy rain are possible. Please stay alert.</string>
+    <string name="main_cyclone_msg_moderate_mz">%1$s (%2$s) chu %3$s a awm a, kan ram a rawn hnaih thei. Km %4$d vela hnaiin a rawn kal ang. Ruah leh thli a awm thei a, hriattirna ngaichang reng ang che.</string>
+    <string name="main_cyclone_msg_moderate_en">%1$s (%2$s) is %3$s and may approach our region. It could pass within %4$d km. Rain and wind are possible; stay updated.</string>
+    <string name="main_cyclone_msg_low_mz">%1$s chu %2$s a awm mek. I awmna a rawn thleng kher lo ang, mahse thli leh ruah erawh a rawn thlen thei. Darkar 24 chhungin ruah a sur thei.</string>
+    <string name="main_cyclone_msg_low_en">%1$s is %2$s. It may not directly affect you, but wind and rain are possible. Rain may occur within the next 24 hours.</string>
+    <string name="main_cyclone_msg_far_mz">%1$s chu %2$s a awm a, i awmna a rawn thleng pha lo ang. Km %3$d vela hlaah a kal liam ang. Hriattirna erawh ngaichang reng rawh.</string>
+    <string name="main_cyclone_msg_far_en">%1$s is %2$s and likely too far to affect you. It may pass about %3$d km away. Stay informed.</string>
+    <string name="main_upstream_rain_alert_cd_mz">A hnar lama ruah sur hriattirna</string>
+    <string name="main_upstream_rain_alert_cd_en">Upstream rain alert</string>
+    <string name="main_marine_alert_red_mz">⚠️ Tuifinriat Chung Dinhmun: Thlipui Hlauhawm A Awm Thei</string>
+    <string name="main_marine_alert_red_en">⚠️ Marine Alert: Dangerous storm possible</string>
+    <string name="main_marine_alert_orange_mz">⚠️ Tuifinriat Chung Dinhmun: Thlipui a chak tial tial</string>
+    <string name="main_marine_alert_orange_en">⚠️ Marine Alert: Storm strengthening</string>
+    <string name="main_marine_alert_yellow_mz">🌤️ Tuifinriat Chung Dinhmun: Low Pressure (Thlipui intham tan)</string>
+    <string name="main_marine_alert_yellow_en">🌤️ Marine Alert: Low Pressure (storm developing)</string>
+    <string name="main_marine_alert_green_mz">✅ Tuifinriat Chung Dinhmun: A Thiang Tha E</string>
+    <string name="main_marine_alert_green_en">✅ Marine Alert: All Clear</string>
+    <string name="main_report_dialog_title_mz">Report</string>
+    <string name="main_report_dialog_title_en">Report</string>
+    <string name="main_report_dialog_desc_mz">I awmna hmun khaw dinhmun report rawh. GPS on la i awmna dinhmun dik tak i report thei ang.</string>
+    <string name="main_report_dialog_desc_en">Report the weather at your location. Turn on GPS for accuracy.</string>
+    <string name="main_report_dialog_gps_off_mz">GPS a off chuan report a thawn theih loh.</string>
+    <string name="main_report_dialog_gps_off_en">GPS is off, report cannot be submitted.</string>
+    <string name="main_report_option_rain_mz">Ruah a sur</string>
+    <string name="main_report_option_rain_en">It is raining</string>
+    <string name="main_report_option_clear_mz">Khua a tha</string>
+    <string name="main_report_option_clear_en">Weather is clear</string>
+    <string name="main_report_option_windy_mz">Thli a na</string>
+    <string name="main_report_option_windy_en">Strong wind</string>
+    <string name="main_report_submitting_mz">Submitting…</string>
+    <string name="main_report_submitting_en">Submitting…</string>
+    <string name="main_report_close_mz">Khar</string>
+    <string name="main_report_close_en">Close</string>
+    <string name="main_sunrise_sunset_title_mz">Ni Chhuak &amp; Ni Tla</string>
+    <string name="main_sunrise_sunset_title_en">SUNRISE &amp; SUNSET</string>
+    <string name="main_sunrise_mz">🌅 Ni Chhuak</string>
+    <string name="main_sunrise_en">🌅 Sunrise</string>
+    <string name="main_sunset_mz">🌇 Ni Tla</string>
+    <string name="main_sunset_en">🌇 Sunset</string>
+    <string name="main_daylight_mz">Daylight</string>
+    <string name="main_daylight_en">Daylight</string>
+    <string name="main_seasonal_outlook_mz">Seasonal Outlook</string>
+    <string name="main_seasonal_outlook_en">Seasonal Outlook</string>
+    <string name="main_past_vs_upcoming_mz">Liam vs Thleng Tur</string>
+    <string name="main_past_vs_upcoming_en">Past vs Upcoming</string>
+    <string name="main_six_month_outlook_mz">Thla 6 chhung Thlir Lawkna</string>
+    <string name="main_six_month_outlook_en">6-Month Outlook</string>
+    <string name="main_temp_label_mz">Temp</string>
+    <string name="main_temp_label_en">Temp</string>
+    <string name="main_rain_label_mz">Rain</string>
+    <string name="main_rain_label_en">Rain</string>
+    <string name="main_wind_label_mz">WIND</string>
+    <string name="main_wind_label_en">WIND</string>
+    <string name="main_wind_gust_label_mz">Wind Gust</string>
+    <string name="main_wind_gust_label_en">Wind Gust</string>
+    <string name="main_sponsored_mz">Sponsored</string>
+    <string name="main_sponsored_en">Sponsored</string>
+    <string name="main_ad_space_mz">📢 Ad space</string>
+    <string name="main_ad_space_en">📢 Ad space</string>
+    <string name="main_loading_ad_mz">Loading ad…</string>
+    <string name="main_loading_ad_en">Loading ad…</string>
+    <string name="main_marine_alert_title_mz">Tuifinriat Chung Dinhmun</string>
+    <string name="main_marine_alert_title_en">Marine Alert</string>
+    <string name="main_rainfall_label_mz">RAINFALL</string>
+    <string name="main_rainfall_label_en">RAINFALL</string>
+    <string name="main_humidity_label_mz">HUMIDITY</string>
+    <string name="main_humidity_label_en">HUMIDITY</string>
+    <string name="main_pressure_label_mz">PRESSURE</string>
+    <string name="main_pressure_label_en">PRESSURE</string>
+    <string name="main_visibility_label_mz">VISIBILITY</string>
+    <string name="main_visibility_label_en">VISIBILITY</string>
+    <string name="main_dewpoint_label_mz">DEWPOINT</string>
+    <string name="main_dewpoint_label_en">DEWPOINT</string>
+    <string name="main_cloud_cover_label_mz">CLOUD COVER</string>
+    <string name="main_cloud_cover_label_en">CLOUD COVER</string>
+    <string name="main_uv_index_label_mz">UV INDEX</string>
+    <string name="main_uv_index_label_en">UV INDEX</string>
+    <string name="main_current_month_mz">Tun Thla</string>
+    <string name="main_current_month_en">Current Month</string>
+    <string name="main_next_month_mz">Hma Thla</string>
+    <string name="main_next_month_en">Next Month</string>
+
+    <!-- Report Screen Language Strings (Mizo/English) -->
+    <string name="report_sign_in_success_mz">Sign in a hlawhtling e!</string>
+    <string name="report_sign_in_success_en">Sign in successful!</string>
+    <string name="report_title_mz">Khawchin Report-na</string>
+    <string name="report_title_en">Report Weather</string>
+    <string name="report_sign_in_failed_mz">Sign in a hlawhchham tlat.</string>
+    <string name="report_sign_in_failed_en">Sign in failed.</string>
+    <string name="report_back_mz">Kirna</string>
+    <string name="report_back_en">Back</string>
+    <string name="report_rain_guide_mz">Ruah sur dan Sawifiahna</string>
+    <string name="report_rain_guide_en">Rain intensity guide</string>
+    <string name="report_rain_intensity_title_mz">Ruah Sur Dan (Tih ngei ngei tur) *</string>
+    <string name="report_rain_intensity_title_en">Rain Intensity (Required) *</string>
+    <string name="report_sky_condition_title_mz">Chhum A Awm Em?</string>
+    <string name="report_sky_condition_title_en">Sky Condition</string>
+    <string name="report_wind_strength_title_mz">Thli Tleh Nat Zawng</string>
+    <string name="report_wind_strength_title_en">Wind Strength</string>
+    <string name="report_notes_title_mz">Thil dang sawi duh</string>
+    <string name="report_notes_title_en">Notes</string>
+    <string name="report_notes_placeholder_mz">Sawi belh duh i neih chuan hetah ziak rawh...</string>
+    <string name="report_notes_placeholder_en">Add any notes here...</string>
+    <string name="report_gps_required_toast_mz">Report thehlut turin GPS a in-on a ngai</string>
+    <string name="report_gps_required_toast_en">Turn on GPS to submit a report</string>
+    <string name="report_submit_success_toast_mz">Ka lawm e! Report thehluh a hlawhtling.</string>
+    <string name="report_submit_success_toast_en">Thanks! Report submitted successfully.</string>
+    <string name="report_submit_failed_toast_mz">Report thehluh a hlawhchham tlat</string>
+    <string name="report_submit_failed_toast_en">Report submission failed</string>
+    <string name="report_submitting_mz">Thehlut mek...</string>
+    <string name="report_submitting_en">Submitting...</string>
+    <string name="report_submit_report_mz">Report Ang</string>
+    <string name="report_submit_report_en">Submit Report</string>
+    <string name="report_optional_mz">Dah kher a ngai lo</string>
+    <string name="report_optional_en">Optional</string>
+    <string name="report_location_label_mz">Hmun Hming</string>
+    <string name="report_location_label_en">Location Name</string>
+    <string name="report_detecting_location_mz">I awmna hmun zawng mek...</string>
+    <string name="report_detecting_location_en">Detecting location...</string>
+    <string name="report_location_placeholder_mz">Hmun hming ziak lut rawh</string>
+    <string name="report_location_placeholder_en">Enter location name</string>
+    <string name="report_no_location_title_mz">GPS On A Ngai</string>
+    <string name="report_no_location_title_en">GPS required</string>
+    <string name="report_no_location_body_mz">Report thehlut turin khawngaihin GPS on rawh</string>
+    <string name="report_no_location_body_en">Turn on GPS to submit a report</string>
+    <string name="report_sign_in_prompt_mz">Sign in rawh</string>
+    <string name="report_sign_in_prompt_en">Sign in</string>
+    <string name="report_sign_in_subtitle_mz">Points leh badges i hlawh thei ang!</string>
+    <string name="report_sign_in_subtitle_en">Earn points and badges!</string>
+    <string name="report_sign_in_button_mz">Lut Rawh</string>
+    <string name="report_sign_in_button_en">Sign in</string>
+    <string name="report_refresh_mz">Refresh</string>
+    <string name="report_refresh_en">Refresh</string>
+    <string name="report_load_reports_failed_mz">Reports load a hlawhtling lo</string>
+    <string name="report_load_reports_failed_en">Failed to load reports</string>
+    <string name="report_nearby_no_location_body_mz">Nearby reports en tur chuan GPS on rawh</string>
+    <string name="report_nearby_no_location_body_en">Turn on GPS to see nearby reports</string>
+    <string name="report_no_reports_title_mz">Report a awm lo</string>
+    <string name="report_no_reports_title_en">No reports found</string>
+    <string name="report_nearby_title_mz">Nearby Reports</string>
+    <string name="report_nearby_title_en">Nearby Reports</string>
+    <string name="report_location_summary_mz">15km chhung • %1$d report</string>
+    <string name="report_location_summary_en">15 km radius • %1$d reports</string>
+    <string name="report_no_reports_message_mz">15km chhung leh %1$d minute chhung-ah report a awm lo.\nI report thawn i duh em?</string>
+    <string name="report_no_reports_message_en">No reports within 15 km in the last %1$d minutes.\nWould you like to submit one?</string>
+    <string name="report_sky_label_mz">Van:</string>
+    <string name="report_sky_label_en">Sky:</string>
+    <string name="report_wind_label_mz">Thli:</string>
+    <string name="report_wind_label_en">Wind:</string>
+    <string name="report_reporter_reputation_mz">⭐ Reporter reputation: %1$d%%</string>
+    <string name="report_reporter_reputation_en">⭐ Reporter reputation: %1$d%%</string>
+    <string name="report_time_filter_30_mz">30 min</string>
+    <string name="report_time_filter_30_en">30 min</string>
+    <string name="report_time_filter_60_mz">1 dar</string>
+    <string name="report_time_filter_60_en">1 hr</string>
+    <string name="report_time_filter_120_mz">2 dar</string>
+    <string name="report_time_filter_120_en">2 hr</string>
+    <string name="report_time_filter_180_mz">3 dar</string>
+    <string name="report_time_filter_180_en">3 hr</string>
+    <string name="report_time_just_now_mz">Tunah</string>
+    <string name="report_time_just_now_en">just now</string>
+    <string name="report_time_minutes_ago_mz">%1$d min liam ta</string>
+    <string name="report_time_minutes_ago_en">%1$d min ago</string>
+    <string name="report_time_hour_ago_mz">1 dar liam ta</string>
+    <string name="report_time_hour_ago_en">1 hr ago</string>
+    <string name="report_time_hours_ago_mz">%1$d dar liam ta</string>
+    <string name="report_time_hours_ago_en">%1$d hr ago</string>
+    <string name="report_selected_mz">Selected</string>
+    <string name="report_selected_en">Selected</string>
+    <string name="report_profile_cd_mz">Profile</string>
+    <string name="report_profile_cd_en">Profile</string>
+    <string name="report_user_mz">User</string>
+    <string name="report_user_en">User</string>
+    <string name="report_points_label_mz">⭐ %1$d points</string>
+    <string name="report_points_label_en">⭐ %1$d points</string>
+    <string name="report_reports_label_mz">📊 %1$d reports</string>
+    <string name="report_reports_label_en">📊 %1$d reports</string>
+    <!-- Seasonal Summary / Upcoming Season -->
+    <string name="main_seasonal_summary_title_mz">Summary</string>
+    <string name="main_seasonal_summary_title_en">Summary</string>
+    <string name="main_seasonal_scope_label_mz">Scope</string>
+    <string name="main_seasonal_scope_label_en">Scope</string>
+    <string name="main_seasonal_scope_current_mz">Tun thla chauh</string>
+    <string name="main_seasonal_scope_current_en">Current month only</string>
+    <string name="main_seasonal_scope_trend_mz">Thla 6 chhung trend</string>
+    <string name="main_seasonal_scope_trend_en">6-month trend</string>
+    <string name="main_seasonal_trend_only_short_mz">Trend chauh</string>
+    <string name="main_seasonal_trend_only_short_en">Trend only</string>
+    <string name="main_seasonal_updated_mz">Updated: %1$s</string>
+    <string name="main_seasonal_updated_en">Updated: %1$s</string>
+    <string name="main_seasonal_longrange_mz">Long-range outlook. Trend only.</string>
+    <string name="main_seasonal_longrange_en">Long-range outlook. Trend only.</string>
+    <string name="main_upcoming_season_mz">Upcoming season</string>
+    <string name="main_upcoming_season_en">Upcoming season</string>
+    <string name="main_starts_in_mz">Starts in %1$d months</string>
+    <string name="main_starts_in_en">Starts in %1$d months</string>
+    <string name="main_key_message_mz">Key message</string>
+    <string name="main_key_message_en">Key message</string>
+    <string name="main_rain_outlook_label_mz">Rain outlook</string>
+    <string name="main_rain_outlook_label_en">Rain outlook</string>
+    <string name="main_wind_outlook_label_mz">Wind outlook</string>
+    <string name="main_wind_outlook_label_en">Wind outlook</string>
+
+    <!-- Skill / Verification -->
+    <string name="main_verification_subtitle_mz">Verification snapshot</string>
+    <string name="main_verification_subtitle_en">Verification snapshot</string>
+    <string name="main_skill_report_hitfa_mz">Hit / FA</string>
+    <string name="main_skill_report_hitfa_en">Hit / FA</string>
+
+    <!-- Nowcast Sources (hidden in UI but still referenced) -->
+    <string name="main_nowcast_title_mz">Nowcast sources</string>
+    <string name="main_nowcast_title_en">Nowcast sources</string>
+    <string name="main_nowcast_method_mz">Method: %1$s</string>
+    <string name="main_nowcast_method_en">Method: %1$s</string>
+    <string name="main_nowcast_hours_mz">Lagged by %1$dh</string>
+    <string name="main_nowcast_hours_en">Lagged by %1$dh</string>
+    <string name="main_nowcast_value_mz">Nowcast value: %1$s mm/hr</string>
+    <string name="main_nowcast_value_en">Nowcast value: %1$s mm/hr</string>
+    <string name="main_nowcast_sources_mz">Sources: %1$s</string>
+    <string name="main_nowcast_sources_en">Sources: %1$s</string>
+
+    <!-- Satellite / IMERG (hidden in UI but still referenced) -->
+    <string name="main_satellite_title_mz">Satellite rain &amp; bias</string>
+    <string name="main_satellite_title_en">Satellite rain &amp; bias</string>
+    <string name="main_satellite_desc_mz">NASA GPM IMERG Late data.</string>
+    <string name="main_satellite_desc_en">NASA GPM IMERG Late data.</string>
+    <string name="main_satellite_imerg_time_mz">IMERG time: %1$s</string>
+    <string name="main_satellite_imerg_time_en">IMERG time: %1$s</string>
+    <string name="main_satellite_rain_30min_mz">Rain (30 min): %1$s mm</string>
+    <string name="main_satellite_rain_30min_en">Rain (30 min): %1$s mm</string>
+    <string name="main_satellite_rate_mz">Rain rate: %1$s mm/hr</string>
+    <string name="main_satellite_rate_en">Rain rate: %1$s mm/hr</string>
+    <string name="main_satellite_snapshot_time_mz">Snapshot: %1$s</string>
+    <string name="main_satellite_snapshot_time_en">Snapshot: %1$s</string>
+    <string name="main_satellite_bias_factor_mz">Bias factor: %1$s</string>
+    <string name="main_satellite_bias_factor_en">Bias factor: %1$s</string>
+
+    <!-- Weather Systems Summary -->
+    <string name="main_systems_title_mz">Weather systems</string>
+    <string name="main_systems_title_en">Weather systems</string>
+    <string name="main_system_bob_mz">Bay of Bengal</string>
+    <string name="main_system_bob_en">Bay of Bengal</string>
+    <string name="main_system_wd_mz">Western disturbance</string>
+    <string name="main_system_wd_en">Western disturbance</string>
+    <string name="main_system_norwester_mz">Norwesters</string>
+    <string name="main_system_norwester_en">Norwesters</string>
+    <string name="main_system_easterly_mz">Easterly surge</string>
+    <string name="main_system_easterly_en">Easterly surge</string>
+    <string name="main_system_monsoon_mz">Monsoon bands</string>
+    <string name="main_system_monsoon_en">Monsoon bands</string>
+    <string name="main_systems_active_mz">Active: %1$s</string>
+    <string name="main_systems_active_en">Active: %1$s</string>
+    <string name="main_systems_checked_mz">Checked: %1$s</string>
+    <string name="main_systems_checked_en">Checked: %1$s</string>
+    <string name="main_systems_alerts_mz">Alerts</string>
+    <string name="main_systems_alerts_en">Alerts</string>
+
+    <!-- Cyclone Impact -->
+    <string name="main_cyclone_impact_title_mz">Cyclone impact</string>
+    <string name="main_cyclone_impact_title_en">Cyclone impact</string>
+    <string name="main_cyclone_impact_level_mz">Impact: %1$s</string>
+    <string name="main_cyclone_impact_level_en">Impact: %1$s</string>
+    <string name="main_cyclone_impact_distance_mz">Closest: %1$d km</string>
+    <string name="main_cyclone_impact_distance_en">Closest: %1$d km</string>
+    <string name="main_cyclone_impact_eta_mz">ETA: %1$dh</string>
+    <string name="main_cyclone_impact_eta_en">ETA: %1$dh</string>
+    <string name="main_cyclone_impact_wind_mz">Wind: %1$d km/h</string>
+    <string name="main_cyclone_impact_wind_en">Wind: %1$d km/h</string>
+    <string name="main_cyclone_impact_rain_mz">Rain risk: %1$s</string>
+    <string name="main_cyclone_impact_rain_en">Rain risk: %1$s</string>
+    <string name="main_cyclone_impact_motion_mz">Motion: %1$s</string>
+    <string name="main_cyclone_impact_motion_en">Motion: %1$s</string>
+
+    <!-- Weather Data Explained -->
+    <string name="wd_satellite_title_mz">Satellite rain (IMERG)</string>
+    <string name="wd_satellite_title_en">Satellite rain (IMERG)</string>
+    <string name="wd_satellite_desc_mz">NASA GPM IMERG Late data a hmangin ruah sur dan a chungchang a lang.</string>
+    <string name="wd_satellite_desc_en">Rain estimates from NASA GPM IMERG Late.</string>
+    <string name="wd_satellite_tip_mz">A hnuai lamah darkar eng emaw tlem a awm thei.</string>
+    <string name="wd_satellite_tip_en">May lag by a few hours.</string>
+    <string name="wd_bias_title_mz">Bias correction</string>
+    <string name="wd_bias_title_en">Bias correction</string>
+    <string name="wd_bias_desc_mz">Model ruah sur dan hi satellite leh station data hmangin siam a ni.</string>
+    <string name="wd_bias_desc_en">Adjusts model rain using satellite and station data.</string>
+    <string name="wd_bias_tip_mz">Bias a tlem chuan model a dik zawk tihna.</string>
+    <string name="wd_bias_tip_en">Lower bias usually means closer to reality.</string>
+    <string name="wd_nowcast_title_mz">Nowcast</string>
+    <string name="wd_nowcast_title_en">Nowcast</string>
+    <string name="wd_nowcast_desc_mz">Hun hman tlem chhunga khawchin dinhmun a siam.</string>
+    <string name="wd_nowcast_desc_en">Short-term estimate using the latest data.</string>
+    <string name="wd_nowcast_tip_mz">Darkar engemaw chhungah a dik zawk.</string>
+    <string name="wd_nowcast_tip_en">Most useful for the next few hours.</string>
+    <string name="wd_systems_title_mz">Weather systems</string>
+    <string name="wd_systems_title_en">Weather systems</string>
+    <string name="wd_systems_desc_mz">Thlipui, monsoon bands leh disturbances te a zawn a ni.</string>
+    <string name="wd_systems_desc_en">Tracks cyclones, monsoon bands, and disturbances.</string>
+    <string name="wd_systems_tip_mz">Risk hriattirna atan hman.</string>
+    <string name="wd_systems_tip_en">Use for situational awareness.</string>
 </resources>

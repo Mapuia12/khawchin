@@ -46,15 +46,23 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import androidx.annotation.StringRes
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mapuia.khawchinthlirna.R
 import com.mapuia.khawchinthlirna.data.model.GridMetaData
 import com.mapuia.khawchinthlirna.data.model.GridWeatherDocument
 import com.mapuia.khawchinthlirna.data.model.HourlyWeatherItem
 import com.mapuia.khawchinthlirna.data.model.MarineRiskData
 import com.mapuia.khawchinthlirna.data.model.formatTimestamp
 import com.mapuia.khawchinthlirna.ui.components.BannerAd
+import com.mapuia.khawchinthlirna.ui.theme.appBackgroundGradient
+import com.mapuia.khawchinthlirna.ui.theme.appIconTint
+import com.mapuia.khawchinthlirna.ui.theme.appTextMuted
+import com.mapuia.khawchinthlirna.ui.theme.appTextPrimary
+import com.mapuia.khawchinthlirna.ui.theme.appTextSecondary
 import kotlin.math.roundToInt
 
 /**
@@ -72,18 +80,17 @@ fun WeatherDetailScreen(
     weatherData: GridWeatherDocument,
     onBack: () -> Unit,
     onNavigateToWeatherDataExplained: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isMizo: Boolean = true,
 ) {
     val hourlyList = weatherData.toHourlyWeatherList()
     val currentHour = hourlyList.firstOrNull()
 
-    val backgroundGradient = Brush.verticalGradient(
-        listOf(
-            Color(0xFF0F0C29),
-            Color(0xFF302B63),
-            Color(0xFF24243E),
-        )
-    )
+    val backgroundGradient = appBackgroundGradient()
+    val textPrimary = appTextPrimary()
+    val textSecondary = appTextSecondary(0.8f)
+    val textMuted = appTextMuted(0.6f)
+    val iconTint = appIconTint()
 
     Box(
         modifier = modifier
@@ -96,8 +103,12 @@ fun WeatherDetailScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "Weather Details",
-                            color = Color.White,
+                            text = langString(
+                                R.string.weather_details_title_mz,
+                                R.string.weather_details_title_en,
+                                isMizo
+                            ),
+                            color = textPrimary,
                             fontWeight = FontWeight.Bold,
                         )
                     },
@@ -105,8 +116,12 @@ fun WeatherDetailScreen(
                         IconButton(onClick = onBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = Color.White
+                                contentDescription = langString(
+                                    R.string.ui_back_mz,
+                                    R.string.ui_back_en,
+                                    isMizo
+                                ),
+                                tint = iconTint
                             )
                         }
                     },
@@ -114,8 +129,12 @@ fun WeatherDetailScreen(
                         IconButton(onClick = onNavigateToWeatherDataExplained) {
                             Icon(
                                 Icons.AutoMirrored.Filled.HelpOutline,
-                                contentDescription = "Weather data help",
-                                tint = Color.White
+                                contentDescription = langString(
+                                    R.string.weather_details_help_mz,
+                                    R.string.weather_details_help_en,
+                                    isMizo
+                                ),
+                                tint = iconTint
                             )
                         }
                     },
@@ -137,16 +156,21 @@ fun WeatherDetailScreen(
                     CurrentConditionsCard(
                         current = currentHour,
                         meta = weatherData.meta,
-                        marine = weatherData.marine
+                        marine = weatherData.marine,
+                        isMizo = isMizo,
                     )
                 }
 
                 // Hourly forecast title
                 item {
                     Text(
-                        text = "Hourly Forecast",
+                        text = langString(
+                            R.string.weather_hourly_forecast_mz,
+                            R.string.weather_hourly_forecast_en,
+                            isMizo
+                        ),
                         style = MaterialTheme.typography.titleMedium,
-                        color = Color.White,
+                        color = textPrimary,
                         fontWeight = FontWeight.Bold,
                     )
                 }
@@ -166,22 +190,27 @@ fun WeatherDetailScreen(
                 item {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        text = "Detailed Forecast",
+                        text = langString(
+                            R.string.weather_detailed_forecast_mz,
+                            R.string.weather_detailed_forecast_en,
+                            isMizo
+                        ),
                         style = MaterialTheme.typography.titleMedium,
-                        color = Color.White,
+                        color = textPrimary,
                         fontWeight = FontWeight.Bold,
                     )
                 }
 
                 items(hourlyList.take(24)) { hour ->
-                    HourlyWeatherRow(hour = hour)
+                    HourlyWeatherRow(hour = hour, isMizo = isMizo)
                 }
 
                 // Data source info
                 item {
                     DataSourceInfo(
                         generated = weatherData.generated,
-                        models = weatherData.modelsUsed
+                        models = weatherData.modelsUsed,
+                        isMizo = isMizo,
                     )
                 }
 
@@ -200,7 +229,8 @@ fun WeatherDetailScreen(
 fun CurrentConditionsCard(
     current: HourlyWeatherItem?,
     meta: GridMetaData,
-    marine: MarineRiskData
+    marine: MarineRiskData,
+    isMizo: Boolean = true,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -215,21 +245,25 @@ fun CurrentConditionsCard(
                 Text(
                     text = "${current?.temperature?.roundToInt() ?: "--"}°",
                     style = MaterialTheme.typography.displayLarge,
-                    color = Color.White,
+                    color = appTextPrimary(),
                     fontWeight = FontWeight.Bold,
                 )
                 current?.feelsLike?.let { feelsLike ->
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "Feels like",
+                            text = langString(
+                                R.string.weather_feels_like_mz,
+                                R.string.weather_feels_like_en,
+                                isMizo
+                            ),
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.White.copy(alpha = 0.6f),
+                            color = appTextSecondary(0.6f),
                         )
                         Text(
                             text = "${feelsLike.roundToInt()}°",
                             style = MaterialTheme.typography.titleLarge,
-                            color = Color.White.copy(alpha = 0.9f),
+                            color = appTextPrimary(0.9f),
                             fontWeight = FontWeight.Medium,
                         )
                     }
@@ -240,7 +274,7 @@ fun CurrentConditionsCard(
             current?.let {
                 Text(
                     text = it.getConditionDescription(),
-                    color = Color.White.copy(alpha = 0.8f),
+                    color = appTextSecondary(0.8f),
                     fontSize = 16.sp,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
@@ -257,21 +291,38 @@ fun CurrentConditionsCard(
                 WeatherStat(
                     icon = Icons.Default.WaterDrop,
                     value = "${current?.precipitationProbability ?: 0}%",
-                    label = "Ruah"
+                    label = langString(
+                        R.string.weather_stat_rain_mz,
+                        R.string.weather_stat_rain_en,
+                        isMizo
+                    )
                 )
 
                 // Wind with gust
                 WeatherStat(
                     icon = Icons.Default.Air,
                     value = "${current?.windSpeed?.roundToInt() ?: 0} km/h",
-                    label = current?.windGust?.let { "Gust: ${it.roundToInt()}" } ?: "Thli"
+                    label = current?.windGust?.let {
+                        stringResource(
+                            if (isMizo) R.string.weather_gust_label_mz else R.string.weather_gust_label_en,
+                            it.roundToInt()
+                        )
+                    } ?: langString(
+                        R.string.weather_stat_wind_mz,
+                        R.string.weather_stat_wind_en,
+                        isMizo
+                    )
                 )
 
                 // Humidity
                 WeatherStat(
                     icon = Icons.Default.WaterDrop,
                     value = "${current?.humidity ?: 0}%",
-                    label = "Humidity"
+                    label = langString(
+                        R.string.weather_stat_humidity_mz,
+                        R.string.weather_stat_humidity_en,
+                        isMizo
+                    )
                 )
             }
 
@@ -297,7 +348,11 @@ fun CurrentConditionsCard(
                     WeatherStat(
                         icon = Icons.Default.Speed,
                         value = "${pressure.roundToInt()} hPa",
-                        label = "Pressure"
+                        label = langString(
+                            R.string.weather_stat_pressure_mz,
+                            R.string.weather_stat_pressure_en,
+                            isMizo
+                        )
                     )
                 }
 
@@ -306,7 +361,11 @@ fun CurrentConditionsCard(
                     WeatherStat(
                         icon = Icons.Default.Visibility,
                         value = current.formatVisibility(),
-                        label = "A lang dan"
+                        label = langString(
+                            R.string.weather_stat_visibility_mz,
+                            R.string.weather_stat_visibility_en,
+                            isMizo
+                        )
                     )
                 }
 
@@ -315,7 +374,11 @@ fun CurrentConditionsCard(
                     WeatherStat(
                         icon = Icons.Default.Cloud,
                         value = "$cloud%",
-                        label = "Sum"
+                        label = langString(
+                            R.string.weather_stat_clouds_mz,
+                            R.string.weather_stat_clouds_en,
+                            isMizo
+                        )
                     )
                 }
             }
@@ -327,15 +390,21 @@ fun CurrentConditionsCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "📍 Elevation: ${meta.elevationM.roundToInt()}m",
+                    text = stringResource(
+                        if (isMizo) R.string.weather_elevation_label_mz else R.string.weather_elevation_label_en,
+                        meta.elevationM.roundToInt()
+                    ),
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.6f)
+                    color = appTextSecondary(0.6f)
                 )
                 current?.dewpoint?.let { dewpoint ->
                     Text(
-                        text = "💧 Dew point: ${dewpoint.roundToInt()}°C",
+                        text = stringResource(
+                            if (isMizo) R.string.weather_dew_point_label_mz else R.string.weather_dew_point_label_en,
+                            dewpoint.roundToInt()
+                        ),
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.6f)
+                        color = appTextSecondary(0.6f)
                     )
                 }
             }
@@ -343,7 +412,7 @@ fun CurrentConditionsCard(
             // Marine risk (if significant)
             if (marine.isSignificant()) {
                 Spacer(modifier = Modifier.height(12.dp))
-                MarineRiskBanner(marine = marine)
+                MarineRiskBanner(marine = marine, isMizo = isMizo)
             }
         }
     }
@@ -354,52 +423,68 @@ fun WeatherStat(
     icon: ImageVector,
     value: String,
     label: String,
-    valueColor: Color = Color.White,
+    valueColor: Color? = null,
 ) {
+    val resolvedValueColor = valueColor ?: appTextPrimary()
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = Color.White.copy(alpha = 0.7f),
+            tint = appIconTint(0.7f),
             modifier = Modifier.size(20.dp)
         )
         Spacer(Modifier.height(4.dp))
         Text(
             text = value,
-            color = valueColor,
+            color = resolvedValueColor,
             fontWeight = FontWeight.Bold,
             fontSize = 14.sp,
         )
         Text(
             text = label,
-            color = Color.White.copy(alpha = 0.5f),
+            color = appTextMuted(0.5f),
             fontSize = 10.sp,
         )
     }
 }
 
 @Composable
-fun MarineRiskBanner(marine: MarineRiskData) {
-    val (backgroundColor, text) = when (marine.level) {
-        "YELLOW" -> Color(0xFFFFF3CD) to "⚠️ Marine Caution - A fimkhur tur"
-        "ORANGE" -> Color(0xFFFFE5CC) to "🟠 Marine Warning - Tuifinriat ah a him lo"
-        "RED" -> Color(0xFFFFCCCC) to "🔴 Marine Danger - Tuifinriat ah chhuah ngai lo!"
-        else -> Color.Transparent to ""
+fun MarineRiskBanner(
+    marine: MarineRiskData,
+    isMizo: Boolean = true,
+) {
+    val (backgroundColor, textRes) = when (marine.level) {
+        "YELLOW" -> Color(0xFFFFF3CD) to if (isMizo) {
+            R.string.weather_marine_yellow_mz
+        } else {
+            R.string.weather_marine_yellow_en
+        }
+        "ORANGE" -> Color(0xFFFFE5CC) to if (isMizo) {
+            R.string.weather_marine_orange_mz
+        } else {
+            R.string.weather_marine_orange_en
+        }
+        "RED" -> Color(0xFFFFCCCC) to if (isMizo) {
+            R.string.weather_marine_red_mz
+        } else {
+            R.string.weather_marine_red_en
+        }
+        else -> Color.Transparent to 0
     }
 
-    if (text.isNotEmpty()) {
+    if (textRes != 0) {
         Surface(
             color = backgroundColor,
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = text,
+                text = stringResource(textRes),
                 modifier = Modifier.padding(12.dp),
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.Black.copy(alpha = 0.8f),
+                color = Color.Black, // Intentionally black for yellow/orange/red warning backgrounds
                 fontWeight = FontWeight.Medium,
             )
         }
@@ -421,7 +506,7 @@ fun HourlyWeatherCard(hour: HourlyWeatherItem) {
         ) {
             Text(
                 text = hour.formatHour(),
-                color = Color.White.copy(alpha = 0.6f),
+                color = appTextSecondary(0.6f),
                 fontSize = 12.sp,
             )
 
@@ -434,7 +519,7 @@ fun HourlyWeatherCard(hour: HourlyWeatherItem) {
             // Temperature
             Text(
                 text = "${hour.temperature.roundToInt()}°",
-                color = Color.White,
+                color = appTextPrimary(),
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
             )
@@ -443,7 +528,7 @@ fun HourlyWeatherCard(hour: HourlyWeatherItem) {
             hour.feelsLike?.let { fl ->
                 Text(
                     text = "~${fl.roundToInt()}°",
-                    color = Color.White.copy(alpha = 0.5f),
+                    color = appTextMuted(0.5f),
                     fontSize = 11.sp,
                 )
             }
@@ -459,7 +544,7 @@ fun HourlyWeatherCard(hour: HourlyWeatherItem) {
                 Spacer(Modifier.width(2.dp))
                 Text(
                     text = "${hour.precipitationProbability}%",
-                    color = Color.White.copy(alpha = 0.7f),
+                    color = appTextSecondary(0.7f),
                     fontSize = 11.sp,
                 )
             }
@@ -468,7 +553,10 @@ fun HourlyWeatherCard(hour: HourlyWeatherItem) {
 }
 
 @Composable
-fun HourlyWeatherRow(hour: HourlyWeatherItem) {
+fun HourlyWeatherRow(
+    hour: HourlyWeatherItem,
+    isMizo: Boolean = true,
+) {
     Card(
         colors = CardDefaults.cardColors(
             containerColor = Color.White.copy(alpha = 0.06f)
@@ -486,7 +574,7 @@ fun HourlyWeatherRow(hour: HourlyWeatherItem) {
             Text(
                 text = hour.formatHour(),
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.8f),
+                color = appTextSecondary(0.8f),
                 modifier = Modifier.width(60.dp)
             )
 
@@ -501,14 +589,14 @@ fun HourlyWeatherRow(hour: HourlyWeatherItem) {
                 Text(
                     text = "${hour.temperature.roundToInt()}°",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White,
+                    color = appTextPrimary(),
                     fontWeight = FontWeight.Bold,
                 )
                 hour.feelsLike?.let {
                     Text(
                         text = "~${it.roundToInt()}°",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.5f)
+                        color = appTextMuted(0.5f)
                     )
                 }
             }
@@ -525,7 +613,7 @@ fun HourlyWeatherRow(hour: HourlyWeatherItem) {
                 Text(
                     text = "${hour.precipitationProbability}%",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.8f),
+                    color = appTextSecondary(0.8f),
                 )
             }
 
@@ -535,20 +623,23 @@ fun HourlyWeatherRow(hour: HourlyWeatherItem) {
                     imageVector = Icons.Default.Air,
                     contentDescription = null,
                     modifier = Modifier.size(14.dp),
-                    tint = Color.White.copy(alpha = 0.6f)
+                    tint = appIconTint(0.6f)
                 )
                 Spacer(Modifier.width(2.dp))
                 Text(
                     text = "${hour.windSpeed.roundToInt()}",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.7f),
+                    color = appTextSecondary(0.7f),
                 )
             }
 
             // UV (if daytime and > 0)
             hour.uvIndex?.takeIf { it > 0 }?.let { uv ->
                 Text(
-                    text = "UV ${uv.roundToInt()}",
+                    text = stringResource(
+                        if (isMizo) R.string.weather_uv_label_mz else R.string.weather_uv_label_en,
+                        uv.roundToInt()
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = Color(hour.getUvColor()),
                     fontWeight = FontWeight.Medium,
@@ -561,7 +652,8 @@ fun HourlyWeatherRow(hour: HourlyWeatherItem) {
 @Composable
 fun DataSourceInfo(
     generated: String,
-    models: List<String>
+    models: List<String>,
+    isMizo: Boolean = true,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -571,22 +663,44 @@ fun DataSourceInfo(
         shape = RoundedCornerShape(16.dp),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Data Source",
-                style = MaterialTheme.typography.labelMedium,
-                color = Color.White.copy(alpha = 0.6f),
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF6366F1).copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = "🛰️", fontSize = 12.sp)
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = langString(
+                        R.string.weather_data_source_title_mz,
+                        R.string.weather_data_source_title_en,
+                        isMizo
+                    ),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = appTextSecondary(0.6f),
+                )
+            }
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "Generated: ${formatTimestamp(generated)}",
+                text = stringResource(
+                    if (isMizo) R.string.weather_data_source_generated_mz else R.string.weather_data_source_generated_en,
+                    formatTimestamp(generated)
+                ),
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.5f),
+                color = appTextMuted(0.5f),
             )
             if (models.isNotEmpty()) {
                 Text(
-                    text = "Models: ${models.joinToString(", ")}",
+                    text = stringResource(
+                        if (isMizo) R.string.weather_data_source_models_mz else R.string.weather_data_source_models_en,
+                        models.joinToString(", ")
+                    ),
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.5f),
+                    color = appTextMuted(0.5f),
                 )
             }
         }
@@ -613,4 +727,13 @@ private fun getWeatherEmoji(hour: HourlyWeatherItem): String {
         uv > 0 -> "☀️"
         else -> "🌙"
     }
+}
+
+@Composable
+private fun langString(
+    @StringRes mizoRes: Int,
+    @StringRes englishRes: Int,
+    isMizo: Boolean,
+): String {
+    return stringResource(if (isMizo) mizoRes else englishRes)
 }

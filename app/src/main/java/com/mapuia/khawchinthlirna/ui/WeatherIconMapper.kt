@@ -22,11 +22,3 @@ fun getWeatherIcon(code: Int, isDay: Boolean = true): String {
     }
     return "file:///android_asset/$file"
 }
-
-fun seasonLabelMizo(season: String?): String {
-    return when (season?.uppercase()) {
-        "MONSOON" -> "Fur Lai"
-        "PRE_POST" -> "Thlipui Hun"
-        else -> "Hun Pangngai"
-    }
-}

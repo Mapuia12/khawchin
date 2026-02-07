@@ -27,23 +27,22 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
+import androidx.annotation.StringRes
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.mapuia.khawchinthlirna.R
 import com.mapuia.khawchinthlirna.data.auth.Badges
 import com.mapuia.khawchinthlirna.data.auth.UserProfile
 import com.mapuia.khawchinthlirna.ui.components.BannerAd
-
-// Premium color palette
-private val PremiumGradient = Brush.verticalGradient(
-    listOf(
-        Color(0xFF0F0C29),
-        Color(0xFF302B63),
-        Color(0xFF24243E),
-    )
-)
+import com.mapuia.khawchinthlirna.ui.theme.appIconTint
+import com.mapuia.khawchinthlirna.ui.theme.appTextMuted
+import com.mapuia.khawchinthlirna.ui.theme.appTextPrimary
+import com.mapuia.khawchinthlirna.ui.theme.appTextSecondary
+import com.mapuia.khawchinthlirna.ui.theme.appBackgroundGradient
 
 private val AccentCyan = Color(0xFF06D6A0)
 private val AccentPurple = Color(0xFF8338EC)
@@ -62,13 +61,17 @@ fun UserProfileScreen(
     onBackClick: () -> Unit,
     onSignInClick: () -> Unit,
     onSignOutClick: () -> Unit,
-    onSettingsClick: () -> Unit,
     isMizo: Boolean = true
 ) {
+    val backgroundGradient = appBackgroundGradient()
+    val textPrimary = appTextPrimary()
+    val textSecondary = appTextSecondary(0.7f)
+    val textMuted = appTextMuted(0.6f)
+    val iconTint = appIconTint()
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(PremiumGradient)
+            .background(backgroundGradient)
     ) {
         Scaffold(
             containerColor = Color.Transparent,
@@ -76,8 +79,12 @@ fun UserProfileScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = if (isMizo) "Ka Profile" else "My Profile",
-                            color = Color.White,
+                            text = langString(
+                                R.string.profile_title_mz,
+                                R.string.profile_title_en,
+                                isMizo
+                            ),
+                            color = textPrimary,
                             fontWeight = FontWeight.Bold
                         )
                     },
@@ -85,17 +92,12 @@ fun UserProfileScreen(
                         IconButton(onClick = onBackClick) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = Color.White
-                            )
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = onSettingsClick) {
-                            Icon(
-                                Icons.Default.Settings,
-                                contentDescription = "Settings",
-                                tint = Color.White
+                                contentDescription = langString(
+                                    R.string.profile_back_cd_mz,
+                                    R.string.profile_back_cd_en,
+                                    isMizo
+                                ),
+                                tint = iconTint
                             )
                         }
                     },
@@ -152,7 +154,11 @@ fun UserProfileScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         PremiumOutlinedButton(
                             onClick = onSignOutClick,
-                            text = if (isMizo) "Chhuak (Sign Out)" else "Sign Out",
+                            text = langString(
+                                R.string.profile_sign_out_mz,
+                                R.string.profile_sign_out_en,
+                                isMizo
+                            ),
                             icon = Icons.AutoMirrored.Filled.Logout,
                             isDanger = true
                         )
@@ -285,7 +291,11 @@ private fun ProfileHeader(
                     if (userProfile?.photoUrl != null) {
                         AsyncImage(
                             model = userProfile.photoUrl,
-                            contentDescription = "Profile Photo",
+                            contentDescription = langString(
+                                R.string.profile_photo_cd_mz,
+                                R.string.profile_photo_cd_en,
+                                isMizo
+                            ),
                             modifier = Modifier
                                 .size(82.dp)
                                 .clip(CircleShape),
@@ -296,7 +306,7 @@ private fun ProfileHeader(
                             Icons.Default.Person,
                             contentDescription = null,
                             modifier = Modifier.size(48.dp),
-                            tint = Color.White
+                            tint = appIconTint()
                         )
                     }
                 }
@@ -306,10 +316,14 @@ private fun ProfileHeader(
 
             // Display Name
             Text(
-                text = userProfile?.displayName ?: (if (isMizo) "Hming Dah Loh" else "Guest User"),
+                text = userProfile?.displayName ?: langString(
+                    R.string.profile_guest_name_mz,
+                    R.string.profile_guest_name_en,
+                    isMizo
+                ),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = appTextPrimary()
             )
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -317,12 +331,16 @@ private fun ProfileHeader(
             // Email or Anonymous status
             Text(
                 text = if (isAnonymous) {
-                    if (isMizo) "Mikhual (Guest)" else "Anonymous User"
+                    langString(
+                        R.string.profile_anonymous_label_mz,
+                        R.string.profile_anonymous_label_en,
+                        isMizo
+                    )
                 } else {
                     userProfile?.email ?: ""
                 },
                 fontSize = 14.sp,
-                color = Color.White.copy(alpha = 0.7f)
+                color = appTextSecondary(0.7f)
             )
 
             // Trust Level Badge
@@ -367,12 +385,16 @@ private fun ProfileHeader(
                     Icon(
                         Icons.AutoMirrored.Filled.Login,
                         contentDescription = null,
-                        tint = Color.Black
+                        tint = Color.Black // Intentionally black on cyan button
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isMizo) "Google hmangin lut rawh" else "Sign in with Google",
-                        color = Color.Black,
+                        text = langString(
+                            R.string.profile_sign_in_google_mz,
+                            R.string.profile_sign_in_google_en,
+                            isMizo
+                        ),
+                        color = Color.Black, // Intentionally black on cyan button
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -391,21 +413,33 @@ private fun StatsSection(userProfile: UserProfile, isMizo: Boolean) {
             modifier = Modifier.weight(1f),
             icon = Icons.Default.Cloud,
             value = userProfile.totalReports.toString(),
-            label = if (isMizo) "Reports" else "Reports",
+            label = langString(
+                R.string.profile_reports_label_mz,
+                R.string.profile_reports_label_en,
+                isMizo
+            ),
             accentColor = AccentCyan
         )
         PremiumStatCard(
             modifier = Modifier.weight(1f),
             icon = Icons.Default.CheckCircle,
             value = "${userProfile.accuracyPercent}%",
-            label = if (isMizo) "Dik Dan" else "Accuracy",
+            label = langString(
+                R.string.profile_accuracy_label_mz,
+                R.string.profile_accuracy_label_en,
+                isMizo
+            ),
             accentColor = AccentPurple
         )
         PremiumStatCard(
             modifier = Modifier.weight(1f),
             icon = Icons.Default.Star,
             value = userProfile.points.toString(),
-            label = if (isMizo) "Points" else "Points",
+            label = langString(
+                R.string.profile_points_label_mz,
+                R.string.profile_points_label_en,
+                isMizo
+            ),
             accentColor = AccentGold
         )
     }
@@ -435,13 +469,13 @@ private fun PremiumStatCard(
                 text = value,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = appTextPrimary()
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = label,
                 fontSize = 12.sp,
-                color = Color.White.copy(alpha = 0.6f)
+                color = appTextSecondary(0.6f)
             )
         }
     }
@@ -456,10 +490,14 @@ private fun TrustLevelCard(userProfile: UserProfile, isMizo: Boolean) {
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = if (isMizo) "Rintlak Chin (Trust Level)" else "Trust Level",
+                text = langString(
+                    R.string.profile_trust_level_label_mz,
+                    R.string.profile_trust_level_label_en,
+                    isMizo
+                ),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = appTextPrimary()
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -501,9 +539,13 @@ private fun TrustLevelCard(userProfile: UserProfile, isMizo: Boolean) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = if (isMizo) "Reputation" else "Reputation",
+                    text = langString(
+                        R.string.profile_reputation_label_mz,
+                        R.string.profile_reputation_label_en,
+                        isMizo
+                    ),
                     fontSize = 14.sp,
-                    color = Color.White.copy(alpha = 0.7f)
+                    color = appTextSecondary(0.7f)
                 )
                 Text(
                     text = "${userProfile.reputationPercent}%",
@@ -549,7 +591,7 @@ private fun TrustLevelCard(userProfile: UserProfile, isMizo: Boolean) {
                     Text(
                         text = getNextLevelHint(userProfile.trustLevel, isMizo),
                         fontSize = 12.sp,
-                        color = Color.White.copy(alpha = 0.6f)
+                        color = appTextSecondary(0.6f)
                     )
                 }
             }
@@ -561,6 +603,7 @@ private fun TrustLevelCard(userProfile: UserProfile, isMizo: Boolean) {
 private fun TrustLevelIndicator(level: Int, isActive: Boolean, isCurrent: Boolean) {
     val size = if (isCurrent) 36.dp else 28.dp
     val emoji = getTrustLevelEmoji(level)
+    val textMuted = appTextMuted(0.5f)
 
     val bgBrush = when {
         isCurrent -> Brush.linearGradient(listOf(AccentCyan, AccentPurple))
@@ -587,13 +630,13 @@ private fun TrustLevelIndicator(level: Int, isActive: Boolean, isCurrent: Boolea
                 Icons.Default.Check,
                 contentDescription = null,
                 modifier = Modifier.size(14.dp),
-                tint = Color.White
+                tint = appIconTint()
             )
         } else {
             Text(
                 text = level.toString(),
                 fontSize = 12.sp,
-                color = Color.White.copy(alpha = 0.5f)
+                color = textMuted
             )
         }
     }
@@ -613,10 +656,14 @@ private fun BadgesSection(userProfile: UserProfile, isMizo: Boolean) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (isMizo) "Badges" else "Badges",
+                    text = langString(
+                        R.string.profile_badges_title_mz,
+                        R.string.profile_badges_title_en,
+                        isMizo
+                    ),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = appTextPrimary()
                 )
                 Box(
                     modifier = Modifier
@@ -648,15 +695,23 @@ private fun BadgesSection(userProfile: UserProfile, isMizo: Boolean) {
                         Text("🏆", fontSize = 32.sp)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = if (isMizo) "Badge i la nei lo!" else "No badges yet!",
+                            text = langString(
+                                R.string.profile_no_badges_title_mz,
+                                R.string.profile_no_badges_title_en,
+                                isMizo
+                            ),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color.White.copy(alpha = 0.8f)
+                            color = appTextSecondary(0.8f)
                         )
                         Text(
-                            text = if (isMizo) "Report thehlut tan rawh le" else "Submit your first report",
+                            text = langString(
+                                R.string.profile_no_badges_subtitle_mz,
+                                R.string.profile_no_badges_subtitle_en,
+                                isMizo
+                            ),
                             fontSize = 12.sp,
-                            color = Color.White.copy(alpha = 0.5f)
+                            color = appTextMuted(0.5f)
                         )
                     }
                 }
@@ -677,10 +732,14 @@ private fun BadgesSection(userProfile: UserProfile, isMizo: Boolean) {
             // Show locked badges
             Spacer(modifier = Modifier.height(20.dp))
             Text(
-                text = if (isMizo) "Badge lak theih te" else "Badges to earn",
+                text = langString(
+                    R.string.profile_badges_to_earn_mz,
+                    R.string.profile_badges_to_earn_en,
+                    isMizo
+                ),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color.White.copy(alpha = 0.6f)
+                color = appTextSecondary(0.6f)
             )
             Spacer(modifier = Modifier.height(10.dp))
 
@@ -736,7 +795,7 @@ private fun BadgeItem(badgeId: String, isEarned: Boolean, isMizo: Boolean) {
                 maxLines = 2,
                 lineHeight = 12.sp,
                 fontWeight = if (isEarned) FontWeight.Medium else FontWeight.Normal,
-                color = if (isEarned) Color.White else Color.White.copy(alpha = 0.5f)
+                color = if (isEarned) appTextPrimary() else appTextMuted(0.5f)
             )
         }
     }
@@ -767,10 +826,14 @@ private fun ActivitySummaryCard(userProfile: UserProfile, isMizo: Boolean) {
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = if (isMizo) "Khaikhawmna" else "Activity Summary",
+                    text = langString(
+                        R.string.profile_activity_summary_mz,
+                        R.string.profile_activity_summary_en,
+                        isMizo
+                    ),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = appTextPrimary()
                 )
             }
 
@@ -778,19 +841,31 @@ private fun ActivitySummaryCard(userProfile: UserProfile, isMizo: Boolean) {
 
             ActivityRow(
                 icon = Icons.AutoMirrored.Filled.Send,
-                label = if (isMizo) "Report thehluh zat" else "Total reports submitted",
+                label = langString(
+                    R.string.profile_activity_total_reports_mz,
+                    R.string.profile_activity_total_reports_en,
+                    isMizo
+                ),
                 value = userProfile.totalReports.toString(),
                 color = AccentCyan
             )
             ActivityRow(
                 icon = Icons.Default.Verified,
-                label = if (isMizo) "Report dik/pawm te" else "Verified accurate reports",
+                label = langString(
+                    R.string.profile_activity_verified_mz,
+                    R.string.profile_activity_verified_en,
+                    isMizo
+                ),
                 value = userProfile.accurateReports.toString(),
                 color = AccentGold
             )
             ActivityRow(
                 icon = Icons.Default.EmojiEvents,
-                label = if (isMizo) "Badge neih zat" else "Badges earned",
+                label = langString(
+                    R.string.profile_activity_badges_mz,
+                    R.string.profile_activity_badges_en,
+                    isMizo
+                ),
                 value = userProfile.badges.size.toString(),
                 color = AccentPurple
             )
@@ -823,7 +898,7 @@ private fun ActivityRow(icon: ImageVector, label: String, value: String, color: 
             Text(
                 text = label,
                 fontSize = 13.sp,
-                color = Color.White.copy(alpha = 0.8f)
+                color = appTextSecondary(0.8f)
             )
         }
         Text(
@@ -845,10 +920,20 @@ private fun getTrustLevelEmoji(level: Int): String = when (level) {
     else -> "🌱"
 }
 
+@Composable
 private fun getNextLevelHint(currentLevel: Int, isMizo: Boolean): String = when (currentLevel) {
-    1 -> if (isMizo) "Level 2 kai turin report 10 thehlut rawh" else "Submit 10 reports to reach Level 2"
-    2 -> if (isMizo) "Level 3 kai turin accuracy 85% a ngai" else "Reach 85% accuracy for Level 3"
-    3 -> if (isMizo) "Level 4 kai turin report 50 thehlut rawh" else "Submit 50 reports for Level 4"
-    4 -> if (isMizo) "Level 5 kai turin accuracy 95% leh report 100" else "95% accuracy + 100 reports for Level 5"
+    1 -> langString(R.string.profile_next_level_1_mz, R.string.profile_next_level_1_en, isMizo)
+    2 -> langString(R.string.profile_next_level_2_mz, R.string.profile_next_level_2_en, isMizo)
+    3 -> langString(R.string.profile_next_level_3_mz, R.string.profile_next_level_3_en, isMizo)
+    4 -> langString(R.string.profile_next_level_4_mz, R.string.profile_next_level_4_en, isMizo)
     else -> ""
+}
+
+@Composable
+private fun langString(
+    @StringRes mizoRes: Int,
+    @StringRes englishRes: Int,
+    isMizo: Boolean,
+): String {
+    return stringResource(if (isMizo) mizoRes else englishRes)
 }

@@ -16,6 +16,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mapuia.khawchinthlirna.ui.theme.appTextPrimary
+import com.mapuia.khawchinthlirna.ui.theme.appTextSecondary
 
 /**
  * Premium weather card with glowing accent border and animated shimmer
@@ -175,7 +177,7 @@ fun MetricCard(
             // Title
             androidx.compose.material3.Text(
                 text = title,
-                color = Color.White.copy(alpha = 0.8f),
+                color = appTextSecondary(0.8f),
                 style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
                 letterSpacing = 1.sp
             )
@@ -186,14 +188,14 @@ fun MetricCard(
             ) {
                 androidx.compose.material3.Text(
                     text = value,
-                    color = Color.White,
+                    color = appTextPrimary(),
                     style = androidx.compose.material3.MaterialTheme.typography.headlineMedium,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Black
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 androidx.compose.material3.Text(
                     text = unit,
-                    color = Color.White.copy(alpha = 0.85f),
+                    color = appTextSecondary(0.85f),
                     style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )

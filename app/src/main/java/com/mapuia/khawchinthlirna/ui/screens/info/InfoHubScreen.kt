@@ -40,10 +40,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import androidx.annotation.StringRes
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mapuia.khawchinthlirna.R
 import com.mapuia.khawchinthlirna.ui.components.BannerAd
+import com.mapuia.khawchinthlirna.ui.theme.appBackgroundGradient
+import com.mapuia.khawchinthlirna.ui.theme.appIconTint
+import com.mapuia.khawchinthlirna.ui.theme.appTextMuted
+import com.mapuia.khawchinthlirna.ui.theme.appTextPrimary
+import com.mapuia.khawchinthlirna.ui.theme.appTextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,14 +61,12 @@ fun InfoHubScreen(
     onNavigateToCrowdsourcing: () -> Unit,
     onNavigateToRainGuide: () -> Unit,
     onNavigateToWeatherData: () -> Unit,
+    isMizo: Boolean = true,
 ) {
-    val backgroundGradient = Brush.verticalGradient(
-        listOf(
-            Color(0xFF0F0C29),
-            Color(0xFF302B63),
-            Color(0xFF24243E),
-        )
-    )
+    val backgroundGradient = appBackgroundGradient()
+    val textPrimary = appTextPrimary()
+    val textSecondary = appTextSecondary(0.8f)
+    val iconTint = appIconTint()
 
     Box(
         modifier = Modifier
@@ -73,8 +79,12 @@ fun InfoHubScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "Tanpuina & Hriat Tur", // Changed from Help & Information
-                            color = Color.White,
+                            text = langString(
+                                R.string.info_hub_title_mz,
+                                R.string.info_hub_title_en,
+                                isMizo
+                            ),
+                            color = textPrimary,
                             fontWeight = FontWeight.Bold,
                         )
                     },
@@ -82,8 +92,12 @@ fun InfoHubScreen(
                         IconButton(onClick = onBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = Color.White
+                                contentDescription = langString(
+                                    R.string.ui_back_mz,
+                                    R.string.ui_back_en,
+                                    isMizo
+                                ),
+                                tint = iconTint
                             )
                         }
                     },
@@ -101,8 +115,12 @@ fun InfoHubScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Khawchin Thlirna app hman dan leh thil pawimawh hriat tur te.", // Improved phrasing
-                    color = Color.White.copy(alpha = 0.8f),
+                    text = langString(
+                        R.string.info_hub_desc_mz,
+                        R.string.info_hub_desc_en,
+                        isMizo
+                    ),
+                    color = textSecondary,
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
                 )
@@ -112,33 +130,69 @@ fun InfoHubScreen(
                 InfoMenuItem(
                     icon = Icons.AutoMirrored.Filled.Help,
                     iconColor = Color(0xFF00D4FF),
-                    title = "App Hman Dan", // App Guide
-                    subtitle = "App hman dan kimchang", // App usage guide
-                    onClick = onNavigateToAppGuide
+                    title = langString(
+                        R.string.info_menu_app_title_mz,
+                        R.string.info_menu_app_title_en,
+                        isMizo
+                    ),
+                    subtitle = langString(
+                        R.string.info_menu_app_subtitle_mz,
+                        R.string.info_menu_app_subtitle_en,
+                        isMizo
+                    ),
+                    onClick = onNavigateToAppGuide,
+                    isMizo = isMizo,
                 )
 
                 InfoMenuItem(
                     icon = Icons.Default.Group,
                     iconColor = Color(0xFF8338EC),
-                    title = "Mipui Tanhona Kalhmang", // How Crowdsourcing Works
-                    subtitle = "Mipui report tangkai dan", // How public reports help
-                    onClick = onNavigateToCrowdsourcing
+                    title = langString(
+                        R.string.info_menu_crowd_title_mz,
+                        R.string.info_menu_crowd_title_en,
+                        isMizo
+                    ),
+                    subtitle = langString(
+                        R.string.info_menu_crowd_subtitle_mz,
+                        R.string.info_menu_crowd_subtitle_en,
+                        isMizo
+                    ),
+                    onClick = onNavigateToCrowdsourcing,
+                    isMizo = isMizo,
                 )
 
                 InfoMenuItem(
                     icon = Icons.Default.WaterDrop,
                     iconColor = Color(0xFF3A86FF),
-                    title = "Ruah Sur Dan Hrilhfiahna", // Rain Intensity Guide
-                    subtitle = "Ruah sur nasat lam tehfung", // Rain intensity level guide
-                    onClick = onNavigateToRainGuide
+                    title = langString(
+                        R.string.info_menu_rain_title_mz,
+                        R.string.info_menu_rain_title_en,
+                        isMizo
+                    ),
+                    subtitle = langString(
+                        R.string.info_menu_rain_subtitle_mz,
+                        R.string.info_menu_rain_subtitle_en,
+                        isMizo
+                    ),
+                    onClick = onNavigateToRainGuide,
+                    isMizo = isMizo,
                 )
 
                 InfoMenuItem(
                     icon = Icons.Default.Cloud,
                     iconColor = Color(0xFF06D6A0),
-                    title = "Khawchin Data Hrilhfiahna", // Weather Data Explained
-                    subtitle = "Khawchin thumal hrang hrangte", // Various weather terms
-                    onClick = onNavigateToWeatherData
+                    title = langString(
+                        R.string.info_menu_weather_title_mz,
+                        R.string.info_menu_weather_title_en,
+                        isMizo
+                    ),
+                    subtitle = langString(
+                        R.string.info_menu_weather_subtitle_mz,
+                        R.string.info_menu_weather_subtitle_en,
+                        isMizo
+                    ),
+                    onClick = onNavigateToWeatherData,
+                    isMizo = isMizo,
                 )
 
                 // Banner Ad
@@ -157,6 +211,7 @@ private fun InfoMenuItem(
     title: String,
     subtitle: String,
     onClick: () -> Unit,
+    isMizo: Boolean = true,
 ) {
     Card(
         modifier = Modifier
@@ -191,22 +246,35 @@ private fun InfoMenuItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    color = Color.White,
+                    color = appTextPrimary(),
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 15.sp,
                 )
                 Text(
                     text = subtitle,
-                    color = Color.White.copy(alpha = 0.6f),
+                    color = appTextMuted(0.6f),
                     fontSize = 12.sp,
                 )
             }
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = "Kalna",
-                tint = Color.White.copy(alpha = 0.5f),
+                contentDescription = langString(
+                    R.string.ui_go_mz,
+                    R.string.ui_go_en,
+                    isMizo
+                ),
+                tint = appIconTint(0.5f),
                 modifier = Modifier.size(20.dp)
             )
         }
     }
+}
+
+@Composable
+private fun langString(
+    @StringRes mizoRes: Int,
+    @StringRes englishRes: Int,
+    isMizo: Boolean,
+): String {
+    return stringResource(if (isMizo) mizoRes else englishRes)
 }

@@ -16,13 +16,17 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.mapuia.khawchinthlirna.R
+import com.mapuia.khawchinthlirna.ui.theme.appIconTint
 
 @Composable
 fun WeatherFAB(
     onRefresh: () -> Unit,
     isRefreshing: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isMizo: Boolean = true
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "fab_animation")
     
@@ -72,8 +76,10 @@ fun WeatherFAB(
     ) {
         Icon(
             imageVector = Icons.Filled.Refresh,
-            contentDescription = "Refresh weather",
-            tint = Color.White,
+            contentDescription = stringResource(
+                if (isMizo) R.string.ui_refresh_weather_mz else R.string.ui_refresh_weather_en
+            ),
+            tint = appIconTint(),
             modifier = Modifier
                 .rotate(rotation)
                 .size(24.dp)
