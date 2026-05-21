@@ -4,6 +4,8 @@ import android.app.Application
 import com.google.android.gms.ads.MobileAds
 import com.google.firebase.appcheck.FirebaseAppCheck
 import com.mapuia.khawchinthlirna.di.appModule
+import com.mapuia.khawchinthlirna.util.AppOpenAdManager
+import com.mapuia.khawchinthlirna.util.RewardedAdManager
 import com.mapuia.khawchinthlirna.service.NotificationChannels
 import com.mapuia.khawchinthlirna.util.InterstitialAdManager
 import com.mapuia.khawchinthlirna.worker.WorkScheduler
@@ -24,6 +26,8 @@ class KhawchinThlirnaApp : Application() {
         
         // Initialize interstitial ads (preload first ad)
         InterstitialAdManager.init(this)
+        AppOpenAdManager.init(this)
+        RewardedAdManager.init(this)
 
         // Initialize Koin DI
         startKoin {
@@ -37,6 +41,7 @@ class KhawchinThlirnaApp : Application() {
 
         // Schedule periodic background work
         WorkScheduler.schedulePeriodicWeatherRefresh(this)
+        WorkScheduler.scheduleDailyWeatherSummary(this)
         WorkScheduler.scheduleDailyCleanup(this)
     }
 }

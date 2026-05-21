@@ -2,6 +2,8 @@ package com.mapuia.khawchinthlirna.util
 
 import android.app.Activity
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.FullScreenContentCallback
@@ -11,109 +13,151 @@ import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.mapuia.khawchinthlirna.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.util.Calendar
 
 /**
- * Manages interstitial ads with multiple trigger strategies:
- * 
- * 1. Time-based: Show after X minutes of app usage
- * 2. Action-based: Show after X user actions (reports, refreshes)
- * 3. Session-based: Show once per session after first content load
- * 
- * Usage:
- * 1. Initialize with context: InterstitialAdManager.init(context)
- * 2. Show on action: InterstitialAdManager.showIfReady(activity)
- * 3. Show time-based: InterstitialAdManager.showIfTimeElapsed(activity, intervalMs = 180000) // 3 minutes
- * 4. Auto-trigger: InterstitialAdManager.checkAutoTrigger(activity) // Call periodically
+ * Interstitial strategy optimized for retention-first monetization.
+ *
+ * Policy:
+ * - Action-triggered only (no aggressive auto popups from refresh loops)
+ * - 10-minute minimum spacing
+ * - 1 interstitial per app session
+ * - 2 interstitials per day max
  */
 object InterstitialAdManager {
-    
+
     private var interstitialAd: InterstitialAd? = null
-    private var lastShownTime: Long = 0
     private var isLoading = false
-    private var appStartTime: Long = 0
+    private var appStartTime: Long = 0L
+    private var lastShownTime: Long = 0L
     private var actionCount: Int = 0
-    private var hasShownSessionAd = false
-    
-    // Configuration
-    private const val AUTO_TRIGGER_INTERVAL_MS = 180_000L // 3 minutes between auto-triggered ads
-    private const val INITIAL_DELAY_MS = 60_000L // Wait 1 minute before first auto ad
-    private const val ACTION_THRESHOLD = 5 // Show ad after every 5 actions
-    
+    private var pendingContinuation: (() -> Unit)? = null
+
+    private var appContext: Context? = null
+    private var sessionImpressionCount: Int = 0
+    private var currentDayKey: String = ""
+    private var dailyImpressionCount: Int = 0
+
+    private const val ACTION_THRESHOLD = 2
+    private const val INITIAL_DELAY_MS = 90_000L
+    private const val MIN_SHOW_INTERVAL_MS = 10 * 60_000L
+    private const val MAX_SESSION_IMPRESSIONS = 1
+    private const val MAX_DAILY_IMPRESSIONS = 2
+
+    private const val PREF_NAME = "interstitial_ad_prefs"
+    private const val KEY_DAY = "day_key"
+    private const val KEY_DAILY_COUNT = "daily_count"
+
     private val _isAdReady = MutableStateFlow(false)
     val isAdReady = _isAdReady.asStateFlow()
-    
+
     private var adUnitId: String = ""
-    
-    /**
-     * Initialize the manager and start loading the first ad.
-     * Call this once in Application.onCreate() or MainActivity.onCreate()
-     */
+
     fun init(context: Context) {
+        appContext = context.applicationContext
         adUnitId = context.getString(R.string.admob_interstitial_unit_id)
         appStartTime = System.currentTimeMillis()
-        lastShownTime = appStartTime // Don't show immediately on app start
-        hasShownSessionAd = false
+        lastShownTime = appStartTime
         actionCount = 0
+        sessionImpressionCount = 0
+        restoreDailyCounters()
         loadAd(context)
     }
-    
-    /**
-     * Reset session tracking (call when app comes to foreground after background)
-     */
+
     fun onSessionStart() {
-        hasShownSessionAd = false
         actionCount = 0
+        sessionImpressionCount = 0
+        restoreDailyCounters()
     }
-    
+
     /**
-     * Track user action (report submission, refresh, etc.)
-     * Returns true if ad was triggered
+     * Call this after meaningful completed actions (e.g., successful report submit).
      */
     fun trackAction(activity: Activity): Boolean {
-        actionCount++
-        
-        // Show ad after threshold actions
-        if (actionCount >= ACTION_THRESHOLD) {
-            actionCount = 0
-            return showIfTimeElapsed(activity, 60_000) // At least 1 minute between action-triggered ads
-        }
-        return false
-    }
-    
-    /**
-     * Check if auto-trigger conditions are met.
-     * Call this periodically (e.g., on screen transitions, pull-to-refresh)
-     */
-    fun checkAutoTrigger(activity: Activity): Boolean {
-        val now = System.currentTimeMillis()
-        val appUsageTime = now - appStartTime
-        val timeSinceLastAd = now - lastShownTime
-        
-        // Don't auto-trigger if:
-        // 1. App just started (wait INITIAL_DELAY_MS)
-        // 2. Recently showed an ad (wait AUTO_TRIGGER_INTERVAL_MS)
-        if (appUsageTime < INITIAL_DELAY_MS) {
-            AppLog.d("InterstitialAdManager", "Skipping auto-trigger: app just started (${appUsageTime}ms)")
-            return false
-        }
-        
-        if (timeSinceLastAd < AUTO_TRIGGER_INTERVAL_MS) {
-            AppLog.d("InterstitialAdManager", "Skipping auto-trigger: recently shown (${timeSinceLastAd}ms ago)")
-            return false
-        }
-        
-        // Auto-trigger!
+        actionCount += 1
+        if (actionCount < ACTION_THRESHOLD) return false
+
+        actionCount = 0
         return showIfReady(activity)
     }
-    
-    /**
-     * Load an interstitial ad (preload for instant showing)
-     */
+
+    fun trackLocationSwitch(activity: Activity, onContinue: () -> Unit) {
+        preload(activity)
+        if (showIfReady(activity, onContinue, ignorePolicy = true)) return
+        onContinue()
+    }
+
+    private fun dayKeyNow(): String {
+        val cal = Calendar.getInstance()
+        return String.format(
+            "%04d-%02d-%02d",
+            cal.get(Calendar.YEAR),
+            cal.get(Calendar.MONTH) + 1,
+            cal.get(Calendar.DAY_OF_MONTH),
+        )
+    }
+
+    private fun restoreDailyCounters() {
+        val context = appContext ?: return
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val today = dayKeyNow()
+        val savedDay = prefs.getString(KEY_DAY, "") ?: ""
+
+        if (savedDay != today) {
+            currentDayKey = today
+            dailyImpressionCount = 0
+            prefs.edit().putString(KEY_DAY, today).putInt(KEY_DAILY_COUNT, 0).apply()
+            return
+        }
+
+        currentDayKey = today
+        dailyImpressionCount = prefs.getInt(KEY_DAILY_COUNT, 0)
+    }
+
+    private fun incrementDailyCounter() {
+        val context = appContext ?: return
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val today = dayKeyNow()
+
+        if (currentDayKey != today) {
+            currentDayKey = today
+            dailyImpressionCount = 0
+        }
+
+        dailyImpressionCount += 1
+        prefs.edit()
+            .putString(KEY_DAY, currentDayKey)
+            .putInt(KEY_DAILY_COUNT, dailyImpressionCount)
+            .apply()
+    }
+
+    private fun canShowNow(now: Long): Boolean {
+        restoreDailyCounters()
+
+        if (now - appStartTime < INITIAL_DELAY_MS) {
+            AppLog.d("InterstitialAdManager", "Blocked: startup delay")
+            return false
+        }
+        if (now - lastShownTime < MIN_SHOW_INTERVAL_MS) {
+            AppLog.d("InterstitialAdManager", "Blocked: min interval")
+            return false
+        }
+        if (sessionImpressionCount >= MAX_SESSION_IMPRESSIONS) {
+            AppLog.d("InterstitialAdManager", "Blocked: session cap")
+            return false
+        }
+        if (dailyImpressionCount >= MAX_DAILY_IMPRESSIONS) {
+            AppLog.d("InterstitialAdManager", "Blocked: daily cap")
+            return false
+        }
+
+        return true
+    }
+
     private fun loadAd(context: Context) {
         if (isLoading || interstitialAd != null) return
-        
+
         isLoading = true
-        
         InterstitialAd.load(
             context,
             adUnitId,
@@ -123,100 +167,74 @@ object InterstitialAdManager {
                     interstitialAd = ad
                     isLoading = false
                     _isAdReady.value = true
-                    
-                    // Set up full screen callback
+
                     ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+                        override fun onAdImpression() {
+                            appContext?.let { AdRevenueTracker.onInterstitialImpression(it) }
+                        }
+
                         override fun onAdDismissedFullScreenContent() {
+                            val continuation = pendingContinuation
+                            pendingContinuation = null
                             interstitialAd = null
                             _isAdReady.value = false
                             lastShownTime = System.currentTimeMillis()
-                            hasShownSessionAd = true
-                            // Preload next ad
+                            sessionImpressionCount += 1
+                            incrementDailyCounter()
                             loadAd(context)
+                            continuation?.invoke()
                         }
-                        
+
                         override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                            val continuation = pendingContinuation
+                            pendingContinuation = null
                             interstitialAd = null
                             _isAdReady.value = false
-                            // Try loading again
                             loadAd(context)
+                            continuation?.invoke()
                         }
                     }
-                    
-                    AppLog.d("InterstitialAdManager", "Ad loaded successfully")
+
+                    AppLog.d("InterstitialAdManager", "Ad loaded")
                 }
-                
+
                 override fun onAdFailedToLoad(error: LoadAdError) {
                     interstitialAd = null
                     isLoading = false
                     _isAdReady.value = false
-                    AppLog.w("InterstitialAdManager", "Failed to load ad: ${error.message}")
-                    
-                    // Retry after delay
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    AppLog.w("InterstitialAdManager", "Load failed: ${error.message}")
+                    Handler(Looper.getMainLooper()).postDelayed({
                         loadAd(context)
-                    }, 30_000) // Retry after 30 seconds
+                    }, 30_000)
                 }
-            }
+            },
         )
     }
-    
-    /**
-     * Show interstitial ad if ready.
-     * Returns true if ad was shown.
-     */
+
     fun showIfReady(activity: Activity): Boolean {
-        val ad = interstitialAd
-        return if (ad != null) {
-            ad.show(activity)
-            AppLog.d("InterstitialAdManager", "Showing interstitial ad")
-            true
-        } else {
-            // Ad not ready, try loading
-            loadAd(activity)
-            false
-        }
+        return showIfReady(activity, onFinished = null)
     }
-    
-    /**
-     * Show interstitial ad if enough time has passed since last shown.
-     * 
-     * @param activity The activity to show the ad in
-     * @param intervalMs Minimum time between ads in milliseconds (default: 3 minutes)
-     * @return true if ad was shown
-     */
-    fun showIfTimeElapsed(activity: Activity, intervalMs: Long = 180_000): Boolean {
+
+    fun showIfReady(
+        activity: Activity,
+        onFinished: (() -> Unit)?,
+        ignorePolicy: Boolean = false,
+    ): Boolean {
         val now = System.currentTimeMillis()
-        val elapsed = now - lastShownTime
-        
-        return if (elapsed >= intervalMs) {
-            showIfReady(activity)
-        } else {
-            AppLog.d("InterstitialAdManager", "Not showing ad, only ${elapsed}ms elapsed (need ${intervalMs}ms)")
-            false
+        if (!ignorePolicy && !canShowNow(now)) return false
+
+        val ad = interstitialAd
+        if (ad == null) {
+            loadAd(activity)
+            return false
         }
+
+        pendingContinuation = onFinished
+        ad.show(activity)
+        AppLog.d("InterstitialAdManager", "Showing interstitial")
+        return true
     }
-    
-    /**
-     * Show interstitial ad after a certain number of actions.
-     * Call this with each action (e.g., each report submission).
-     * 
-     * @param activity The activity to show the ad in
-     * @param actionCount Current action count
-     * @param threshold Show ad after this many actions (default: 5)
-     * @return true if ad was shown
-     */
-    fun showAfterActions(activity: Activity, actionCount: Int, threshold: Int = 5): Boolean {
-        return if (actionCount > 0 && actionCount % threshold == 0) {
-            showIfReady(activity)
-        } else {
-            false
-        }
-    }
-    
-    /**
-     * Force preload an ad if none is loaded.
-     */
+
     fun preload(context: Context) {
         if (interstitialAd == null && !isLoading) {
             loadAd(context)

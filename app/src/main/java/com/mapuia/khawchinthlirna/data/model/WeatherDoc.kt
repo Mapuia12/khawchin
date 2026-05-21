@@ -102,15 +102,35 @@ data class WeatherDoc(
     @set:PropertyName("weather_systems")
     var weatherSystems: WeatherSystems? = null,
 
+    // Focus-area district/area bulletin for human-readable rain/wind summaries.
+    @get:PropertyName("regional_bulletin")
+    @set:PropertyName("regional_bulletin")
+    var regionalBulletin: RegionalBulletin? = null,
+
     // Nowcast metadata (sources + method)
     @get:PropertyName("nowcast")
     @set:PropertyName("nowcast")
     var nowcast: NowcastMeta? = null,
 
+    // Short-term outlook (timeline + impact alerts)
+    @get:PropertyName("short_term")
+    @set:PropertyName("short_term")
+    var shortTerm: ShortTermOutlook? = null,
+
     // Per-location cyclone impact assessment
     @get:PropertyName("cyclone_impact")
     @set:PropertyName("cyclone_impact")
     var cycloneImpact: List<CycloneImpact>? = null,
+
+    // Crowd quality scoring
+    @get:PropertyName("crowd_quality")
+    @set:PropertyName("crowd_quality")
+    var crowdQuality: CrowdQuality? = null,
+
+    // Cyclone season outlook (statistical prediction)
+    @get:PropertyName("cyclone_season_outlook")
+    @set:PropertyName("cyclone_season_outlook")
+    var cycloneSeasonOutlook: CycloneSeasonOutlook? = null,
 ) {
     /**
      * Check if document has valid data (supports multiple formats)
@@ -645,6 +665,11 @@ data class MetaData(
     @get:PropertyName("confidence_by_day")
     @set:PropertyName("confidence_by_day")
     var confidenceByDay: List<Any>? = null, // Accept any format from backend
+
+    // Model disagreement analysis (backend v86+)
+    @get:PropertyName("model_disagreement")
+    @set:PropertyName("model_disagreement")
+    var modelDisagreement: ModelDisagreement? = null,
 )
 
 // --- Seasonal forecast models (backend v86+ enhanced format) ---
@@ -715,10 +740,10 @@ data class MonthOutlook(
     var seasonalForecast: SeasonalForecastData? = null,
 )
 
-/** Seasonal forecast data from ECMWF SEAS5 model */
+/** Seasonal forecast data from ECMWF SEAS5 + NOAA CPC */
 @IgnoreExtraProperties
 data class SeasonalForecastData(
-    // Predicted values from SEAS5 model
+    // Predicted values from ECMWF SEAS5 model
     @get:PropertyName("predicted_temp_mean")
     @set:PropertyName("predicted_temp_mean")
     var predictedTempMean: Double? = null,
@@ -887,14 +912,14 @@ data class SeasonalOutlook(
     @set:PropertyName("generated_at")
     var generatedAt: String? = null,
     
-    // NEW: 6-month seasonal forecast from ECMWF SEAS5
+    // NEW: 6-month seasonal forecast from ECMWF SEAS5 + NOAA CPC
     @get:PropertyName("monthly_forecasts")
     @set:PropertyName("monthly_forecasts")
     var monthlyForecasts: List<MonthlyForecast>? = null,
     
     @get:PropertyName("forecast_model")
     @set:PropertyName("forecast_model")
-    var forecastModel: String? = null,  // e.g., "ECMWF SEAS5"
+    var forecastModel: String? = null,  // e.g., "ECMWF SEAS5 + NOAA CPC"
     
     @get:PropertyName("note_mz")
     @set:PropertyName("note_mz")
@@ -903,6 +928,16 @@ data class SeasonalOutlook(
     @get:PropertyName("note_en")
     @set:PropertyName("note_en")
     var noteEn: String? = null,
+
+    // Live climate indices (ENSO/IOD/SST)
+    @get:PropertyName("climate_indices")
+    @set:PropertyName("climate_indices")
+    var climateIndices: ClimateIndices? = null,
+
+    // Tercile probabilities (above/normal/below for rain & temp)
+    @get:PropertyName("tercile_probabilities")
+    @set:PropertyName("tercile_probabilities")
+    var tercileProbabilities: TercileProbabilities? = null,
 )
 
 data class SeasonalOutlookMonthly(
@@ -982,6 +1017,209 @@ data class NowcastMeta(
     var sourceDetails: List<NowcastSourceDetail> = emptyList(),
 )
 
+// --- Model Disagreement (per-grid, next 24h) ---
+
+@IgnoreExtraProperties
+data class ModelDisagreement(
+    @get:PropertyName("n_models")
+    @set:PropertyName("n_models")
+    var nModels: Int = 0,
+    val level: String? = null, // "low", "moderate", "high"
+    @get:PropertyName("precip_spread")
+    @set:PropertyName("precip_spread")
+    var precipSpread: List<Double>? = null,
+    @get:PropertyName("temp_spread")
+    @set:PropertyName("temp_spread")
+    var tempSpread: List<Double>? = null,
+    @get:PropertyName("wind_spread")
+    @set:PropertyName("wind_spread")
+    var windSpread: List<Double>? = null,
+    @get:PropertyName("precip_avg_spread")
+    @set:PropertyName("precip_avg_spread")
+    var precipAvgSpread: Double? = null,
+    @get:PropertyName("temp_avg_spread")
+    @set:PropertyName("temp_avg_spread")
+    var tempAvgSpread: Double? = null,
+    @get:PropertyName("wind_avg_spread")
+    @set:PropertyName("wind_avg_spread")
+    var windAvgSpread: Double? = null,
+)
+
+// --- Crowd Quality Scoring ---
+
+@IgnoreExtraProperties
+data class CrowdQuality(
+    @get:PropertyName("total_reports")
+    @set:PropertyName("total_reports")
+    var totalReports: Int = 0,
+    val scored: Int = 0,
+    val usable: Int = 0,
+    val quality: Double = 0.0,
+    @get:PropertyName("min_threshold")
+    @set:PropertyName("min_threshold")
+    var minThreshold: Double = 0.15,
+    val scores: List<Map<String, Any>>? = null,
+)
+
+// --- Short-term Outlook (timeline + impact alerts) ---
+
+@IgnoreExtraProperties
+data class RainTimeline(
+    val status: String? = null, // RAIN, NONE, UNKNOWN
+    @get:PropertyName("start_time")
+    @set:PropertyName("start_time")
+    var startTime: String? = null,
+    @get:PropertyName("end_time")
+    @set:PropertyName("end_time")
+    var endTime: String? = null,
+    @get:PropertyName("peak_time")
+    @set:PropertyName("peak_time")
+    var peakTime: String? = null,
+    @get:PropertyName("peak_start_time")
+    @set:PropertyName("peak_start_time")
+    var peakStartTime: String? = null,
+    @get:PropertyName("peak_end_time")
+    @set:PropertyName("peak_end_time")
+    var peakEndTime: String? = null,
+    @get:PropertyName("peak_mm_hr")
+    @set:PropertyName("peak_mm_hr")
+    var peakMmHr: Double? = null,
+    @get:PropertyName("peak_prob_pct")
+    @set:PropertyName("peak_prob_pct")
+    var peakProbPct: Int? = null,
+    @get:PropertyName("start_in_hours")
+    @set:PropertyName("start_in_hours")
+    var startInHours: Int? = null,
+    @get:PropertyName("end_in_hours")
+    @set:PropertyName("end_in_hours")
+    var endInHours: Int? = null,
+    @get:PropertyName("threshold_mm_hr")
+    @set:PropertyName("threshold_mm_hr")
+    var thresholdMmHr: Double? = null,
+    @get:PropertyName("threshold_prob_pct")
+    @set:PropertyName("threshold_prob_pct")
+    var thresholdProbPct: Int? = null,
+    @get:PropertyName("window_hours")
+    @set:PropertyName("window_hours")
+    var windowHours: Int? = null,
+    @get:PropertyName("active_now")
+    @set:PropertyName("active_now")
+    var activeNow: Boolean = false,
+    val intermittent: Boolean = false,
+    val intensity: String? = null,
+    @get:PropertyName("window_count")
+    @set:PropertyName("window_count")
+    var windowCount: Int? = null,
+    @get:PropertyName("summary_mz")
+    @set:PropertyName("summary_mz")
+    var summaryMz: String? = null,
+    @get:PropertyName("summary_en")
+    @set:PropertyName("summary_en")
+    var summaryEn: String? = null,
+)
+
+@IgnoreExtraProperties
+data class ImpactAlert(
+    val type: String? = null,
+    val severity: String? = null,
+    val level: String? = null,
+    @get:PropertyName("hour_offset")
+    @set:PropertyName("hour_offset")
+    var hourOffset: Int? = null,
+    val value: Double? = null,
+    @get:PropertyName("text_mz")
+    @set:PropertyName("text_mz")
+    var textMz: String? = null,
+    @get:PropertyName("text_en")
+    @set:PropertyName("text_en")
+    var textEn: String? = null,
+)
+
+@IgnoreExtraProperties
+data class ShortTermOutlook(
+    @get:PropertyName("rain_timeline")
+    @set:PropertyName("rain_timeline")
+    var rainTimeline: RainTimeline? = null,
+    @get:PropertyName("impact_alerts")
+    @set:PropertyName("impact_alerts")
+    var impactAlerts: List<ImpactAlert> = emptyList(),
+    val confidence: Double? = null,
+    @get:PropertyName("generated_at")
+    @set:PropertyName("generated_at")
+    var generatedAt: String? = null,
+    @get:PropertyName("valid_hours")
+    @set:PropertyName("valid_hours")
+    var validHours: Int? = null,
+)
+
+@IgnoreExtraProperties
+data class RegionalBulletinDistrict(
+    val id: String? = null,
+    val name: String? = null,
+    @get:PropertyName("name_mz")
+    @set:PropertyName("name_mz")
+    var nameMz: String? = null,
+    @get:PropertyName("rain_risk")
+    @set:PropertyName("rain_risk")
+    var rainRisk: String? = null,
+    @get:PropertyName("wind_risk")
+    @set:PropertyName("wind_risk")
+    var windRisk: String? = null,
+    @get:PropertyName("timing_mz")
+    @set:PropertyName("timing_mz")
+    var timingMz: String? = null,
+    @get:PropertyName("timing_en")
+    @set:PropertyName("timing_en")
+    var timingEn: String? = null,
+    @get:PropertyName("summary_mz")
+    @set:PropertyName("summary_mz")
+    var summaryMz: String? = null,
+    @get:PropertyName("summary_en")
+    @set:PropertyName("summary_en")
+    var summaryEn: String? = null,
+    @get:PropertyName("max_rain_mm_hr")
+    @set:PropertyName("max_rain_mm_hr")
+    var maxRainMmHr: Double? = null,
+    @get:PropertyName("max_prob_pct")
+    @set:PropertyName("max_prob_pct")
+    var maxProbPct: Int? = null,
+    @get:PropertyName("max_gust_kmh")
+    @set:PropertyName("max_gust_kmh")
+    var maxGustKmh: Double? = null,
+)
+
+@IgnoreExtraProperties
+data class RegionalBulletin(
+    @get:PropertyName("headline_mz")
+    @set:PropertyName("headline_mz")
+    var headlineMz: String? = null,
+    @get:PropertyName("headline_en")
+    @set:PropertyName("headline_en")
+    var headlineEn: String? = null,
+    @get:PropertyName("summary_mz")
+    @set:PropertyName("summary_mz")
+    var summaryMz: String? = null,
+    @get:PropertyName("summary_en")
+    @set:PropertyName("summary_en")
+    var summaryEn: String? = null,
+    @get:PropertyName("valid_from")
+    @set:PropertyName("valid_from")
+    var validFrom: String? = null,
+    @get:PropertyName("valid_to")
+    @set:PropertyName("valid_to")
+    var validTo: String? = null,
+    @get:PropertyName("generated_at")
+    @set:PropertyName("generated_at")
+    var generatedAt: String? = null,
+    val districts: List<RegionalBulletinDistrict> = emptyList(),
+    @get:PropertyName("facebook_post_mz")
+    @set:PropertyName("facebook_post_mz")
+    var facebookPostMz: String? = null,
+    @get:PropertyName("facebook_post_en")
+    @set:PropertyName("facebook_post_en")
+    var facebookPostEn: String? = null,
+)
+
 // --- Weather Systems Models (Bay of Bengal cyclones, Western Disturbance, etc.) ---
 
 /** Cyclone impact assessment */
@@ -1044,6 +1282,24 @@ data class CycloneImpact(
     @get:PropertyName("impact_level")
     @set:PropertyName("impact_level")
     var impactLevel: String? = null,
+
+    // Enhanced cyclone fields (v86+)
+    @get:PropertyName("track_confidence")
+    @set:PropertyName("track_confidence")
+    var trackConfidence: Double? = null,
+
+    @get:PropertyName("track_confidence_label")
+    @set:PropertyName("track_confidence_label")
+    var trackConfidenceLabel: String? = null,
+
+    @get:PropertyName("gust_range_kmh")
+    @set:PropertyName("gust_range_kmh")
+    var gustRangeKmh: List<Double>? = null,
+
+    @get:PropertyName("rain_band_chance_pct")
+    @set:PropertyName("rain_band_chance_pct")
+    var rainBandChancePct: Int? = null,
+
     val trajectory: List<Map<String, Any>>? = null,
 )
 
@@ -1168,4 +1424,223 @@ data class DayConfidence(
     val overall: Int = 0,
     val precip: Int = 0,
     val temp: Int = 0,
+)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CLIMATE INDICES & CYCLONE SEASON OUTLOOK
+// ═══════════════════════════════════════════════════════════════════════════════
+
+@IgnoreExtraProperties
+data class ClimateIndices(
+    val nino34: Double? = null,
+    @get:PropertyName("nino34_state")
+    @set:PropertyName("nino34_state")
+    var nino34State: String? = null,
+    @get:PropertyName("iod_dmi")
+    @set:PropertyName("iod_dmi")
+    var iodDmi: Double? = null,
+    @get:PropertyName("iod_state")
+    @set:PropertyName("iod_state")
+    var iodState: String? = null,
+    @get:PropertyName("bob_sst_anomaly")
+    @set:PropertyName("bob_sst_anomaly")
+    var bobSstAnomaly: Double? = null,
+    val source: String? = null,
+    @get:PropertyName("fetched_at")
+    @set:PropertyName("fetched_at")
+    var fetchedAt: String? = null,
+)
+
+@IgnoreExtraProperties
+data class TercileValues(
+    @get:PropertyName("above_pct")
+    @set:PropertyName("above_pct")
+    var abovePct: Int = 33,
+    @get:PropertyName("normal_pct")
+    @set:PropertyName("normal_pct")
+    var normalPct: Int = 34,
+    @get:PropertyName("below_pct")
+    @set:PropertyName("below_pct")
+    var belowPct: Int = 33,
+)
+
+@IgnoreExtraProperties
+data class MonthTercile(
+    val month: Int = 0,
+    @get:PropertyName("month_name")
+    @set:PropertyName("month_name")
+    var monthName: String? = null,
+    @get:PropertyName("rain_tercile")
+    @set:PropertyName("rain_tercile")
+    var rainTercile: TercileValues? = null,
+    @get:PropertyName("temp_tercile")
+    @set:PropertyName("temp_tercile")
+    var tempTercile: TercileValues? = null,
+)
+
+@IgnoreExtraProperties
+data class TercileClimateDrivers(
+    @get:PropertyName("enso_nino34")
+    @set:PropertyName("enso_nino34")
+    var ensoNino34: Double? = null,
+    @get:PropertyName("enso_state")
+    @set:PropertyName("enso_state")
+    var ensoState: String? = null,
+    @get:PropertyName("iod_dmi")
+    @set:PropertyName("iod_dmi")
+    var iodDmi: Double? = null,
+    @get:PropertyName("iod_state")
+    @set:PropertyName("iod_state")
+    var iodState: String? = null,
+    @get:PropertyName("bob_sst_anomaly")
+    @set:PropertyName("bob_sst_anomaly")
+    var bobSstAnomaly: Double? = null,
+)
+
+@IgnoreExtraProperties
+data class TercileProbabilities(
+    val months: List<MonthTercile>? = null,
+    @get:PropertyName("climate_drivers")
+    @set:PropertyName("climate_drivers")
+    var climateDrivers: TercileClimateDrivers? = null,
+)
+
+@IgnoreExtraProperties
+data class CycloneTercile(
+    @get:PropertyName("above_normal_pct")
+    @set:PropertyName("above_normal_pct")
+    var aboveNormalPct: Int = 33,
+    @get:PropertyName("near_normal_pct")
+    @set:PropertyName("near_normal_pct")
+    var nearNormalPct: Int = 34,
+    @get:PropertyName("below_normal_pct")
+    @set:PropertyName("below_normal_pct")
+    var belowNormalPct: Int = 33,
+)
+
+@IgnoreExtraProperties
+data class CycloneDriverDetail(
+    val nino34: Double? = null,
+    val dmi: Double? = null,
+    @get:PropertyName("anomaly_c")
+    @set:PropertyName("anomaly_c")
+    var anomalyC: Double? = null,
+    val state: String? = null,
+    val effect: String? = null,
+    @get:PropertyName("effect_mz")
+    @set:PropertyName("effect_mz")
+    var effectMz: String? = null,
+)
+
+@IgnoreExtraProperties
+data class CycloneDrivers(
+    val enso: CycloneDriverDetail? = null,
+    val iod: CycloneDriverDetail? = null,
+    @get:PropertyName("bob_sst")
+    @set:PropertyName("bob_sst")
+    var bobSst: CycloneDriverDetail? = null,
+)
+
+@IgnoreExtraProperties
+data class CycloneMonthlyRisk(
+    val month: Int = 0,
+    @get:PropertyName("month_name")
+    @set:PropertyName("month_name")
+    var monthName: String? = null,
+    @get:PropertyName("probability_pct")
+    @set:PropertyName("probability_pct")
+    var probabilityPct: Int = 0,
+    @get:PropertyName("is_peak")
+    @set:PropertyName("is_peak")
+    var isPeak: Boolean = false,
+)
+
+@IgnoreExtraProperties
+data class AnalogYear(
+    val year: Int = 0,
+    val nino34: Double? = null,
+    val iod: Double? = null,
+    val cyclones: Int = 0,
+    val severe: Int = 0,
+    val distance: Double? = null,
+)
+
+@IgnoreExtraProperties
+data class CycloneSeasonOutlook(
+    @get:PropertyName("predicted_total")
+    @set:PropertyName("predicted_total")
+    var predictedTotal: Double = 0.0,
+    @get:PropertyName("predicted_remaining")
+    @set:PropertyName("predicted_remaining")
+    var predictedRemaining: Double = 0.0,
+    @get:PropertyName("predicted_severe")
+    @set:PropertyName("predicted_severe")
+    var predictedSevere: Double = 0.0,
+    @get:PropertyName("activity_level")
+    @set:PropertyName("activity_level")
+    var activityLevel: String? = null,
+    @get:PropertyName("activity_mz")
+    @set:PropertyName("activity_mz")
+    var activityMz: String? = null,
+    @get:PropertyName("activity_en")
+    @set:PropertyName("activity_en")
+    var activityEn: String? = null,
+    @get:PropertyName("peak_months")
+    @set:PropertyName("peak_months")
+    var peakMonths: List<String>? = null,
+    @get:PropertyName("ne_india_impact_pct")
+    @set:PropertyName("ne_india_impact_pct")
+    var neIndiaImpactPct: Int = 0,
+    @get:PropertyName("myanmar_chin_impact_pct")
+    @set:PropertyName("myanmar_chin_impact_pct")
+    var myanmarChinImpactPct: Int = 0,
+    @get:PropertyName("impact_areas")
+    @set:PropertyName("impact_areas")
+    var impactAreas: List<CycloneImpactArea>? = null,
+    @get:PropertyName("impact_summary_mz")
+    @set:PropertyName("impact_summary_mz")
+    var impactSummaryMz: String? = null,
+    @get:PropertyName("impact_summary_en")
+    @set:PropertyName("impact_summary_en")
+    var impactSummaryEn: String? = null,
+    @get:PropertyName("disclaimer_mz")
+    @set:PropertyName("disclaimer_mz")
+    var disclaimerMz: String? = null,
+    @get:PropertyName("disclaimer_en")
+    @set:PropertyName("disclaimer_en")
+    var disclaimerEn: String? = null,
+    @get:PropertyName("forecast_window_en")
+    @set:PropertyName("forecast_window_en")
+    var forecastWindowEn: String? = null,
+    @get:PropertyName("forecast_window_mz")
+    @set:PropertyName("forecast_window_mz")
+    var forecastWindowMz: String? = null,
+    val tercile: CycloneTercile? = null,
+    @get:PropertyName("monthly_risk")
+    @set:PropertyName("monthly_risk")
+    var monthlyRisk: List<CycloneMonthlyRisk>? = null,
+    @get:PropertyName("analog_years")
+    @set:PropertyName("analog_years")
+    var analogYears: List<AnalogYear>? = null,
+    val drivers: CycloneDrivers? = null,
+    @get:PropertyName("generated_at")
+    @set:PropertyName("generated_at")
+    var generatedAt: String? = null,
+)
+
+@IgnoreExtraProperties
+data class CycloneImpactArea(
+    @get:PropertyName("area_en")
+    @set:PropertyName("area_en")
+    var areaEn: String? = null,
+    @get:PropertyName("area_mz")
+    @set:PropertyName("area_mz")
+    var areaMz: String? = null,
+    val risk: String? = null,
+    @get:PropertyName("risk_en")
+    @set:PropertyName("risk_en")
+    var riskEn: String? = null,
+    @get:PropertyName("risk_mz")
+    @set:PropertyName("risk_mz")
+    var riskMz: String? = null,
 )

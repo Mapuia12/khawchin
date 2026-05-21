@@ -19,6 +19,7 @@ import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.LoadAdError
 import com.mapuia.khawchinthlirna.R
+import com.mapuia.khawchinthlirna.util.AdRevenueTracker
 import com.mapuia.khawchinthlirna.util.AppLog
 import com.mapuia.khawchinthlirna.util.BannerAdBackoff
 
@@ -86,6 +87,7 @@ fun BannerAd(modifier: Modifier = Modifier) {
 
             override fun onAdImpression() {
                 AppLog.d("BannerAd", "Ad impression recorded")
+                AdRevenueTracker.onBannerImpression(context)
             }
         }
 

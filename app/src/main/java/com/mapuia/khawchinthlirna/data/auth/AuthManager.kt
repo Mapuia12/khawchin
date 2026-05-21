@@ -1,5 +1,6 @@
 package com.mapuia.khawchinthlirna.data.auth
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import androidx.activity.result.ActivityResultLauncher
@@ -9,6 +10,8 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
@@ -104,8 +107,14 @@ class AuthManager(
     /**
      * Handle Google Sign-In result
      */
-    suspend fun handleGoogleSignInResult(data: Intent?): Result<FirebaseUser> {
+    suspend fun handleGoogleSignInResult(data: Intent?, resultCode: Int? = null): Result<FirebaseUser> {
         return try {
+            if (resultCode != null && resultCode != Activity.RESULT_OK) {
+                return Result.failure(Exception("Google sign-in cancelled"))
+            }
+            if (data == null) {
+                return Result.failure(Exception("Google sign-in returned no data"))
+            }
             android.util.Log.d("AuthManager", "handleGoogleSignInResult called, data: ${data != null}")
             val task = GoogleSignIn.getSignedInAccountFromIntent(data)
             val account = task.getResult(ApiException::class.java)
@@ -115,7 +124,7 @@ class AuthManager(
         } catch (e: ApiException) {
             // Status codes: https://developers.google.com/android/reference/com/google/android/gms/common/api/CommonStatusCodes
             val errorMessage = when (e.statusCode) {
-                12500 -> "Sign-in cancelled by user"
+                12500 -> "Google sign-in setup error. Check Firebase SHA keys and Web Client ID."
                 12501 -> "Sign-in cancelled"
                 12502 -> "Sign-in currently in progress"
                 10 -> "Developer error: SHA-1 fingerprint not registered in Firebase Console. " +
@@ -137,56 +146,69 @@ class AuthManager(
      * Authenticate with Google credentials
      */
     private suspend fun firebaseAuthWithGoogle(account: GoogleSignInAccount): Result<FirebaseUser> {
-        return try {
-            android.util.Log.d("AuthManager", "🔐 Starting Firebase auth with Google...")
-            val credential = GoogleAuthProvider.getCredential(account.idToken, null)
-            android.util.Log.d("AuthManager", "🔐 Credential created, checking current user...")
-            
-            // Check if we need to link anonymous account
-            val currentUser = auth.currentUser
-            android.util.Log.d("AuthManager", "🔐 Current user: ${currentUser?.uid}, isAnonymous: ${currentUser?.isAnonymous}")
-            
-            val result = if (currentUser != null && currentUser.isAnonymous) {
-                // Link anonymous account to Google
-                android.util.Log.d("AuthManager", "🔐 Linking anonymous account to Google...")
-                currentUser.linkWithCredential(credential).await()
-            } else {
-                // Regular sign-in
-                android.util.Log.d("AuthManager", "🔐 Regular signInWithCredential...")
-                auth.signInWithCredential(credential).await()
-            }
-            
-            android.util.Log.d("AuthManager", "🔐 Auth result user: ${result.user?.uid}, email: ${result.user?.email}")
+        val idToken = account.idToken
+            ?: return Result.failure(Exception("Google sign-in did not return an ID token"))
+        val credential = GoogleAuthProvider.getCredential(idToken, null)
 
-            result.user?.let {
-                android.util.Log.d("AuthManager", "✅ Firebase auth successful! Creating/updating profile...")
-                createOrUpdateUserProfile(it, account)
-                Result.success(it)
-            } ?: run {
-                android.util.Log.e("AuthManager", "❌ Firebase auth returned null user")
-                Result.failure(Exception("Google authentication failed"))
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("AuthManager", "❌ Firebase auth exception: ${e.message}", e)
-            // If linking fails (account already exists), sign in directly
-            if (e.message?.contains("already in use") == true) {
-                android.util.Log.d("AuthManager", "🔄 Account already exists, trying direct sign-in...")
+        return try {
+            android.util.Log.d("AuthManager", "Starting Firebase auth with Google...")
+            val currentUser = auth.currentUser
+            android.util.Log.d(
+                "AuthManager",
+                "Current user: ${currentUser?.uid}, isAnonymous: ${currentUser?.isAnonymous}"
+            )
+
+            val result = if (currentUser != null && currentUser.isAnonymous) {
                 try {
-                    val result = auth.signInWithCredential(
-                        GoogleAuthProvider.getCredential(account.idToken, null)
-                    ).await()
-                    result.user?.let {
-                        android.util.Log.d("AuthManager", "✅ Direct sign-in successful!")
-                        createOrUpdateUserProfile(it, account)
-                        Result.success(it)
-                    } ?: Result.failure(e)
-                } catch (e2: Exception) {
-                    android.util.Log.e("AuthManager", "❌ Direct sign-in also failed: ${e2.message}", e2)
-                    Result.failure(e2)
+                    currentUser.linkWithCredential(credential).await()
+                } catch (collision: FirebaseAuthUserCollisionException) {
+                    android.util.Log.d(
+                        "AuthManager",
+                        "Anonymous upgrade collided with existing Google account, signing in directly..."
+                    )
+                    auth.signInWithCredential(credential).await()
                 }
             } else {
-                Result.failure(e)
+                auth.signInWithCredential(credential).await()
             }
+
+            completeGoogleAuth(result.user, account)
+        } catch (e: FirebaseAuthUserCollisionException) {
+            android.util.Log.d("AuthManager", "Google account already exists, retrying direct sign-in...")
+            try {
+                val result = auth.signInWithCredential(credential).await()
+                completeGoogleAuth(result.user, account)
+            } catch (retryError: Exception) {
+                android.util.Log.e("AuthManager", "Direct Google sign-in retry failed: ${retryError.message}", retryError)
+                Result.failure(retryError)
+            }
+        } catch (e: FirebaseAuthInvalidCredentialsException) {
+            android.util.Log.e("AuthManager", "Invalid Google credential: ${e.message}", e)
+            Result.failure(Exception("Google sign-in credential became invalid. Please try again."))
+        } catch (e: Exception) {
+            android.util.Log.e("AuthManager", "Firebase auth exception: ${e.message}", e)
+            val friendly = when {
+                e.message?.contains("network", ignoreCase = true) == true ->
+                    "Network error while signing in. Please check internet connection."
+                e.message?.contains("Too many requests", ignoreCase = true) == true ->
+                    "Too many sign-in attempts. Please wait a little and try again."
+                else -> e.message ?: "Google authentication failed"
+            }
+            Result.failure(Exception(friendly, e))
+        }
+    }
+
+    private suspend fun completeGoogleAuth(
+        user: FirebaseUser?,
+        account: GoogleSignInAccount,
+    ): Result<FirebaseUser> {
+        return user?.let {
+            android.util.Log.d("AuthManager", "Google auth successful. Creating/updating profile...")
+            createOrUpdateUserProfile(it, account)
+            Result.success(it)
+        } ?: run {
+            android.util.Log.e("AuthManager", "Firebase auth returned null user")
+            Result.failure(Exception("Google authentication failed"))
         }
     }
 

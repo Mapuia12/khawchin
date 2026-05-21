@@ -550,8 +550,8 @@
     <string name="settings_section_about_en">About</string>
     <string name="settings_about_title_mz">App chungchang</string>
     <string name="settings_about_title_en">About</string>
-    <string name="settings_about_subtitle_mz">Khawchin v1.0</string>
-    <string name="settings_about_subtitle_en">Khawchin v1.0</string>
+    <string name="settings_about_subtitle_mz">Khawchin v%1$s</string>
+    <string name="settings_about_subtitle_en">Khawchin v%1$s</string>
     <string name="settings_privacy_title_mz">Privacy Policy</string>
     <string name="settings_privacy_title_en">Privacy Policy</string>
     <string name="settings_section_account_mz">Account</string>
@@ -607,8 +607,8 @@
     <string name="main_toast_cache_cleared_en">Cache cleared.</string>
     <string name="main_toast_account_deleted_mz">Account paih a hlawhtling e.</string>
     <string name="main_toast_account_deleted_en">Account deleted.</string>
-    <string name="main_toast_about_mz">Khawchin Thlirna v1.0</string>
-    <string name="main_toast_about_en">Khawchin Thlirna v1.0</string>
+    <string name="main_toast_about_mz">Khawchin Thlirna v1.2</string>
+    <string name="main_toast_about_en">Khawchin Thlirna v1.2</string>
     <string name="main_badge_new_mz">🎖️ Badge thar: %1$s! +%2$d points</string>
     <string name="main_badge_new_en">🎖️ New badge: %1$s! +%2$d points</string>
     <string name="main_points_earned_mz">⭐ +%1$d points earned!</string>
@@ -661,7 +661,7 @@
     <string name="main_menu_rain_subtitle_en">Rain intensity guide</string>
     <string name="main_menu_weather_title_mz">Khawchin data chiang zâwk</string>
     <string name="main_menu_weather_title_en">Weather data explained</string>
-    <string name="main_menu_weather_subtitle_mz">Khawchin data hriatthiam</string>
+    <string name="main_menu_weather_subtitle_mz">Khawchin data hriatthiamna</string>
     <string name="main_menu_weather_subtitle_en">Understanding weather data</string>
     <string name="main_menu_settings_title_mz">Settings</string>
     <string name="main_menu_settings_title_en">Settings</string>
@@ -723,15 +723,15 @@
     <string name="main_confidence_high_en">High</string>
     <string name="main_confidence_medium_mz">Pangngai</string>
     <string name="main_confidence_medium_en">Moderate</string>
-    <string name="main_confidence_low_mz">Pawm theih</string>
+    <string name="main_confidence_low_mz">Hniam</string>
     <string name="main_confidence_low_en">Low</string>
-    <string name="main_confidence_very_low_mz">A tawk lo</string>
+    <string name="main_confidence_very_low_mz">Hniam lutuk</string>
     <string name="main_confidence_very_low_en">Very Low</string>
     <string name="main_confidence_high_short_mz">Rintlak</string>
     <string name="main_confidence_high_short_en">High</string>
     <string name="main_confidence_medium_short_mz">Pangngai</string>
     <string name="main_confidence_medium_short_en">Medium</string>
-    <string name="main_confidence_low_short_mz">Pawm ve theih</string>
+    <string name="main_confidence_low_short_mz">Hniam</string>
     <string name="main_confidence_low_short_en">Low</string>
     <string name="main_uv_level_extreme_mz">Hlauhawm</string>
     <string name="main_uv_level_extreme_en">Extreme</string>
@@ -1034,8 +1034,16 @@
     <string name="main_satellite_bias_factor_en">Bias factor: %1$s</string>
 
     <!-- Weather Systems Summary -->
-    <string name="main_systems_title_mz">Weather systems</string>
-    <string name="main_systems_title_en">Weather systems</string>
+    <string name="main_systems_title_mz">Regional weather systems</string>
+    <string name="main_systems_title_en">Regional weather systems</string>
+    <string name="main_systems_subtitle_mz">Region zau zawka active weather te.</string>
+    <string name="main_systems_subtitle_en">Large-scale systems active in the wider region.</string>
+    <string name="main_scope_regional_mz">Regional</string>
+    <string name="main_scope_regional_en">Regional</string>
+    <string name="main_scope_local_mz">Near you</string>
+    <string name="main_scope_local_en">Near you</string>
+    <string name="main_systems_scope_note_mz">Hetah hian hmun zau zawka khaw awmdan tarlan a ni a. I awmna hmuna a nghawng theih dan bik chu a hnuaiah hian a hrana tarlan a ni.</string>
+    <string name="main_systems_scope_note_en">This card shows wider-region systems. Your direct local impact is shown separately below.</string>
     <string name="main_system_bob_mz">Bay of Bengal</string>
     <string name="main_system_bob_en">Bay of Bengal</string>
     <string name="main_system_wd_mz">Western disturbance</string>
@@ -1046,52 +1054,80 @@
     <string name="main_system_easterly_en">Easterly surge</string>
     <string name="main_system_monsoon_mz">Monsoon bands</string>
     <string name="main_system_monsoon_en">Monsoon bands</string>
-    <string name="main_systems_active_mz">Active: %1$s</string>
-    <string name="main_systems_active_en">Active: %1$s</string>
-    <string name="main_systems_checked_mz">Checked: %1$s</string>
-    <string name="main_systems_checked_en">Checked: %1$s</string>
-    <string name="main_systems_alerts_mz">Alerts</string>
-    <string name="main_systems_alerts_en">Alerts</string>
+    <string name="main_systems_active_mz">Regional watch: %1$s</string>
+    <string name="main_systems_active_en">Watching in the region: %1$s</string>
+    <string name="main_systems_checked_mz">Last checked: %1$s</string>
+    <string name="main_systems_checked_en">Last checked: %1$s</string>
+    <string name="main_systems_alerts_mz">Regional alerts</string>
+    <string name="main_systems_alerts_en">Regional alerts</string>
+    <string name="main_cyclone_track_title_mz">Regional cyclone track</string>
+    <string name="main_cyclone_track_title_en">Regional cyclone track</string>
+    <string name="main_cyclone_track_subtitle_mz">Bay of Bengal lam a cyclone kal dan leh dinhmun.</string>
+    <string name="main_cyclone_track_subtitle_en">Detailed Bay of Bengal cyclone tracking for the wider region.</string>
+    <string name="main_cyclone_track_note_mz">He card hi regional storm track a ni. I awmna direct impact chu &quot;Your area impact&quot; ah a lang.</string>
+    <string name="main_cyclone_track_note_en">This card is regional storm tracking. Your direct local effect is shown in &quot;Your area impact&quot;.</string>
 
     <!-- Cyclone Impact -->
-    <string name="main_cyclone_impact_title_mz">Cyclone impact</string>
-    <string name="main_cyclone_impact_title_en">Cyclone impact</string>
-    <string name="main_cyclone_impact_level_mz">Impact: %1$s</string>
-    <string name="main_cyclone_impact_level_en">Impact: %1$s</string>
-    <string name="main_cyclone_impact_distance_mz">Closest: %1$d km</string>
-    <string name="main_cyclone_impact_distance_en">Closest: %1$d km</string>
+    <string name="main_cyclone_impact_title_mz">Your area impact</string>
+    <string name="main_cyclone_impact_title_en">Your area impact</string>
+    <string name="main_cyclone_impact_subtitle_mz">Khawchin dinhmunin i awmna vel a nghawng theih dan tlangpui.</string>
+    <string name="main_cyclone_impact_subtitle_en">What the active regional system may do near your place.</string>
+    <string name="main_cyclone_impact_note_mz">Hetah hian i awmna hmuna a nghawng dan tur te, a rawn thlen hun tur leh, thli leh ruah sur theih dinhmunte tarlan a ni.</string>
+    <string name="main_cyclone_impact_note_en">This section focuses on direct impact, ETA, wind, and rain risk near your location.</string>
+    <string name="main_cyclone_impact_level_mz">Direct impact: %1$s</string>
+    <string name="main_cyclone_impact_level_en">Direct impact: %1$s</string>
+    <string name="main_cyclone_impact_distance_mz">Closest pass: %1$d km</string>
+    <string name="main_cyclone_impact_distance_en">Closest pass: %1$d km</string>
     <string name="main_cyclone_impact_eta_mz">ETA: %1$dh</string>
     <string name="main_cyclone_impact_eta_en">ETA: %1$dh</string>
-    <string name="main_cyclone_impact_wind_mz">Wind: %1$d km/h</string>
-    <string name="main_cyclone_impact_wind_en">Wind: %1$d km/h</string>
-    <string name="main_cyclone_impact_rain_mz">Rain risk: %1$s</string>
-    <string name="main_cyclone_impact_rain_en">Rain risk: %1$s</string>
-    <string name="main_cyclone_impact_motion_mz">Motion: %1$s</string>
-    <string name="main_cyclone_impact_motion_en">Motion: %1$s</string>
+    <string name="main_cyclone_impact_wind_mz">Wind near you: %1$d km/h</string>
+    <string name="main_cyclone_impact_wind_en">Wind near you: %1$d km/h</string>
+    <string name="main_cyclone_impact_rain_mz">Rain risk near you: %1$s</string>
+    <string name="main_cyclone_impact_rain_en">Rain risk near you: %1$s</string>
+    <string name="main_cyclone_impact_motion_mz">Track quality: %1$s</string>
+    <string name="main_cyclone_impact_motion_en">Track quality: %1$s</string>
+    <string name="main_local_impact_clear_title_mz">Na taka rawn nghawng tur hmuh a ni lo</string>
+    <string name="main_local_impact_clear_title_en">No strong direct impact detected</string>
+    <string name="main_local_impact_clear_body_mz">Tun dinhmunah chuan i awmna hnaiha rawn nghawng na tur khawp hmuh a ni lo. Hengte hi kan la thlithlai zui mek: %1$s.</string>
+    <string name="main_local_impact_clear_body_en">No strong direct impact is detected near your place right now. We are still watching: %1$s.</string>
+    <string name="main_local_impact_default_watch_mz">regional weather systems</string>
+    <string name="main_local_impact_default_watch_en">regional weather systems</string>
 
     <!-- Weather Data Explained -->
-    <string name="wd_satellite_title_mz">Satellite rain (IMERG)</string>
+    <string name="wd_satellite_title_mz">Satellite ruah tui (IMERG)</string>
     <string name="wd_satellite_title_en">Satellite rain (IMERG)</string>
-    <string name="wd_satellite_desc_mz">NASA GPM IMERG Late data a hmangin ruah sur dan a chungchang a lang.</string>
+    <string name="wd_satellite_desc_mz">NASA GPM IMERG Late data hmanga ruah sur zat chhutna.</string>
     <string name="wd_satellite_desc_en">Rain estimates from NASA GPM IMERG Late.</string>
-    <string name="wd_satellite_tip_mz">A hnuai lamah darkar eng emaw tlem a awm thei.</string>
+    <string name="wd_satellite_tip_mz">Darkar tlem te in a tlai thei.</string>
     <string name="wd_satellite_tip_en">May lag by a few hours.</string>
-    <string name="wd_bias_title_mz">Bias correction</string>
+    <string name="wd_bias_title_mz">Siam remna</string>
     <string name="wd_bias_title_en">Bias correction</string>
-    <string name="wd_bias_desc_mz">Model ruah sur dan hi satellite leh station data hmangin siam a ni.</string>
+    <string name="wd_bias_desc_mz">Satellite leh station data hmangin model dik loh lai a siam rem.</string>
     <string name="wd_bias_desc_en">Adjusts model rain using satellite and station data.</string>
-    <string name="wd_bias_tip_mz">Bias a tlem chuan model a dik zawk tihna.</string>
+    <string name="wd_bias_tip_mz">Bias a tlem chuan a taka ruah sur nen a inmil ber.</string>
     <string name="wd_bias_tip_en">Lower bias usually means closer to reality.</string>
     <string name="wd_nowcast_title_mz">Nowcast</string>
     <string name="wd_nowcast_title_en">Nowcast</string>
-    <string name="wd_nowcast_desc_mz">Hun hman tlem chhunga khawchin dinhmun a siam.</string>
+    <string name="wd_nowcast_desc_mz">Data thar ber hmanga hun reilote chhung thlir lawkna.</string>
     <string name="wd_nowcast_desc_en">Short-term estimate using the latest data.</string>
-    <string name="wd_nowcast_tip_mz">Darkar engemaw chhungah a dik zawk.</string>
+    <string name="wd_nowcast_tip_mz">Darkar tlem te lo awm tur atan a ṭangkai ber.</string>
     <string name="wd_nowcast_tip_en">Most useful for the next few hours.</string>
     <string name="wd_systems_title_mz">Weather systems</string>
     <string name="wd_systems_title_en">Weather systems</string>
-    <string name="wd_systems_desc_mz">Thlipui, monsoon bands leh disturbances te a zawn a ni.</string>
+    <string name="wd_systems_desc_mz">Thlipui, monsoon leh khawchin inthlak danglam te vilna.</string>
     <string name="wd_systems_desc_en">Tracks cyclones, monsoon bands, and disturbances.</string>
-    <string name="wd_systems_tip_mz">Risk hriattirna atan hman.</string>
+    <string name="wd_systems_tip_mz">Khawchin dinhmun hriat chian nan hmang rawh.</string>
     <string name="wd_systems_tip_en">Use for situational awareness.</string>
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- Cyclone Season Outlook Card                               -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <string name="climate_impact_window_mz">Thlirlawk hun: Thla 6 chhung</string>
+    <string name="climate_impact_window_en">Forecast window: next 6 months</string>
+    <string name="cyclone_forecast_window_mz">Thlirlawk hun: Thla 6 chhung (Apr-Jun, Oct-Dec)</string>
+    <string name="cyclone_forecast_window_en">Forecast window: next 6 months (Apr-Jun, Oct-Dec)</string>
+    <string name="cyclone_outlook_title_mz">Thlipui Season Thlir Lawkna</string>
+    <string name="cyclone_outlook_title_en">Cyclone season outlook</string>
+    <string name="cyclone_outlook_subtitle_mz">Bay of Bengal</string>
+    <string name="cyclone_outlook_subtitle_en">Bay of Bengal</string>
 </resources>

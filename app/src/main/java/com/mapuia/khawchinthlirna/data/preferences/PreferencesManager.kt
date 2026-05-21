@@ -34,6 +34,11 @@ class PreferencesManager(private val context: Context) {
         private val HOME_GRID_NAME_KEY = stringPreferencesKey("home_grid_name")
         private val LAST_LAT_KEY = doublePreferencesKey("last_lat")
         private val LAST_LNG_KEY = doublePreferencesKey("last_lng")
+        private val SELECTED_LOCATION_MODE_KEY = stringPreferencesKey("selected_location_mode")
+        private val SELECTED_GRID_ID_KEY = stringPreferencesKey("selected_grid_id")
+        private val SELECTED_GRID_NAME_KEY = stringPreferencesKey("selected_grid_name")
+        private val SELECTED_LAT_KEY = doublePreferencesKey("selected_lat")
+        private val SELECTED_LNG_KEY = doublePreferencesKey("selected_lng")
         
         // User
         private val USER_ID_KEY = stringPreferencesKey("user_id")
@@ -132,6 +137,44 @@ class PreferencesManager(private val context: Context) {
         }
     }
 
+    val selectedLocationFlow: Flow<SelectedLocationPreference> = context.dataStore.data.map { prefs ->
+        val modeValue = prefs[SELECTED_LOCATION_MODE_KEY] ?: SelectedLocationMode.CURRENT.name
+        val mode = runCatching { SelectedLocationMode.valueOf(modeValue) }
+            .getOrElse { SelectedLocationMode.CURRENT }
+        SelectedLocationPreference(
+            mode = mode,
+            gridId = prefs[SELECTED_GRID_ID_KEY],
+            gridName = prefs[SELECTED_GRID_NAME_KEY],
+            lat = prefs[SELECTED_LAT_KEY],
+            lng = prefs[SELECTED_LNG_KEY],
+        )
+    }
+
+    suspend fun setSelectedLocationCurrent() {
+        context.dataStore.edit { prefs ->
+            prefs[SELECTED_LOCATION_MODE_KEY] = SelectedLocationMode.CURRENT.name
+            prefs.remove(SELECTED_GRID_ID_KEY)
+            prefs.remove(SELECTED_GRID_NAME_KEY)
+            prefs.remove(SELECTED_LAT_KEY)
+            prefs.remove(SELECTED_LNG_KEY)
+        }
+    }
+
+    suspend fun setSelectedManualLocation(
+        gridId: String,
+        gridName: String,
+        lat: Double,
+        lng: Double,
+    ) {
+        context.dataStore.edit { prefs ->
+            prefs[SELECTED_LOCATION_MODE_KEY] = SelectedLocationMode.MANUAL.name
+            prefs[SELECTED_GRID_ID_KEY] = gridId
+            prefs[SELECTED_GRID_NAME_KEY] = gridName
+            prefs[SELECTED_LAT_KEY] = lat
+            prefs[SELECTED_LNG_KEY] = lng
+        }
+    }
+
     // === User ===
     val userIdFlow: Flow<String?> = context.dataStore.data.map { prefs ->
         prefs[USER_ID_KEY]
@@ -187,4 +230,17 @@ data class AppSettings(
     val temperatureUnit: String = "celsius",
     val homeGridId: String? = null,
     val homeGridName: String? = null
+)
+
+enum class SelectedLocationMode {
+    CURRENT,
+    MANUAL,
+}
+
+data class SelectedLocationPreference(
+    val mode: SelectedLocationMode = SelectedLocationMode.CURRENT,
+    val gridId: String? = null,
+    val gridName: String? = null,
+    val lat: Double? = null,
+    val lng: Double? = null,
 )

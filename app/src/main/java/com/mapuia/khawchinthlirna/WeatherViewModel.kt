@@ -13,10 +13,13 @@ import com.mapuia.khawchinthlirna.data.model.ImergDoc
 import com.mapuia.khawchinthlirna.data.model.ForecastSnapshot
 import com.mapuia.khawchinthlirna.data.WeatherConstants
 import com.mapuia.khawchinthlirna.data.LoadingState
+import com.mapuia.khawchinthlirna.data.preferences.PreferencesManager
+import com.mapuia.khawchinthlirna.data.preferences.SelectedLocationMode
 import com.mapuia.khawchinthlirna.util.AppLog
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.*
@@ -41,6 +44,8 @@ data class WeatherUiState(
     val forecastSnapshot: ForecastSnapshot? = null,
     val skillReport: SkillReport? = null,
     val locationPermissionState: LocationPermissionState = LocationPermissionState.UNKNOWN,
+    val selectedLocationMode: SelectedLocationMode = SelectedLocationMode.CURRENT,
+    val selectedLocationName: String? = null,
 )
 
 class WeatherViewModel(
@@ -48,7 +53,11 @@ class WeatherViewModel(
     private val repository: WeatherRepository,
     private val locationProvider: LocationProvider,
     private val reverseGeocoder: ReverseGeocoder,
+    private val preferencesManager: PreferencesManager,
 ) : AndroidViewModel(app) {
+
+    private val nonInteractiveRefreshIntervalMs = 10 * 60 * 1000L
+    private var lastSuccessfulRefreshMs: Long = 0L
 
     private val _uiState = MutableStateFlow(
         WeatherUiState(isLoading = true, gridId = DEFAULT_GRID_ID)
@@ -56,7 +65,16 @@ class WeatherViewModel(
     val uiState: StateFlow<WeatherUiState> = _uiState.asStateFlow()
 
     init {
-        refresh(isUserInitiated = false)
+        viewModelScope.launch {
+            preferencesManager.selectedLocationFlow.collect { selected ->
+                _uiState.update {
+                    it.copy(
+                        selectedLocationMode = selected.mode,
+                        selectedLocationName = selected.gridName,
+                    )
+                }
+            }
+        }
     }
 
     fun onLocationPermissionGranted() {
@@ -73,6 +91,15 @@ class WeatherViewModel(
     /** Manual refresh trigger (pull-to-refresh). */
     fun refresh(isUserInitiated: Boolean = true) {
         viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            if (!isUserInitiated && lastSuccessfulRefreshMs > 0L) {
+                val elapsed = now - lastSuccessfulRefreshMs
+                if (elapsed < nonInteractiveRefreshIntervalMs) {
+                    AppLog.d("WeatherVM", "Skipping non-user refresh; elapsed=${elapsed}ms")
+                    return@launch
+                }
+            }
+
             _uiState.update {
                 it.copy(
                     isLoading = it.weather == null && !isUserInitiated,
@@ -82,38 +109,66 @@ class WeatherViewModel(
             }
 
             try {
-                val loc = safeGetLocationOrNull()
+                val selectedLocation = preferencesManager.selectedLocationFlow.first()
+                val useManualLocation =
+                    selectedLocation.mode == SelectedLocationMode.MANUAL &&
+                        selectedLocation.lat != null &&
+                        selectedLocation.lng != null
 
-                val resolvedGridId = if (loc != null && uiState.value.locationPermissionState == LocationPermissionState.GRANTED) {
-                    // Simply round user location to 2 decimals - no hardcoded grid list needed
-                    // Firebase documents are stored as "23.20_94.02" format
-                    val roundedLat = (loc.latitude * 100).roundToInt() / 100.0
-                    val roundedLon = (loc.longitude * 100).roundToInt() / 100.0
-                    val gridId = String.format(java.util.Locale.US, "%.2f_%.2f", roundedLat, roundedLon)
-                    AppLog.d("WeatherVM", "Location: ${loc.latitude}, ${loc.longitude}")
-                    AppLog.d("WeatherVM", "Generated grid ID: $gridId")
-                    gridId
-                } else {
-                    AppLog.d("WeatherVM", "Using DEFAULT_GRID_ID: $DEFAULT_GRID_ID")
-                    DEFAULT_GRID_ID
+                val loc = if (useManualLocation) null else safeGetLocationOrNull()
+
+                val resolvedGridId = when {
+                    useManualLocation && !selectedLocation.gridId.isNullOrBlank() -> {
+                        selectedLocation.gridId
+                    }
+                    useManualLocation -> {
+                        val roundedLat = (selectedLocation.lat!! * 100).roundToInt() / 100.0
+                        val roundedLon = (selectedLocation.lng!! * 100).roundToInt() / 100.0
+                        String.format(java.util.Locale.US, "%.2f_%.2f", roundedLat, roundedLon)
+                    }
+                    loc != null && uiState.value.locationPermissionState == LocationPermissionState.GRANTED -> {
+                        val roundedLat = (loc.latitude * 100).roundToInt() / 100.0
+                        val roundedLon = (loc.longitude * 100).roundToInt() / 100.0
+                        val gridId = String.format(java.util.Locale.US, "%.2f_%.2f", roundedLat, roundedLon)
+                        AppLog.d("WeatherVM", "Location: ${loc.latitude}, ${loc.longitude}")
+                        AppLog.d("WeatherVM", "Generated grid ID: $gridId")
+                        gridId
+                    }
+                    else -> {
+                        AppLog.d("WeatherVM", "Using DEFAULT_GRID_ID: $DEFAULT_GRID_ID")
+                        DEFAULT_GRID_ID
+                    }
                 }
                 AppLog.d("WeatherVM", "Resolved grid ID: $resolvedGridId")
 
-                // Resolve human-friendly place name using DYNAMIC reverse geocoding
-                // Uses user's ACTUAL GPS coordinates (not grid coordinates) for accuracy
-                val placeName = if (loc != null && uiState.value.locationPermissionState == LocationPermissionState.GRANTED) {
-                    // Use actual GPS coordinates for reverse geocoding - NOT the rounded grid coordinates
-                    // This gives us the real location name (e.g., "Aizawl" instead of "23.20_93.96")
-                    reverseGeocoder.getPlaceName(loc.latitude, loc.longitude)
-                } else {
-                    null
+                val resolvedLat = when {
+                    useManualLocation -> selectedLocation.lat
+                    else -> loc?.latitude
+                }
+                val resolvedLon = when {
+                    useManualLocation -> selectedLocation.lng
+                    else -> loc?.longitude
+                }
+
+                val placeName = when {
+                    useManualLocation -> selectedLocation.gridName
+                    loc != null && uiState.value.locationPermissionState == LocationPermissionState.GRANTED -> {
+                        reverseGeocoder.getPlaceName(loc.latitude, loc.longitude)
+                    }
+                    else -> null
+                }
+
+                if (loc != null && uiState.value.locationPermissionState == LocationPermissionState.GRANTED) {
+                    runCatching {
+                        preferencesManager.setLastLocation(loc.latitude, loc.longitude)
+                    }
                 }
 
                 _uiState.update {
                     it.copy(
                         gridId = resolvedGridId,
-                        userLat = loc?.latitude,
-                        userLon = loc?.longitude,
+                        userLat = resolvedLat,
+                        userLon = resolvedLon,
                         userPlaceName = placeName ?: it.userPlaceName,
                     )
                 }
@@ -157,6 +212,7 @@ class WeatherViewModel(
                         } else null,
                     )
                 }
+                lastSuccessfulRefreshMs = System.currentTimeMillis()
             } catch (t: Throwable) {
                 _uiState.update {
                     it.copy(
@@ -187,9 +243,9 @@ class WeatherViewModel(
                 val loc = safeGetLocationOrNull()
                 val accuracy = loc?.accuracy?.toDouble() ?: 150.0
 
-                // Block if we still don't have coordinates (backend clustering needs them).
-                val resolvedLat = loc?.latitude ?: lat
-                val resolvedLon = loc?.longitude ?: lon
+                // Crowd reports must come from real GPS, not from a manually switched forecast view.
+                val resolvedLat = loc?.latitude
+                val resolvedLon = loc?.longitude
                 if (resolvedLat == null || resolvedLon == null) {
                     onDone(false, "Missing GPS location")
                     return@launch
@@ -244,6 +300,30 @@ class WeatherViewModel(
             } catch (t: Throwable) {
                 onDone(false, t.message)
             }
+        }
+    }
+
+    fun switchToCurrentLocation() {
+        viewModelScope.launch {
+            preferencesManager.setSelectedLocationCurrent()
+            refresh(isUserInitiated = true)
+        }
+    }
+
+    fun selectManualLocation(
+        gridId: String,
+        gridName: String,
+        lat: Double,
+        lon: Double,
+    ) {
+        viewModelScope.launch {
+            preferencesManager.setSelectedManualLocation(
+                gridId = gridId,
+                gridName = gridName,
+                lat = lat,
+                lng = lon,
+            )
+            refresh(isUserInitiated = true)
         }
     }
 

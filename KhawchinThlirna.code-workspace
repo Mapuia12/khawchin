@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "../../../AndroidStudioProjects/KhawchinThlirna"
+		},
+		{
+			"path": "backend"
+		}
+	],
+	"settings": {
+		"chat.agent.maxRequests": 100
+	}
+}

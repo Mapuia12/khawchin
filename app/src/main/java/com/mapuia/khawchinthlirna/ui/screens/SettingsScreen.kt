@@ -67,6 +67,7 @@ private fun GlassCard(
 @Composable
 fun SettingsScreen(
     currentLanguage: String, // "mz" or "en"
+    appVersionName: String,
     onLanguageChange: (String) -> Unit,
     notificationsEnabled: Boolean,
     onNotificationsToggle: (Boolean) -> Unit,
@@ -359,10 +360,13 @@ fun SettingsScreen(
                                 R.string.settings_about_title_en,
                                 isMizo
                             ),
-                            subtitle = langString(
-                                R.string.settings_about_subtitle_mz,
-                                R.string.settings_about_subtitle_en,
-                                isMizo
+                            subtitle = stringResource(
+                                if (isMizo) {
+                                    R.string.settings_about_subtitle_mz
+                                } else {
+                                    R.string.settings_about_subtitle_en
+                                },
+                                appVersionName
                             ),
                             onClick = onAboutClick,
                             accentColor = AccentCyan

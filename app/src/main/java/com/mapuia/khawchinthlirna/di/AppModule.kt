@@ -56,6 +56,7 @@ val appModule = module {
             repository = get(),
             locationProvider = get(),
             reverseGeocoder = get(),
+            preferencesManager = get(),
         )
     }
 }

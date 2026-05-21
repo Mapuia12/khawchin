@@ -22,7 +22,10 @@ import androidx.core.view.WindowCompat
 import com.google.firebase.messaging.FirebaseMessaging
 import com.mapuia.khawchinthlirna.data.preferences.PreferencesManager
 import com.mapuia.khawchinthlirna.ui.theme.KhawchinThlirnaTheme
+import com.mapuia.khawchinthlirna.util.AppOpenAdManager
 import com.mapuia.khawchinthlirna.util.AppLog
+import com.mapuia.khawchinthlirna.util.ForceUpdateManager
+import com.mapuia.khawchinthlirna.worker.WorkScheduler
 
 class MainActivity : ComponentActivity() {
     
@@ -31,6 +34,7 @@ class MainActivity : ComponentActivity() {
     }
     
     private lateinit var preferencesManager: PreferencesManager
+    private lateinit var forceUpdateManager: ForceUpdateManager
     
     // Permission request launcher
     private val requestPermissionLauncher = registerForActivityResult(
@@ -39,9 +43,10 @@ class MainActivity : ComponentActivity() {
         if (isGranted) {
             AppLog.d(TAG, "Notification permission granted")
             subscribeToWeatherAlerts()
+            WorkScheduler.scheduleDailyWeatherSummary(this, forceReschedule = true)
         } else {
             AppLog.d(TAG, "Notification permission denied")
-            // User denied, notifications won't work but app still functions
+            WorkScheduler.cancelDailyWeatherSummary(this)
         }
     }
     
@@ -61,6 +66,7 @@ class MainActivity : ComponentActivity() {
         
         // Initialize preferences manager
         preferencesManager = PreferencesManager(this)
+        forceUpdateManager = ForceUpdateManager(this)
         
         // Request notification permission on app start (Android 13+)
         askNotificationPermission()
@@ -84,6 +90,12 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onStart() {
+        super.onStart()
+        forceUpdateManager.checkOnStart()
+        AppOpenAdManager.showIfEligible(this)
+    }
     
     /**
      * Request POST_NOTIFICATIONS permission for Android 13+ (API 33+)
@@ -99,6 +111,7 @@ class MainActivity : ComponentActivity() {
                     // Permission already granted
                     AppLog.d(TAG, "Notification permission already granted")
                     subscribeToWeatherAlerts()
+                    WorkScheduler.scheduleDailyWeatherSummary(this, forceReschedule = true)
                 }
                 shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
                     // User has previously denied - still request, system will show dialog
@@ -112,6 +125,7 @@ class MainActivity : ComponentActivity() {
         } else {
             // Android 12 and below - permission granted at install
             subscribeToWeatherAlerts()
+            WorkScheduler.scheduleDailyWeatherSummary(this, forceReschedule = true)
         }
     }
     

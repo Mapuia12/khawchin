@@ -5,5 +5,7 @@
     <string name="admob_banner_unit_id">ca-app-pub-1581460583572879/9352601550</string>
     <string name="admob_native_unit_id">ca-app-pub-1581460583572879/2208608701</string>
     <string name="admob_interstitial_unit_id">ca-app-pub-1581460583572879/1626795402</string>
+    <string name="admob_app_open_unit_id">ca-app-pub-1581460583572879/6024403390</string>
+    <string name="admob_rewarded_unit_id">ca-app-pub-1581460583572879/1794453694</string>
 </resources>
 

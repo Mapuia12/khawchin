@@ -33,8 +33,27 @@ class WeatherRepository(
     private val cache: WeatherCache? = null,
 ) {
 
+    private data class TimedValue<T>(val value: T, val cachedAtMs: Long)
+
+    private val nowMs: Long
+        get() = System.currentTimeMillis()
+
+    private val skillReportTtlMs = 2 * 60 * 60 * 1000L
+    private val satelliteTtlMs = 20 * 60 * 1000L
+
+    @Volatile
+    private var skillReportCache: TimedValue<SkillReport?>? = null
+    private val imergCache = mutableMapOf<String, TimedValue<ImergDoc?>>()
+    private val forecastCache = mutableMapOf<String, TimedValue<ForecastSnapshot?>>()
+
     /** Get latest skill report (global, not grid-specific). */
     suspend fun getLatestSkillReport(): SkillReport? {
+        skillReportCache?.let { cached ->
+            if (nowMs - cached.cachedAtMs <= skillReportTtlMs) {
+                return cached.value
+            }
+        }
+
         fun mapSkillReport(doc: com.google.firebase.firestore.DocumentSnapshot): SkillReport? {
             return try {
                 val perModelMae = (doc.get("per_model_mae") as? Map<*, *>)
@@ -101,7 +120,7 @@ class WeatherRepository(
             }
         }
 
-        return try {
+        val fetched = try {
             AppLog.d("WeatherRepo", "Fetching skill report from collection: ${WeatherConstants.SKILL_REPORT_COLLECTION}")
             val snapshot = db.collection(WeatherConstants.SKILL_REPORT_COLLECTION)
                 .orderBy("ts", Query.Direction.DESCENDING)
@@ -120,18 +139,29 @@ class WeatherRepository(
             AppLog.e("WeatherRepo", "Skill report fetch (ts) failed: ${e.message}")
             fetchFallback()
         }
+
+        skillReportCache = TimedValue(fetched, nowMs)
+        return fetched
     }
 
     /** Get latest IMERG satellite precipitation for a grid ID (if available). */
     suspend fun getImergByGridId(gridId: String): ImergDoc? {
+        imergCache[gridId]?.let { cached ->
+            if (nowMs - cached.cachedAtMs <= satelliteTtlMs) {
+                return cached.value
+            }
+        }
+
         return try {
             val doc = db.collection(WeatherConstants.IMERG_COLLECTION)
                 .document(gridId)
                 .get()
                 .await()
-            doc.toObject(ImergDoc::class.java)?.also {
+            val fetched = doc.toObject(ImergDoc::class.java)?.also {
                 if (it.gridId.isNullOrBlank()) it.gridId = doc.id
             }
+            imergCache[gridId] = TimedValue(fetched, nowMs)
+            fetched
         } catch (e: Exception) {
             AppLog.e("WeatherRepo", "IMERG fetch failed for $gridId: ${e.message}")
             null
@@ -140,15 +170,23 @@ class WeatherRepository(
 
     /** Get latest forecast snapshot for a grid ID (if available). */
     suspend fun getForecastSnapshotByGridId(gridId: String): ForecastSnapshot? {
+        forecastCache[gridId]?.let { cached ->
+            if (nowMs - cached.cachedAtMs <= satelliteTtlMs) {
+                return cached.value
+            }
+        }
+
         return try {
             val doc = db.collection(WeatherConstants.FORECAST_SNAPSHOT_COLLECTION)
                 .document(gridId)
                 .get()
                 .await()
-            doc.toObject(ForecastSnapshot::class.java)?.also {
+            val fetched = doc.toObject(ForecastSnapshot::class.java)?.also {
                 if (it.gridId.isNullOrBlank()) it.gridId = doc.id
                 if (it.runTime == null) it.runTime = doc.get("run_time")
             }
+            forecastCache[gridId] = TimedValue(fetched, nowMs)
+            fetched
         } catch (e: Exception) {
             AppLog.e("WeatherRepo", "Forecast snapshot fetch failed for $gridId: ${e.message}")
             null

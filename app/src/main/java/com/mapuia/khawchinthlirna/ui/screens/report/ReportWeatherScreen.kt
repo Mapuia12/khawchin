@@ -1,5 +1,6 @@
 package com.mapuia.khawchinthlirna.ui.screens.report
 
+import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -166,8 +167,11 @@ fun ReportWeatherScreen(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         scope.launch {
+            if (result.resultCode != Activity.RESULT_OK) {
+                return@launch
+            }
             isSigningIn = true
-            val signInResult = authManager.handleGoogleSignInResult(result.data)
+            val signInResult = authManager.handleGoogleSignInResult(result.data, result.resultCode)
             isSigningIn = false
             if (signInResult.isSuccess) {
                 userProfile = authManager.getUserProfile()

@@ -10,6 +10,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import java.time.Duration
+import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
 /**
@@ -214,8 +216,8 @@ object WorkScheduler {
             .build()
 
         val refreshRequest = PeriodicWorkRequestBuilder<WeatherRefreshWorker>(
-            30, TimeUnit.MINUTES, // Repeat every 30 minutes
-            5, TimeUnit.MINUTES // Flex interval
+            60, TimeUnit.MINUTES, // Repeat every 60 minutes to reduce background reads
+            10, TimeUnit.MINUTES // Flex interval
         )
             .setConstraints(constraints)
             .build()
@@ -239,6 +241,43 @@ object WorkScheduler {
                 ExistingPeriodicWorkPolicy.KEEP,
                 cleanupRequest
             )
+    }
+
+    fun scheduleDailyWeatherSummary(
+        context: Context,
+        forceReschedule: Boolean = false,
+    ) {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val now = ZonedDateTime.now()
+        var nextRun = now.withHour(7).withMinute(0).withSecond(0).withNano(0)
+        if (!nextRun.isAfter(now)) {
+            nextRun = nextRun.plusDays(1)
+        }
+        val initialDelay = Duration.between(now, nextRun).toMinutes().coerceAtLeast(1)
+
+        val request = PeriodicWorkRequestBuilder<DailyWeatherNotificationWorker>(
+            24,
+            TimeUnit.HOURS,
+            15,
+            TimeUnit.MINUTES,
+        )
+            .setConstraints(constraints)
+            .setInitialDelay(initialDelay, TimeUnit.MINUTES)
+            .build()
+
+        WorkManager.getInstance(context)
+            .enqueueUniquePeriodicWork(
+                "daily_weather_summary",
+                if (forceReschedule) ExistingPeriodicWorkPolicy.REPLACE else ExistingPeriodicWorkPolicy.KEEP,
+                request,
+            )
+    }
+
+    fun cancelDailyWeatherSummary(context: Context) {
+        WorkManager.getInstance(context).cancelUniqueWork("daily_weather_summary")
     }
 
     fun cancelAllWork(context: Context) {
