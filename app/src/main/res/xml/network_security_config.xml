@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Default to HTTPS. Keep temporary HTTP only for our forecast host while
+         DNS/Let's Encrypt rollout settles. -->
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">khawchin.me</domain>
+    </domain-config>
+</network-security-config>

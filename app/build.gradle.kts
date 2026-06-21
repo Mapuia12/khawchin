@@ -17,8 +17,8 @@ android {
         applicationId = "com.mapuia.khawchinthlirna"
         minSdk = 28
         targetSdk = 36
-        versionCode = 13  // Increment for each Play Store release
-        versionName = "1.6"
+        versionCode = 15  // Increment for each Play Store release
+        versionName = "1.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -123,6 +123,7 @@ dependencies {
     // Offline cache
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.gson)
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // Room Database (Offline)
     implementation(libs.androidx.room.runtime)

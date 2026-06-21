@@ -76,7 +76,6 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Air
 import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.WbSunny
@@ -165,6 +164,7 @@ import com.google.android.gms.ads.nativead.NativeAdOptions
 import com.google.android.gms.ads.nativead.NativeAdView
 import java.time.LocalDate
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import com.mapuia.khawchinthlirna.BuildConfig
 import com.mapuia.khawchinthlirna.data.model.WeatherDoc
@@ -172,6 +172,8 @@ import com.mapuia.khawchinthlirna.data.model.SkillReport
 import com.mapuia.khawchinthlirna.data.model.ImergDoc
 import com.mapuia.khawchinthlirna.data.model.ForecastSnapshot
 import com.mapuia.khawchinthlirna.data.model.CycloneImpact
+import com.mapuia.khawchinthlirna.data.model.MonthOutlook
+import com.mapuia.khawchinthlirna.data.model.MonthlyForecast
 import com.mapuia.khawchinthlirna.data.model.RainTimeline
 import com.mapuia.khawchinthlirna.ui.getWeatherIcon
 
@@ -184,6 +186,7 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 import org.koin.androidx.compose.koinViewModel
 import com.mapuia.khawchinthlirna.ui.theme.GlassSurface
 import com.mapuia.khawchinthlirna.ui.theme.PremiumGlassTokens
@@ -2952,11 +2955,22 @@ private fun DailyForecastCard(weather: WeatherDoc, isDay: Boolean, isMizo: Boole
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(bottom = 4.dp)
             ) {
-                Text(
-                    text = "📅",
-                    fontSize = 18.sp,
-                )
-                Spacer(Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF38BDF8).copy(alpha = 0.16f))
+                        .border(1.dp, Color(0xFF38BDF8).copy(alpha = 0.30f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Cloud,
+                        contentDescription = null,
+                        tint = Color(0xFF7DD3FC),
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
                 Text(
                     text = if (daysToShow >= 10) {
                         langString(
@@ -3555,7 +3569,12 @@ private fun SeasonalForecastSection(
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = "📅", fontSize = 20.sp)
+                        Icon(
+                            imageVector = Icons.Filled.Waves,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp),
+                        )
                     }
                     Spacer(Modifier.width(12.dp))
                     Column {
@@ -3579,36 +3598,6 @@ private fun SeasonalForecastSection(
                             color = appTextSecondary(0.6f),
                             fontSize = 12.sp,
                         )
-                        // Model tags - compact, below subtitle
-                        seasonal?.forecastModel?.let { model ->
-                            Row(
-                                modifier = Modifier.padding(top = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                model.split("+").map { it.trim() }.filter { it.isNotEmpty() }.forEach { tag ->
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(Color(0xFF10B981).copy(alpha = 0.15f))
-                                            .border(
-                                                0.5.dp,
-                                                Color(0xFF10B981).copy(alpha = 0.4f),
-                                                RoundedCornerShape(6.dp)
-                                            )
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
-                                        Text(
-                                            text = tag,
-                                            color = Color(0xFF34D399),
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            maxLines = 1,
-                                        )
-                                    }
-                                }
-                            }
-                        }
                     }
                 }
             }
@@ -3645,13 +3634,20 @@ private fun SeasonalForecastSection(
                     )
                 }
                 SeasonalSummaryCard(
-                    summaryText = summaryText,
+                    summaryText = summaryText?.let { humanizeSeasonalText(it, isMizo) },
                     updatedText = updatedText,
                     summaryScope = summaryScope,
                     isMizo = isMizo
                 )
             }
-            
+
+            SeasonalRiskSnapshotCard(
+                weather = weather,
+                currentMonth = currentMonth,
+                monthlyForecasts = monthlyForecasts,
+                isMizo = isMizo,
+            )
+             
             // Current & Next Month Comparison Cards
             currentMonth?.let { month ->
                 PremiumMonthComparisonCard(
@@ -3675,7 +3671,7 @@ private fun SeasonalForecastSection(
                 )
             }
 
-            seasonal?.upcomingSeason?.let { season ->
+            seasonal?.upcomingSeason?.takeIf { it.monthsAway <= 2 }?.let { season ->
                 UpcomingSeasonCard(season = season, isMizo = isMizo)
             }
             
@@ -3688,7 +3684,7 @@ private fun SeasonalForecastSection(
                 ExpandableInlineSection(
                     title = if (isMizo) "A kimchang zawk" else "More seasonal details",
                     subtitle = if (isMizo) {
-                        "6-month trend, climate drivers, cyclone season"
+                        "Thla 6 trend, ENSO/IOD, thlipui season"
                     } else {
                         "6-month trend, climate drivers, cyclone season"
                     },
@@ -3786,8 +3782,337 @@ private fun SeasonalForecastSection(
 }
 
 /* ═══════════════════════════════════════════════════════════════
+
    Climate Drivers Card – Simplified impact sentence
    ═══════════════════════════════════════════════════════════════ */
+
+private fun humanizeSeasonalText(text: String, isMizo: Boolean): String {
+    val replacements = if (isMizo) {
+        mapOf(
+            "MORE_RAIN" to "Ruah tam zawk",
+            "LESS_RAIN" to "Ruah tlem zawk",
+            "NORMAL_RAIN" to "Ruah pangngai",
+            "NORMAL" to "Pangngai",
+            "COOL" to "A vawt deuh",
+            "WARM" to "A lum deuh",
+            "HOT" to "A lum",
+            "DRY" to "Ro deuh",
+        )
+    } else {
+        mapOf(
+            "MORE_RAIN" to "wetter than normal",
+            "LESS_RAIN" to "drier than normal",
+            "NORMAL_RAIN" to "near-normal rain",
+            "NORMAL" to "near normal",
+            "COOL" to "cooler",
+            "WARM" to "warmer",
+            "HOT" to "hot",
+            "DRY" to "drier",
+        )
+    }
+
+    return replacements.entries.fold(text) { acc, (raw, friendly) ->
+        acc.replace(raw, friendly, ignoreCase = false)
+    }
+}
+
+private data class SeasonalRiskUiSignal(
+    val title: String,
+    val value: String,
+    val helper: String,
+    val color: Color,
+    val icon: ImageVector,
+)
+
+private fun seasonalNumber(value: Any?): Double? {
+    return when (value) {
+        is Number -> value.toDouble()
+        is String -> value.trim().removeSuffix("%").toDoubleOrNull()?.let {
+            if (it > 1.0) it / 100.0 else it
+        }
+        is Map<*, *> -> listOf("confidence", "score", "value", "probability")
+            .firstNotNullOfOrNull { key -> seasonalNumber(value[key]) }
+        else -> null
+    }
+}
+
+private fun signedPct(value: Double): String {
+    val rounded = value.roundToInt()
+    return if (rounded > 0) "+$rounded%" else "$rounded%"
+}
+
+private fun buildCurrentMonthRisk(
+    currentMonth: MonthOutlook?,
+    monthlyForecasts: List<MonthlyForecast>?,
+    isMizo: Boolean,
+): SeasonalRiskUiSignal {
+    val pct = currentMonth?.seasonalForecast?.precipPctChange
+        ?: monthlyForecasts?.firstOrNull()?.precipPctChange
+    val rawSignal = listOfNotNull(
+        currentMonth?.rainfallComparison,
+        currentMonth?.seasonalForecast?.precipOutlook,
+        monthlyForecasts?.firstOrNull()?.precipOutlook,
+    ).firstOrNull()?.uppercase(Locale.US).orEmpty()
+
+    val wetter = if (pct != null) {
+        pct >= 15.0
+    } else {
+        rawSignal.contains("MORE") || rawSignal.contains("WET")
+    }
+    val drier = if (pct != null) {
+        pct <= -15.0
+    } else {
+        rawSignal.contains("LESS") || rawSignal.contains("DRY")
+    }
+
+    val value = when {
+        wetter -> if (isMizo) "Ruah tam zawk" else "Wetter tilt"
+        drier -> if (isMizo) "Ruah tlem zawk" else "Drier tilt"
+        else -> if (isMizo) "Pangngai vel" else "Near normal"
+    }
+    val helper = pct?.let {
+        if (isMizo) "Tun thla average nen ${signedPct(it)}" else "${signedPct(it)} vs monthly average"
+    } ?: if (isMizo) {
+        "Seasonal signal lian lutuk lo"
+    } else {
+        "No strong monthly anomaly"
+    }
+    val color = when {
+        wetter -> Color(0xFF38BDF8)
+        drier -> Color(0xFFF59E0B)
+        else -> Color(0xFF4ADE80)
+    }
+
+    return SeasonalRiskUiSignal(
+        title = if (isMizo) "Tun thla risk" else "This month",
+        value = value,
+        helper = helper,
+        color = color,
+        icon = Icons.Filled.WaterDrop,
+    )
+}
+
+private fun buildSevenDayConfidenceRisk(weather: WeatherDoc, isMizo: Boolean): SeasonalRiskUiSignal {
+    val dailyConfidence = weather.daily?.confidence
+        ?: weather.meta?.confidenceByDay
+    val avgConfidence = dailyConfidence
+        ?.take(7)
+        ?.mapNotNull { seasonalNumber(it) }
+        ?.takeIf { it.isNotEmpty() }
+        ?.average()
+
+    val value = when {
+        avgConfidence == null -> if (isMizo) "Endik mek" else "Checking"
+        avgConfidence >= 0.75 -> if (isMizo) "Rintlak" else "High"
+        avgConfidence >= 0.55 -> if (isMizo) "Pangngai" else "Medium"
+        else -> if (isMizo) "Hniam" else "Low"
+    }
+    val helper = avgConfidence?.let {
+        if (isMizo) "Forecast-a model inremna ${(it * 100).roundToInt()}%" else "Model agreement ${(it * 100).roundToInt()}%"
+    } ?: if (isMizo) {
+        "Model confidence data la kim lo"
+    } else {
+        "Confidence data is limited"
+    }
+    val color = when {
+        avgConfidence == null -> Color(0xFF94A3B8)
+        avgConfidence >= 0.75 -> Color(0xFF22C55E)
+        avgConfidence >= 0.55 -> Color(0xFFFBBF24)
+        else -> Color(0xFFFB7185)
+    }
+
+    return SeasonalRiskUiSignal(
+        title = if (isMizo) "Ni 7 rintlakna" else "7-day confidence",
+        value = value,
+        helper = helper,
+        color = color,
+        icon = Icons.Filled.Assessment,
+    )
+}
+
+private fun buildCycloneMonsoonRisk(weather: WeatherDoc, isMizo: Boolean): SeasonalRiskUiSignal {
+    val month = LocalDate.now().monthValue
+    val nextThreeMonths = (0..2).map { ((month + it - 1) % 12) + 1 }.toSet()
+    val cycloneOutlook = weather.cycloneSeasonOutlook
+    val peakMonthlyRisk = cycloneOutlook?.monthlyRisk
+        ?.filter { it.month in nextThreeMonths }
+        ?.maxByOrNull { it.probabilityPct }
+    val impactPct = maxOf(
+        cycloneOutlook?.neIndiaImpactPct ?: 0,
+        cycloneOutlook?.myanmarChinImpactPct ?: 0,
+        peakMonthlyRisk?.probabilityPct ?: 0,
+    )
+    val isMonsoon = weather.marineEvidence?.season?.equals("MONSOON", ignoreCase = true) == true
+    val isClimoCycloneWindow = month in setOf(5, 10, 11)
+
+    val value = when {
+        impactPct >= 50 -> if (isMizo) "Thlipui watch" else "Cyclone watch"
+        impactPct >= 25 -> if (isMizo) "Awm thei" else "Possible"
+        isMonsoon -> if (isMizo) "Monsoon active" else "Monsoon active"
+        isClimoCycloneWindow -> if (isMizo) "Risk window" else "Risk window"
+        else -> if (isMizo) "Hriatpui tur" else "Monitor"
+    }
+    val helper = when {
+        peakMonthlyRisk != null -> {
+            val name = peakMonthlyRisk.monthName ?: peakMonthlyRisk.month.toString()
+            if (isMizo) "$name risk ${peakMonthlyRisk.probabilityPct}%" else "$name risk ${peakMonthlyRisk.probabilityPct}%"
+        }
+        !cycloneOutlook?.peakMonths.isNullOrEmpty() -> {
+            val peaks = cycloneOutlook?.peakMonths.orEmpty().take(3).joinToString(", ")
+            if (isMizo) "Peak window: $peaks" else "Peak window: $peaks"
+        }
+        isMonsoon -> if (isMizo) "BoB/Andaman ruah luh dan ngaihven" else "Watching BoB/Andaman moisture"
+        else -> if (isMizo) "Live thlipui a awm chuan alert a lang ang" else "Alerts appear if a live system forms"
+    }
+    val color = when {
+        impactPct >= 50 -> Color(0xFFFB7185)
+        impactPct >= 25 || isClimoCycloneWindow -> Color(0xFFF59E0B)
+        isMonsoon -> Color(0xFF38BDF8)
+        else -> Color(0xFF94A3B8)
+    }
+
+    return SeasonalRiskUiSignal(
+        title = if (isMizo) "Thlipui/monsoon" else "Cyclone/monsoon",
+        value = value,
+        helper = helper,
+        color = color,
+        icon = Icons.Filled.Thunderstorm,
+    )
+}
+
+@Composable
+private fun SeasonalRiskSnapshotCard(
+    weather: WeatherDoc,
+    currentMonth: MonthOutlook?,
+    monthlyForecasts: List<MonthlyForecast>?,
+    isMizo: Boolean,
+) {
+    val signals = listOf(
+        buildCurrentMonthRisk(currentMonth, monthlyForecasts, isMizo),
+        buildSevenDayConfidenceRisk(weather, isMizo),
+        buildCycloneMonsoonRisk(weather, isMizo),
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(22.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        Color(0xFF0F766E).copy(alpha = 0.20f),
+                        Color(0xFF2563EB).copy(alpha = 0.13f),
+                    )
+                )
+            )
+            .border(1.dp, Color(0xFF2DD4BF).copy(alpha = 0.28f), RoundedCornerShape(22.dp))
+            .padding(16.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 10.dp)
+                ) {
+                    Text(
+                        text = if (isMizo) "Risk thlirna" else "Risk snapshot",
+                        color = appTextPrimary(),
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 17.sp,
+                    )
+                    Text(
+                        text = if (isMizo) "Hriat ngai signal, model hming ai lo" else "Signal, not model labels",
+                        color = appTextSecondary(0.68f),
+                        fontSize = 12.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(Color(0xFF2DD4BF).copy(alpha = 0.14f))
+                        .border(1.dp, Color(0xFF2DD4BF).copy(alpha = 0.26f), RoundedCornerShape(999.dp))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = if (isMizo) "Trend" else "Trend",
+                        color = Color(0xFF5EEAD4),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                    )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                signals.forEach { signal ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color.White.copy(alpha = 0.055f))
+                            .border(1.dp, signal.color.copy(alpha = 0.18f), RoundedCornerShape(16.dp))
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(RoundedCornerShape(13.dp))
+                                    .background(signal.color.copy(alpha = 0.18f)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = signal.icon,
+                                    contentDescription = null,
+                                    tint = signal.color,
+                                    modifier = Modifier.size(21.dp),
+                                )
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = signal.title,
+                                    color = appTextSecondary(0.78f),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    text = signal.value,
+                                    color = appTextPrimary(),
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                        Text(
+                            text = signal.helper,
+                            color = signal.color,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Start,
+                            modifier = Modifier.fillMaxWidth(),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun ClimateDriversCard(
     indices: com.mapuia.khawchinthlirna.data.model.ClimateIndices?,
@@ -4033,12 +4358,19 @@ private fun CycloneSeasonOutlookCard(
 
                 // IMD category breakdown
                 val moderateCount = (outlook.predictedTotal - outlook.predictedSevere).coerceAtLeast(0.0)
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // Moderate (Cyclonic Storm)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(alpha = 0.045f))
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Box(
                             modifier = Modifier
                                 .size(8.dp)
@@ -4046,22 +4378,33 @@ private fun CycloneSeasonOutlookCard(
                                 .background(Color(0xFFFFA94D))
                         )
                         Spacer(Modifier.width(6.dp))
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "~${String.format("%.0f", moderateCount)} ${if (isMizo) "Pangngai" else "Moderate"}",
                                 color = Color(0xFFFFA94D),
                                 fontWeight = FontWeight.SemiBold,
-                                fontSize = 11.sp
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                             Text(
                                 text = if (isMizo) "Cyclonic Storm \u2022 62-87 km/h" else "Cyclonic Storm \u2022 62-87 km/h",
                                 color = appTextSecondary(0.45f),
-                                fontSize = 11.sp
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
                     // Severe+ (SCS/VSCS)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(alpha = 0.045f))
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Box(
                             modifier = Modifier
                                 .size(8.dp)
@@ -4069,17 +4412,21 @@ private fun CycloneSeasonOutlookCard(
                                 .background(Color(0xFFFF6B6B))
                         )
                         Spacer(Modifier.width(6.dp))
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "~${String.format("%.0f", outlook.predictedSevere)} ${if (isMizo) "Nasa" else "Severe+"}",
                                 color = Color(0xFFFF6B6B),
                                 fontWeight = FontWeight.SemiBold,
-                                fontSize = 11.sp
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                             Text(
                                 text = if (isMizo) "SCS/VSCS \u2022 88+ km/h" else "SCS/VSCS \u2022 88+ km/h",
                                 color = appTextSecondary(0.45f),
-                                fontSize = 11.sp
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
@@ -4331,9 +4678,11 @@ private fun PremiumMonthComparisonCard(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = if (isCurrent) "📅" else "🔮",
-                        fontSize = 14.sp,
+                    Icon(
+                        imageVector = if (isCurrent) Icons.Filled.WaterDrop else Icons.Filled.Waves,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(17.dp),
                     )
                 }
                 Spacer(Modifier.width(10.dp))
@@ -4422,43 +4771,42 @@ private fun PremiumMonthComparisonCard(
                     fontSize = 18.sp,
                 )
                 
-                // Arrow
-                Text(
-                    text = " -> ",
-                    color = appTextMuted(0.4f),
-                    fontSize = 14.sp,
-                )
-                
-                // Forecast with inline difference
-                val tempColor = when {
-                    (tempDiff ?: 0) >= 2 -> Color(0xFFFF7043)
-                    (tempDiff ?: 0) <= -2 -> Color(0xFF4FC3F7)
-                    else -> Color(0xFF4ADE80)
-                }
-                
-                Text(
-                    text = "${forecastTemp ?: "--"}\u00B0",
-                    color = tempColor,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 22.sp,
-                )
-                
-                // Difference badge inline
-                tempDiff?.let { diff ->
-                    Spacer(Modifier.width(6.dp))
-                    val sign = if (diff >= 0) "+" else ""
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(tempColor.copy(alpha = 0.25f))
-                            .padding(horizontal = 6.dp, vertical = 3.dp)
-                    ) {
-                        Text(
-                            text = "$sign$diff\u00B0",
-                            color = tempColor,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
+                if (forecastTemp != null) {
+                    Text(
+                        text = " -> ",
+                        color = appTextMuted(0.4f),
+                        fontSize = 14.sp,
+                    )
+
+                    val tempColor = when {
+                        (tempDiff ?: 0) >= 2 -> Color(0xFFFF7043)
+                        (tempDiff ?: 0) <= -2 -> Color(0xFF4FC3F7)
+                        else -> Color(0xFF4ADE80)
+                    }
+
+                    Text(
+                        text = "$forecastTemp\u00B0",
+                        color = tempColor,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 22.sp,
+                    )
+
+                    tempDiff?.let { diff ->
+                        Spacer(Modifier.width(6.dp))
+                        val sign = if (diff >= 0) "+" else ""
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(tempColor.copy(alpha = 0.25f))
+                                .padding(horizontal = 6.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = "$sign$diff\u00B0",
+                                color = tempColor,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
                     }
                 }
             }
@@ -4505,43 +4853,42 @@ private fun PremiumMonthComparisonCard(
                     fontSize = 16.sp,
                 )
                 
-                // Arrow
-                Text(
-                    text = " -> ",
-                    color = appTextMuted(0.4f),
-                    fontSize = 14.sp,
-                )
-                
-                // Forecast with inline difference
-                val rainColor = when {
-                    (rainDiff ?: 0) >= 20 -> Color(0xFF38BDF8)
-                    (rainDiff ?: 0) <= -20 -> Color(0xFFFBBF24)
-                    else -> Color(0xFF4ADE80)
-                }
-                
-                Text(
-                    text = "${forecastRain ?: "--"}$unitMm",
-                    color = rainColor,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 20.sp,
-                )
+                if (forecastRain != null) {
+                    Text(
+                        text = " -> ",
+                        color = appTextMuted(0.4f),
+                        fontSize = 14.sp,
+                    )
 
-                // Difference badge inline (percentage)
-                rainDiff?.let { diff ->
-                    Spacer(Modifier.width(6.dp))
-                    val sign = if (diff >= 0) "+" else ""
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(rainColor.copy(alpha = 0.25f))
-                            .padding(horizontal = 6.dp, vertical = 3.dp)
-                    ) {
-                        Text(
-                            text = "$sign$diff%",
-                            color = rainColor,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
+                    val rainColor = when {
+                        (rainDiff ?: 0) >= 20 -> Color(0xFF38BDF8)
+                        (rainDiff ?: 0) <= -20 -> Color(0xFFFBBF24)
+                        else -> Color(0xFF4ADE80)
+                    }
+
+                    Text(
+                        text = "$forecastRain$unitMm",
+                        color = rainColor,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 20.sp,
+                    )
+
+                    rainDiff?.let { diff ->
+                        Spacer(Modifier.width(6.dp))
+                        val sign = if (diff >= 0) "+" else ""
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(rainColor.copy(alpha = 0.25f))
+                                .padding(horizontal = 6.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = "$sign$diff%",
+                                color = rainColor,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
                     }
                 }
             }
@@ -5047,6 +5394,19 @@ private fun SkillMetricTile(
     }
 }
 
+private fun displayModelName(model: String): String? {
+    return when (model.lowercase()) {
+        "ecmwf", "ecmwf_ifs" -> "ECMWF"
+        "icon", "icon_seamless" -> "ICON"
+        "gfs", "gfs_seamless" -> "GFS"
+        "aifs", "aifs_single", "aifs025" -> "AIFS"
+        "gefs", "gefs_ensemble" -> "GEFS"
+        "wrf_local", "wrf_9km" -> "WRF 9km"
+        "wrf_3km", "wrf_local_3km" -> "WRF 3km"
+        else -> null
+    }
+}
+
 /** Data source and accuracy info section - Redesigned compact version */
 @Composable
 private fun DataSourceInfo(
@@ -5192,18 +5552,14 @@ private fun DataSourceInfo(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    sortedWeights.forEach { (model, weightAny) ->
-                        val weight = (weightAny as? Number)?.toDouble() ?: 0.0
-                        val displayName = when (model.lowercase()) {
-                            "ecmwf", "ecmwf_ifs" -> "ECMWF"
-                            "gfs", "gfs_seamless" -> "GFS"
-                            "icon", "icon_seamless" -> "ICON"
-                            else -> model.uppercase().take(6)
-                        }
+                    sortedWeights.mapNotNull { (model, weightAny) ->
+                        displayModelName(model)?.let { display -> Triple(model, weightAny, display) }
+                    }.forEach { (model, _, displayName) ->
                         val (color, bgColor) = when (model.lowercase()) {
                             "ecmwf", "ecmwf_ifs" -> Color(0xFF10B981) to Color(0xFF10B981).copy(alpha = 0.15f)
                             "gfs", "gfs_seamless" -> Color(0xFF3B82F6) to Color(0xFF3B82F6).copy(alpha = 0.15f)
                             "icon", "icon_seamless" -> Color(0xFFF59E0B) to Color(0xFFF59E0B).copy(alpha = 0.15f)
+                            "wrf_local", "wrf_9km", "wrf_3km", "wrf_local_3km" -> Color(0xFF38BDF8) to Color(0xFF38BDF8).copy(alpha = 0.15f)
                             else -> Color.White to Color.White.copy(alpha = 0.1f)
                         }
                         // Modern pill chip
@@ -5236,13 +5592,15 @@ private fun DataSourceInfo(
                     }
                 }
             } else if (!modelsUsed.isNullOrEmpty()) {
-                // Fallback to just showing model names
-                Text(
-                    text = modelsUsed.joinToString(" • ") { it.uppercase() },
-                    color = appTextSecondary(0.7f),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                )
+                val displayModels = modelsUsed.mapNotNull { displayModelName(it) }
+                if (displayModels.isNotEmpty()) {
+                    Text(
+                        text = displayModels.joinToString(" | "),
+                        color = appTextSecondary(0.7f),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
             }
             
             // Confidence legend - Compact horizontal
@@ -5420,15 +5778,19 @@ private fun DataSourceInfo(
                                     )
                                 }
                                 skillReport.perModelMae?.takeIf { it.isNotEmpty() }?.let { perModel ->
-                                    val best = perModel.entries.sortedBy { it.value }.take(3)
-                                    val bestText = best.joinToString(" | ") { (k, v) ->
-                                        val name = when (k.lowercase()) {
-                                            "ecmwf", "ecmwf_ifs" -> "ECMWF"
-                                            "gfs", "gfs_seamless" -> "GFS"
-                                            "icon" -> "ICON"
-                                            else -> k.uppercase().take(6)
+                                    val activeModelNames = (modelsUsed.orEmpty() + modelWeights.orEmpty().keys)
+                                        .mapNotNull { displayModelName(it) }
+                                        .toSet()
+                                    val best = perModel.entries
+                                        .mapNotNull { (key, value) ->
+                                            displayModelName(key)?.let { name -> name to value }
                                         }
-                                        "$name ${"%.2f".format(v)}"
+                                        .filter { (name, _) -> activeModelNames.isEmpty() || name in activeModelNames }
+                                        .sortedBy { it.second }
+                                        .take(3)
+                                    if (best.isEmpty()) return@let
+                                    val bestText = best.joinToString(" | ") { (name, value) ->
+                                        "$name ${"%.2f".format(value)}"
                                     }
                                     Column(
                                         modifier = Modifier

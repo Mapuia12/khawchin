@@ -11,13 +11,24 @@ import com.mapuia.khawchinthlirna.data.auth.GamificationManager
 import com.mapuia.khawchinthlirna.data.local.KhawchinDatabase
 import com.mapuia.khawchinthlirna.data.preferences.PreferencesManager
 import com.mapuia.khawchinthlirna.data.verification.ReportVerificationService
+import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
+import java.util.concurrent.TimeUnit
 
 val appModule = module {
     // Firebase
     single { FirebaseFirestore.getInstance() }
+
+    // Public forecast JSON client (EC2/Nginx). Firestore remains the fallback.
+    single {
+        OkHttpClient.Builder()
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(45, TimeUnit.SECONDS)
+            .callTimeout(60, TimeUnit.SECONDS)
+            .build()
+    }
 
     // Database
     single { KhawchinDatabase.getInstance(androidContext()) }
@@ -30,7 +41,7 @@ val appModule = module {
 
     // Cache and Repository
     single { WeatherCache(appContext = androidContext()) }
-    single { WeatherRepository(db = get(), cache = get()) }
+    single { WeatherRepository(db = get(), cache = get(), httpClient = get()) }
 
     // Location
     single { LocationProvider(androidContext()) }

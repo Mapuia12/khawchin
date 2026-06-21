@@ -60,12 +60,16 @@ class ForceUpdateManager(
 
     private fun configureRemoteConfig() {
         val settings = remoteConfigSettings {
-            minimumFetchIntervalInSeconds = if (BuildConfig.DEBUG) 0 else 6 * 60 * 60
+            // Keep production reasonably fresh so forecast JSON URLs can be
+            // moved to a new EC2 IP without waiting half a day.
+            minimumFetchIntervalInSeconds = if (BuildConfig.DEBUG) 0 else 60 * 60
         }
         remoteConfig.setConfigSettingsAsync(settings)
         remoteConfig.setDefaultsAsync(
             mapOf(
                 KEY_MIN_SUPPORTED_VERSION to BuildConfig.VERSION_CODE.toLong(),
+                KEY_FORECAST_JSON_URL to DEFAULT_FORECAST_JSON_URL,
+                KEY_CURRENT_JSON_URL to DEFAULT_CURRENT_JSON_URL,
             ),
         )
     }
@@ -147,6 +151,10 @@ class ForceUpdateManager(
     private companion object {
         private const val TAG = "ForceUpdate"
         private const val KEY_MIN_SUPPORTED_VERSION = "min_supported_version_code"
+        private const val KEY_FORECAST_JSON_URL = "forecast_json_url"
+        private const val KEY_CURRENT_JSON_URL = "current_json_url"
+        private const val DEFAULT_FORECAST_JSON_URL = "https://khawchin.me/forecast/khawchin_forecast.json"
+        private const val DEFAULT_CURRENT_JSON_URL = "https://khawchin.me/forecast/khawchin_current.json"
     }
 }
 
