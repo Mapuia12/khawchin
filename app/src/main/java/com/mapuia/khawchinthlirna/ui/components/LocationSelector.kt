@@ -1,5 +1,6 @@
 package com.mapuia.khawchinthlirna.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -36,6 +37,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -43,6 +46,9 @@ import androidx.compose.ui.unit.sp
 import com.mapuia.khawchinthlirna.data.FocusLocation
 import com.mapuia.khawchinthlirna.data.FocusLocations
 import com.mapuia.khawchinthlirna.data.preferences.SelectedLocationMode
+
+private val LocationAccentBlue = Color(0xFF60A5FA)
+private val LocationAccentBlueSoft = Color(0xFFBFDBFE)
 
 @Composable
 fun LocationSwitcherCard(
@@ -54,7 +60,7 @@ fun LocationSwitcherCard(
 ) {
     val title = if (isMizo) "Hmun thlan" else "Location"
     val subtitle = if (selectedMode == SelectedLocationMode.CURRENT) {
-        if (isMizo) "Current Location" else "Current location"
+        if (isMizo) "GPS hmanga hmun chhut" else "Using GPS location"
     } else {
         if (isMizo) "Manual thlan" else "Selected manually"
     }
@@ -64,14 +70,24 @@ fun LocationSwitcherCard(
             .fillMaxWidth()
             .clickable(onClick = onOpenPicker),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+            containerColor = Color.Transparent,
         ),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
         shape = RoundedCornerShape(22.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            Color.White.copy(alpha = 0.15f),
+                            LocationAccentBlue.copy(alpha = 0.14f),
+                            Color(0xFF06B6D4).copy(alpha = 0.08f),
+                        )
+                    )
+                )
                 .padding(horizontal = 18.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
@@ -84,13 +100,13 @@ fun LocationSwitcherCard(
                     modifier = Modifier
                         .size(42.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                        .background(Color.White.copy(alpha = 0.14f)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = if (selectedMode == SelectedLocationMode.CURRENT) Icons.Default.MyLocation else Icons.Default.LocationOn,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = LocationAccentBlueSoft,
                     )
                 }
                 Spacer(modifier = Modifier.size(12.dp))
@@ -98,31 +114,31 @@ fun LocationSwitcherCard(
                     Text(
                         text = title,
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = Color.White.copy(alpha = 0.72f),
                     )
                     Text(
                         text = selectedLabel,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = Color.White.copy(alpha = 0.68f),
                     )
                 }
             }
             Surface(
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                color = Color.White.copy(alpha = 0.14f),
                 shape = RoundedCornerShape(999.dp),
             ) {
                 Text(
                     text = if (isMizo) "Thlan" else "Change",
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.primary,
+                    color = LocationAccentBlueSoft,
                     fontWeight = FontWeight.SemiBold,
                 )
             }

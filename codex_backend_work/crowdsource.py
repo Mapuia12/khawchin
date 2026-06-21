@@ -240,6 +240,16 @@ def parse_report_dt(value: Any) -> Optional[datetime]:
     return None
 
 
+def report_timestamp_value(report: Dict[str, Any]) -> Optional[datetime]:
+    """Return the best timestamp from backend or direct app Firestore reports."""
+    return (
+        parse_report_dt(report.get("timestamp"))
+        or parse_report_dt(report.get("timestamp_auto"))
+        or parse_report_dt(report.get("observed_at"))
+        or parse_report_dt(report.get("received_at"))
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # DATA CLASSES
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -298,13 +308,7 @@ class WeatherReport:
     
     @classmethod
     def from_dict(cls, d: Dict) -> 'WeatherReport':
-        ts = d.get("timestamp")
-        if isinstance(ts, datetime):
-            ts = ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
-        elif isinstance(ts, str):
-            ts = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-        else:
-            ts = datetime.now(timezone.utc)
+        ts = report_timestamp_value(d) or datetime.now(timezone.utc)
         
         return cls(
             report_id=d.get("report_id", str(uuid.uuid4())),
@@ -826,19 +830,33 @@ class CrowdsourceManager:
             from google.cloud.firestore_v1.base_query import FieldFilter
             from google.cloud import firestore as gcloud_firestore
 
-            snaps = (
-                self._db.collection(self.REPORTS_COLLECTION)
-                .where(filter=FieldFilter("timestamp", ">=", cutoff))
-                .order_by("timestamp", direction=gcloud_firestore.Query.DESCENDING)
-                .limit(limit)
-                .get(timeout=25)
-            )
+            snap_by_id: Dict[str, Any] = {}
+            for ts_field in ("timestamp", "timestamp_auto"):
+                try:
+                    snaps = (
+                        self._db.collection(self.REPORTS_COLLECTION)
+                        .where(filter=FieldFilter(ts_field, ">=", cutoff))
+                        .order_by(ts_field, direction=gcloud_firestore.Query.DESCENDING)
+                        .limit(limit)
+                        .get(timeout=25)
+                    )
+                    for snap in snaps:
+                        snap_by_id[getattr(snap, "id", str(len(snap_by_id)))] = snap
+                except Exception as query_err:
+                    logger.debug("Crowdsource query on %s failed: %s", ts_field, query_err)
 
             reports: List[Dict] = []
-            for snap in snaps:
+            for snap in snap_by_id.values():
                 payload = snap.to_dict() or {}
                 payload.setdefault("report_id", getattr(snap, "id", None))
+                ts = report_timestamp_value(payload)
+                if ts is None:
+                    continue
+                payload["timestamp"] = ts.isoformat()
                 reports.append(payload)
+
+            reports.sort(key=lambda r: report_timestamp_value(r) or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+            reports = reports[:limit]
 
             with self._lock:
                 self._recent_reports_cache[minutes] = {
@@ -881,9 +899,7 @@ class CrowdsourceManager:
         for raw in reports:
             try:
                 d = dict(raw)
-                ts = d.get("timestamp")
-                if isinstance(ts, str):
-                    ts = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                ts = report_timestamp_value(d)
                 if isinstance(ts, datetime):
                     if ts.tzinfo is None:
                         ts = ts.replace(tzinfo=timezone.utc)
@@ -946,7 +962,7 @@ class CrowdsourceManager:
         for raw in reports:
             report = dict(raw)
             reporter_key = str(report.get("user_id") or report.get("device_id") or "").strip()
-            ts = parse_report_dt(report.get("timestamp")) or parse_report_dt(report.get("received_at"))
+            ts = report_timestamp_value(report)
             report["_parsed_timestamp"] = ts
             if not reporter_key:
                 anonymous_reports.append(report)
@@ -996,7 +1012,7 @@ class CrowdsourceManager:
                 
                 # Recency weight (newer is stronger)
                 age_min = 60.0
-                ts = r.get("_parsed_timestamp") or parse_report_dt(r.get("timestamp")) or parse_report_dt(r.get("received_at"))
+                ts = r.get("_parsed_timestamp") or report_timestamp_value(r)
                 if isinstance(ts, datetime):
                     age_min = max(0.0, (now_ts - ts).total_seconds() / 60.0)
                 recency_weight = 0.5 ** (age_min / CROWD_RECENCY_HALFLIFE_MIN)

@@ -3,7 +3,7 @@ package com.mapuia.khawchinthlirna.data
 object WeatherConstants {
     // Default grid ID: Aizawl area (2 decimal format to match Firebase/backend)
     // Backend uses 2 decimal places: "23.73_92.72"
-    const val DEFAULT_GRID_ID = "22.00_92.15"
+    const val DEFAULT_GRID_ID = "23.73_92.72"
     const val MAX_HOURLY_ITEMS = 24
     const val CACHE_EXPIRY_MINUTES = 30L
     const val MAX_RETRY_ATTEMPTS = 3

@@ -445,7 +445,7 @@ private fun UVLevelBox(
         Text(
             text = label,
             color = appTextSecondary(0.8f),
-            fontSize = 10.sp,
+            fontSize = 11.sp,
         )
     }
 }

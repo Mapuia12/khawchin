@@ -152,7 +152,7 @@ class WeatherWidget : GlanceAppWidget() {
                                 text = lastUpdated,
                                 style = TextStyle(
                                     color = GlanceTheme.colors.onSurfaceVariant,
-                                    fontSize = 10.sp
+                                    fontSize = 11.sp
                                 )
                             )
                             Spacer(modifier = GlanceModifier.width(8.dp))

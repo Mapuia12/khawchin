@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import atexit
+import copy
 import json
 import logging
 import math
@@ -176,7 +177,7 @@ def release_lock_file() -> None:
         pass
 
 try:
-    from crowdsource import CrowdsourceManager, apply_crowdsource_nowcast, report_rain_mm_from_payload
+    from crowdsource import CrowdsourceManager, apply_crowdsource_nowcast, parse_report_dt, report_rain_mm_from_payload
     CROWDSOURCE_AVAILABLE = True
     logger.info("Crowdsource module loaded")
 except ImportError:
@@ -229,26 +230,31 @@ MAX_POINTS_PER_REQUEST = 50  # Open-Meteo practical limit
 SEASONAL_API_DAILY_LIMIT = 500   # Conservative daily limit
 SEASONAL_API_MIN_INTERVAL = 2.0  # Interval between seasonal API calls
 
-# Seasonal forecast cache - ELEVATION-BASED zones (meteorologically optimal)
+# Seasonal forecast cache - elevation-based zones.
 #
-# In mountainous regions, ELEVATION is the dominant climate factor:
-# - Temperature drops ~6.5°C per 1000m (lapse rate)
-# - Orographic precipitation is elevation-dependent
-# - Monsoon impact varies with altitude
+# In Mizoram/Chin terrain, elevation is a stronger climate separator than
+# district boundaries:
+# - Temperature drops with height.
+# - Windward ridge/valley rain response depends on elevation.
+# - Lowland border valleys behave very differently from the ridge towns.
 #
-# 3 Elevation Zones:
-# 1. Highland (≥800m): Cool monsoon climate - Aizawl, Champhai, Hakha, Falam
-# 2. Midland (300-800m): Warm transition - Lunglei, Kalemyo, Tedim, Saiha
-# 3. Lowland (<300m): Hot, rain-shadow - Tamu, Kabaw Valley, Moreh
+# 3 elevation zones:
+# 1. Highland (>=800m): Aizawl, Champhai, Khawzawl, Ngopa, Sangau
+# 2. Midland (300-800m): Hnahthial, Kolasib/Lawngtlai/Mamit foothills
+# 3. Lowland (<300m): Tlabung, Chawngte, Bairabi, Tamu/Kabaw Valley
 #
-# Only 3 API calls, but meteorologically appropriate for each user's elevation
-#
+# Only 3 API calls, but still meteorologically aligned with terrain.
 _seasonal_forecast_cache: Dict[str, Dict] = {}  # {"highland": {...}, "midland": {...}, "lowland": {...}}
 
 # Elevation zone thresholds (meters)
 ELEVATION_ZONE_HIGHLAND = 800  # >= 800m
 ELEVATION_ZONE_MIDLAND = 300   # >= 300m and < 800m
 # Below 300m = lowland
+
+# Bump this when the cache format/source priority changes. Version 2 avoids
+# reusing old point elevations that may have come from manual town fallbacks
+# rather than the elevation API.
+ELEVATION_CACHE_SCHEMA_VERSION = 2
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONFIGURATION
@@ -339,6 +345,8 @@ class Config:
     slow_cell_warn_seconds: float = field(default_factory=lambda: _env_float("SLOW_CELL_WARN_SECONDS", 45.0))
     aux_rate_limit_timeout: float = field(default_factory=lambda: _env_float("AUX_RATE_LIMIT_TIMEOUT", 25.0))
     aux_probe_pause_seconds: float = field(default_factory=lambda: _env_float("AUX_PROBE_PAUSE_SECONDS", 0.05))
+    aifs_guidance_enabled: bool = field(default_factory=lambda: _env("AIFS_GUIDANCE_ENABLE", "1") == "1")
+    aifs_guidance_isolate_rate_limit: bool = field(default_factory=lambda: _env("AIFS_GUIDANCE_ISOLATE_RATE_LIMIT", "1") == "1")
     
     # HTTP - increased timeouts for more reliability
     http_timeout: float = field(default_factory=lambda: _env_float("HTTP_TIMEOUT", 60.0))  # Increased from 45s
@@ -382,6 +390,10 @@ class Config:
     station_proxy_verification_weight: float = field(default_factory=lambda: _env_float("STATION_PROXY_VERIFICATION_WEIGHT", 0.35))
     station_missing_rain_weight: float = field(default_factory=lambda: _env_float("STATION_MISSING_RAIN_WEIGHT", 0.30))
     min_bias_observation_confidence: float = field(default_factory=lambda: _env_float("MIN_BIAS_OBS_CONFIDENCE", 0.45))
+    temperature_nowcast_hours: int = field(default_factory=lambda: _env_int("TEMPERATURE_NOWCAST_HOURS", 4))
+    temperature_nowcast_max_dist_km: float = field(default_factory=lambda: _env_float("TEMPERATURE_NOWCAST_MAX_DIST_KM", 90.0))
+    temperature_nowcast_proxy_weight: float = field(default_factory=lambda: _env_float("TEMPERATURE_NOWCAST_PROXY_WEIGHT", 0.55))
+    temperature_nowcast_max_correction: float = field(default_factory=lambda: _env_float("TEMPERATURE_NOWCAST_MAX_CORRECTION_C", 6.0))
     station_from_crowd_enabled: bool = field(default_factory=lambda: _env("STATION_FROM_CROWD", "1") == "1")
     station_from_crowd_min_reports: int = field(default_factory=lambda: _env_int("STATION_FROM_CROWD_MIN_REPORTS", 3))
     station_from_crowd_grid_step: float = field(default_factory=lambda: _env_float("STATION_FROM_CROWD_GRID_STEP", 0.10))
@@ -407,10 +419,12 @@ class Config:
     skill_report_collection: str = field(default_factory=lambda: _env("SKILL_REPORT_COLLECTION", "skill_report"))
     forecast_snapshot_collection: str = field(default_factory=lambda: _env("FORECAST_SNAPSHOT_COLLECTION", "forecast_snapshots"))
     imerg_collection: str = field(default_factory=lambda: _env("IMERG_COLLECTION", "imerg_late_grid"))
+    imerg_history_collection: str = field(default_factory=lambda: _env("IMERG_HISTORY_COLLECTION", "imerg_late_history"))
 
     # Forecast snapshot settings (for IMERG bias/verification)
     forecast_snapshot_enabled: bool = field(default_factory=lambda: _env("FORECAST_SNAPSHOT_ENABLE", "1") == "1")
     forecast_snapshot_hours: int = field(default_factory=lambda: _env_int("FORECAST_SNAPSHOT_HOURS", 72))
+    forecast_snapshot_run_sync: bool = field(default_factory=lambda: _env("FORECAST_SNAPSHOT_RUN_SYNC", "1") == "1")
     imerg_match_max_hours: int = field(default_factory=lambda: _env_int("IMERG_MATCH_MAX_HOURS", 6))
     firestore_batch_write_size: int = field(default_factory=lambda: _env_int("FIRESTORE_BATCH_WRITE_SIZE", 350))
     skill_preload_chunk_size: int = field(default_factory=lambda: _env_int("SKILL_PRELOAD_CHUNK_SIZE", 250))
@@ -443,6 +457,10 @@ def load_and_validate_config() -> Config:
     _clamp_attr("rate_limit_timeout", 0, 7200)
     _clamp_attr("aux_rate_limit_timeout", 0, 300)
     _clamp_attr("aux_probe_pause_seconds", 0, 2.0)
+    _clamp_attr("temperature_nowcast_hours", 0, 12, integer=True)
+    _clamp_attr("temperature_nowcast_max_dist_km", 10, 200)
+    _clamp_attr("temperature_nowcast_proxy_weight", 0.05, 0.85)
+    _clamp_attr("temperature_nowcast_max_correction", 0.5, 10.0)
 
     if cfg.min_request_interval < 1.0:
         logger.warning("min_request_interval=%.2f is aggressive, risk of 429s", cfg.min_request_interval)
@@ -555,9 +573,11 @@ DAILY_VARS = (
     "sunset",
 )
 
-# AIFS is used conservatively for medium-range daily guidance only.
-# We start blending on day 4 because local hourly/core multi-model skill is
-# usually stronger in days 0-3 over Mizoram / Chin Hills / Kabaw terrain.
+# AIFS is guidance, not a replacement for ECMWF IFS.  The physical IFS + ICON
+# pair stays as the core forecast because it is more transparent for terrain,
+# convection and short-range timing.  AIFS is blended conservatively from the
+# medium range onward where it can add useful large-scale signal without letting
+# an AI model dominate local thunderstorm/rain-band decisions.
 AIFS_DAILY_BLEND_WEIGHTS: Dict[int, float] = {
     3: 0.20,  # Day 4
     4: 0.30,  # Day 5
@@ -565,6 +585,19 @@ AIFS_DAILY_BLEND_WEIGHTS: Dict[int, float] = {
     6: 0.45,  # Day 7
 }
 AIFS_DAILY_MODEL_KEY = "ecmwf_aifs025_single"
+AIFS_HOURLY_VARS = (
+    "temperature_2m",
+    "precipitation",
+    "wind_speed_10m",
+    "wind_direction_10m",
+    "wind_gusts_10m",
+    "pressure_msl",
+    "relative_humidity_2m",
+    "dewpoint_2m",
+    "cloud_cover",
+    "weather_code",
+)
+_AIFS_GUIDANCE_WARNING_LOGGED = False
 
 
 @dataclass(frozen=True)
@@ -592,51 +625,48 @@ MODELS:  Dict[str, ModelDef] = {
         key="ecmwf_ifs",
         name="ECMWF IFS",
         endpoint="/v1/ecmwf",
-        weight_pre_monsoon=0.70,
-        weight_monsoon=0.72,
-        weight_post_monsoon=0.70,
-        weight_dry=0.68,
+        weight_pre_monsoon=0.62,
+        weight_monsoon=0.60,
+        weight_post_monsoon=0.62,
+        weight_dry=0.58,
     ),
     "cma_grapes": ModelDef(
         key="cma_grapes",
         name="CMA GRAPES",
         endpoint="/v1/cma",
-        weight_pre_monsoon=0.12,
-        weight_monsoon=0.15,
-        weight_post_monsoon=0.13,
-        weight_dry=0.10,
+        weight_pre_monsoon=0.04,
+        weight_monsoon=0.05,
+        weight_post_monsoon=0.04,
+        weight_dry=0.04,
     ),
     "gfs_seamless": ModelDef(
         key="gfs_seamless",
         name="GFS Seamless",
         endpoint="/v1/gfs",
-        weight_pre_monsoon=0.10,
-        weight_monsoon=0.08,
-        weight_post_monsoon=0.09,
-        weight_dry=0.10,
+        weight_pre_monsoon=0.03,
+        weight_monsoon=0.03,
+        weight_post_monsoon=0.03,
+        weight_dry=0.04,
     ),
     "icon_seamless": ModelDef(
         key="icon_seamless",
         name="DWD ICON Seamless",
         endpoint="/v1/dwd-icon",
-        weight_pre_monsoon=0.18,
-        weight_monsoon=0.13,
-        weight_post_monsoon=0.17,
-        weight_dry=0.22,
+        weight_pre_monsoon=0.38,
+        weight_monsoon=0.40,
+        weight_post_monsoon=0.38,
+        weight_dry=0.42,
     ),
 }
 
 DEFAULT_ENABLED_MODEL_KEYS: Tuple[str, ...] = (
     "ecmwf_ifs",
-    "cma_grapes",
     "icon_seamless",
 )
-MODEL_FALLBACKS: Dict[str, str] = {
-    "cma_grapes": "gfs_seamless",
-}
-MODEL_WEIGHT_PROXIES: Dict[str, str] = {
-    "gfs_seamless": "cma_grapes",
-}
+LEGACY_THIRD_PARTY_MODEL_KEYS: Set[str] = {"cma_grapes", "gfs_seamless"}
+ALLOW_LEGACY_THIRD_PARTY_MODELS = _env("ALLOW_LEGACY_THIRD_PARTY_MODELS", "0") == "1"
+MODEL_FALLBACKS: Dict[str, str] = {}
+MODEL_WEIGHT_PROXIES: Dict[str, str] = {}
 
 
 def _parse_enabled_models() -> List[str]:
@@ -645,6 +675,15 @@ def _parse_enabled_models() -> List[str]:
     if not raw:
         return list(DEFAULT_ENABLED_MODEL_KEYS)
     wanted = [m.strip() for m in raw.split(",") if m.strip()]
+    if not ALLOW_LEGACY_THIRD_PARTY_MODELS:
+        ignored = [m for m in wanted if m in LEGACY_THIRD_PARTY_MODEL_KEYS]
+        if ignored:
+            logger.warning(
+                "Ignoring legacy third-party model(s) %s; core free setup is ECMWF IFS + ICON. "
+                "Set ALLOW_LEGACY_THIRD_PARTY_MODELS=1 to re-enable for experiments.",
+                ",".join(ignored),
+            )
+        wanted = [m for m in wanted if m not in LEGACY_THIRD_PARTY_MODEL_KEYS]
     # Keep only valid keys; preserve order from env
     valid = [m for m in wanted if m in MODELS]
     if not valid:
@@ -685,7 +724,7 @@ def _disable_model_for_run(model_key: str, reason: str) -> None:
     ENABLED_MODELS = {k: MODELS[k] for k in ENABLED_MODEL_KEYS}
     _auto_disabled_models.add(model_key)
     logger.warning(
-        "🔕 Model %s auto-disabled for this run (%s). It will be re-enabled on next run unless ENABLED_MODELS excludes it.",
+        "Model %s auto-disabled for this run (%s). It will be re-enabled on next run unless ENABLED_MODELS excludes it.",
         model_key,
         reason,
     )
@@ -700,7 +739,7 @@ def _record_model_429(model_key: str) -> None:
 
 def _reset_model_429(model_key: str) -> None:
     if _model_429_counts.get(model_key, 0) > 0:
-        logger.info("✅ Model %s 429 counter reset after success", model_key)
+        logger.info("Model %s 429 counter reset after success", model_key)
     _model_429_counts[model_key] = 0
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -717,45 +756,54 @@ class Location:
 
 
 LOCATIONS: Dict[str, Location] = {
-    # === MIZORAM CORE (0.1° fine grid) ===
+    # Mizoram district headquarters and main towns.
     "aizawl": Location("Aizawl", 23.73, 92.72, 1132),
     "lunglei": Location("Lunglei", 22.88, 92.73, 850),
     "champhai": Location("Champhai", 23.47, 93.33, 1678),
     "serchhip": Location("Serchhip", 23.30, 92.85, 975),
     "kolasib": Location("Kolasib", 24.22, 92.68, 400),
     "lawngtlai": Location("Lawngtlai", 22.53, 92.90, 550),
-    
-    # === RIH AREA ===
+    "mamit": Location("Mamit", 23.92, 92.49, 718),
+    "saitual": Location("Saitual", 23.69, 92.96, 900),
+    "hnahthial": Location("Hnahthial", 22.97, 92.93, 763),
+    "saiha": Location("Saiha", 22.49, 92.98, 900),
+    "khawzawl": Location("Khawzawl", 23.53, 93.18, 1187),
+    "vairengte": Location("Vairengte", 24.49, 92.76, 200),
+
+    # Mizoram coverage anchors that improve west/east/south district coverage.
+    "bairabi": Location("Bairabi", 24.18, 92.54, 50),
+    "zawlnuam": Location("Zawlnuam", 24.12, 92.34, 250),
+    "darlawn": Location("Darlawn", 24.01, 92.92, 870),
+    "reiek": Location("Reiek", 23.68, 92.60, 1465),
+    "thenzawl": Location("Thenzawl", 23.32, 92.75, 783),
+    "tlabung": Location("Tlabung", 22.90, 92.49, 25),
+    "chawngte": Location("Chawngte", 22.62, 92.64, 80),
+    "north_vanlaiphai": Location("North Vanlaiphai", 23.13, 93.06, 950),
+    "ngopa": Location("Ngopa", 23.89, 93.21, 1127),
+    "khawhai": Location("Khawhai", 23.38, 93.13, 1369),
+    "sangau": Location("Sangau", 22.72, 93.03, 1572),
+    "tuipang": Location("Tuipang", 22.31, 93.03, 1079),
+
+    # Rih / east Mizoram border area.
     "rihkhawdar": Location("Rih Khawdar", 23.312, 93.389, 1400),
-    
-    # === MIZORAM RURAL (additional focus areas) ===
-    "changelzawl": Location("Changelzawl", 23.45, 92.98, 950),  # Rural Mizoram
-    "zohmun": Location("Zohmun", 23.12, 92.95, 820),           # Rural Mizoram
-    "parva": Location("Parva", 22.15, 92.93, 300),         # NEW: South Tawp
-    "chawngte": Location("Chawngte", 22.43, 92.63, 250),   # NEW: South West
-    
-    # === KALEMYO / KABAW VALLEY (Mizo villages) ===
-    "kalemyo": Location("Kalemyo", 23.19, 94.05, 140),  # Main town
+    "khawmawi": Location("Khawmawi", 23.36, 93.39, 1400),
+    "hmawngkawn": Location("Hmawngkawn", 23.18, 93.42, 1200),
+    "melbuk": Location("Melbuk", 23.39, 93.38, 1300),
+    "new_haimual": Location("New Haimual", 23.38, 93.41, 1300),
+
+    # Rural Mizoram focus areas.
+    "changelzawl": Location("Changelzawl", 23.45, 92.98, 950),
+    "zohmun": Location("Zohmun", 23.12, 92.95, 820),
+    "parva": Location("Parva", 22.15, 92.93, 300),
+
+    # Kalemyo / Kabaw Valley Mizo villages.
+    "kalemyo": Location("Kalemyo", 23.19, 94.05, 140),
     "tahan": Location("Tahan", 23.202, 94.016, 140),
     "letpanchaung": Location("Letpanchaung", 23.331, 94.025, 145),
     "hmuntha": Location("Hmuntha", 23.671, 94.138, 155),
     "kanan": Location("Kanan", 23.805, 94.146, 160),
     "khuahmunnuam": Location("Khuahmunnuam", 24.063, 94.264, 165),
-    
-    # === TAMU (Myanmar border gateway) ===
-    "tamu": Location("Tamu", 24.22, 94.30, 110),  # India-Myanmar border town
-    
-    # === MIZORAM DISTRICT HQ & BORDER POIs ===
-    "mamit": Location("Mamit", 23.92, 92.49, 500),
-    "saitual": Location("Saitual", 23.56, 92.92, 900),
-    "hnahthial": Location("Hnahthial", 22.70, 92.78, 700),
-    "saiha": Location("Saiha", 22.49, 92.98, 900),
-    "khawzawl": Location("Khawzawl", 23.38, 93.15, 1100),
-    "vairengte": Location("Vairengte", 24.49, 92.76, 200),
-    "khawmawi": Location("Khawmawi", 23.36, 93.39, 1400),
-    "hmawngkawn": Location("Hmawngkawn", 23.18, 93.42, 1200),
-    "melbuk": Location("Melbuk", 23.39, 93.38, 1300),
-    "new_haimual": Location("New Haimual", 23.38, 93.41, 1300),
+    "tamu": Location("Tamu", 24.22, 94.30, 110),
 }
 
 
@@ -765,14 +813,20 @@ LOCATIONS: Dict[str, Location] = {
 FOCUS_BULLETIN_AREAS: List[Dict[str, Any]] = [
     {"id": "aizawl", "name": "Aizawl", "name_mz": "Aizawl", "lat": 23.73, "lon": 92.72},
     {"id": "champhai", "name": "Champhai", "name_mz": "Champhai", "lat": 23.47, "lon": 93.33},
-    {"id": "khawzawl", "name": "Khawzawl", "name_mz": "Khawzawl", "lat": 23.38, "lon": 93.15},
-    {"id": "saitual", "name": "Saitual", "name_mz": "Saitual", "lat": 23.56, "lon": 92.92},
+    {"id": "khawzawl", "name": "Khawzawl", "name_mz": "Khawzawl", "lat": 23.53, "lon": 93.18},
+    {"id": "saitual", "name": "Saitual", "name_mz": "Saitual", "lat": 23.69, "lon": 92.96},
     {"id": "serchhip", "name": "Serchhip", "name_mz": "Serchhip", "lat": 23.30, "lon": 92.85},
+    {"id": "thenzawl", "name": "Thenzawl", "name_mz": "Thenzawl", "lat": 23.32, "lon": 92.75},
+    {"id": "hnahthial", "name": "Hnahthial", "name_mz": "Hnahthial", "lat": 22.97, "lon": 92.93},
     {"id": "lunglei", "name": "Lunglei", "name_mz": "Lunglei", "lat": 22.88, "lon": 92.73},
+    {"id": "tlabung", "name": "Tlabung", "name_mz": "Tlabung", "lat": 22.90, "lon": 92.49},
     {"id": "lawngtlai", "name": "Lawngtlai", "name_mz": "Lawngtlai", "lat": 22.53, "lon": 92.90},
+    {"id": "chawngte", "name": "Chawngte", "name_mz": "Chawngte", "lat": 22.62, "lon": 92.64},
     {"id": "saiha", "name": "Saiha", "name_mz": "Saiha", "lat": 22.49, "lon": 92.98},
     {"id": "mamit", "name": "Mamit", "name_mz": "Mamit", "lat": 23.92, "lon": 92.49},
     {"id": "kolasib", "name": "Kolasib", "name_mz": "Kolasib", "lat": 24.22, "lon": 92.68},
+    {"id": "bairabi", "name": "Bairabi", "name_mz": "Bairabi", "lat": 24.18, "lon": 92.54},
+    {"id": "ngopa", "name": "Ngopa", "name_mz": "Ngopa", "lat": 23.89, "lon": 93.21},
     {"id": "rih", "name": "Rih / Chin Hills", "name_mz": "Rih / Chin Hills", "lat": 23.31, "lon": 93.39},
     {"id": "kalemyo", "name": "Kalemyo / Tahan", "name_mz": "Kalemyo / Tahan", "lat": 23.19, "lon": 94.05},
     {"id": "tamu", "name": "Tamu / Kabaw Valley", "name_mz": "Tamu / Kabaw Valley", "lat": 24.22, "lon": 94.30},
@@ -791,44 +845,72 @@ class TerrainZone:
 
 
 TERRAIN_ZONES: Dict[str, TerrainZone] = {
-    # 1. MIZORAM NORTH (Vairengte thleng, Mamit huam tel)
+    # Specific lowland pockets first so fallbacks do not inherit hill averages.
+    "mizoram_nw_lowlands": TerrainZone(
+        "Mizoram NW lowlands (Bairabi/Zawlnuam)",
+        24.05, 24.35,
+        92.25, 92.62,
+        120, 0.90,
+    ),
+    "tlabung_lowland": TerrainZone(
+        "Tlabung/Demagiri lowland",
+        22.75, 23.05,
+        92.40, 92.62,
+        100, 0.90,
+    ),
+    "chawngte_lowland": TerrainZone(
+        "Chawngte/Kamalanagar lowland",
+        22.35, 22.70,
+        92.55, 92.75,
+        120, 0.90,
+    ),
+    "vairengte_lowland": TerrainZone(
+        "Vairengte north lowland",
+        24.35, 24.60,
+        92.60, 92.90,
+        220, 0.95,
+    ),
+    "saiha_tuipang_highlands": TerrainZone(
+        "Saiha/Tuipang/Sangau highlands",
+        22.20, 22.80,
+        92.85, 93.15,
+        1050, 1.30,
+    ),
+    "east_mizoram_hills": TerrainZone(
+        "East Mizoram/Rih ridge hills",
+        23.05, 23.60,
+        93.20, 93.55,
+        1300, 1.35,
+    ),
     "mizoram_north": TerrainZone(
-        "Mizoram North (Vairengte)", 
-        23.4, 24.5,   # Lat: Aizawl atanga Vairengte (Silchar huam lo)
-        92.3, 93.4,   # Lon: Mamit atanga Champhai
-        1100, 1.30
+        "Mizoram North hills",
+        23.4, 24.5,
+        92.3, 93.4,
+        1000, 1.25,
     ),
-
-    # 2. MIZORAM CENTRAL (Tlabung huam tel)
     "mizoram_central": TerrainZone(
-        "Mizoram Central", 
-        22.8, 23.4,   # Lat: Lunglei atanga Aizawl inri
-        92.35, 93.4,  # Lon: Tlabung atanga Myanmar ri
-        1000, 1.25
+        "Mizoram Central hills",
+        22.8, 23.4,
+        92.35, 93.4,
+        950, 1.20,
     ),
-
-    # 3. MIZORAM SOUTH (Parva & Chawngte huam tel)
     "mizoram_south": TerrainZone(
-        "Mizoram South", 
-        22.1, 22.8,   # Lat: Parva atanga Lunglei
-        92.45, 93.1,  # Lon: Chawngte atanga Myanmar ri
-        700, 1.15
+        "Mizoram South mixed hills",
+        22.1, 22.8,
+        92.45, 93.1,
+        750, 1.12,
     ),
-
-    # 4. CHIN HILLS NORTH (Tonzang leh Rih area)
     "chin_hills_north": TerrainZone(
-        "Chin Hills North (Tedim/Rih)", 
-        23.0, 23.5,   # Lat: 23.0 atanga 23.5 (Tonzang chhak lawkah tawp)
-        93.4, 93.98,  # Lon: Mizoram ri atanga Kabaw ri (93.98)
-        1400, 1.45
+        "Chin Hills North (Tedim/Rih)",
+        23.0, 23.5,
+        93.4, 93.98,
+        1400, 1.45,
     ),
-
-    # 5. KABAW VALLEY (Tamu zawnah tawp)
     "kabaw_valley": TerrainZone(
-        "Kabaw Valley (Kalay/Tamu)", 
-        23.0, 24.3,   # Lat: 23.0 atanga 24.3 (Tamu zawn)
-        93.98, 94.35, # Lon: 93.98 atangin tan (Chin State huam lo)
-        150, 0.85
+        "Kabaw Valley (Kalay/Tamu)",
+        23.0, 24.3,
+        93.98, 94.35,
+        150, 0.85,
     ),
 }
 
@@ -864,7 +946,7 @@ def elevation_bounds_for_point(lat: float, lon: float) -> Tuple[float, float]:
         return 0.0, 2500.0
 
     if zone_key == "kabaw_valley" or zone.avg_elevation_m <= 250:
-        return 50.0, 650.0
+        return 0.0, 650.0
     if zone.avg_elevation_m <= 750:
         return 0.0, min(1600.0, zone.avg_elevation_m + 850.0)
     if zone.avg_elevation_m <= 1150:
@@ -980,6 +1062,43 @@ def parse_iso_dt(value: Optional[str]) -> Optional[datetime]:
         return None
 
 
+def normalize_timestamp(ts: Optional[object]) -> Optional[str]:
+    """
+    Normalize hourly timestamps to a stable UTC-like key.
+
+    Open-Meteo usually returns UTC strings such as "2026-05-25T12:00"; some
+    endpoints can include seconds, Z, or an offset.  AIFS blending and model
+    alignment both need the same helper at module scope, otherwise a runtime
+    NameError can fail every grid cell.
+    """
+    if ts is None:
+        return None
+    if isinstance(ts, datetime):
+        dt = ts.astimezone(UTC) if ts.tzinfo else ts.replace(tzinfo=UTC)
+        return dt.replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%S")
+    text = str(ts).strip()
+    if not text:
+        return text
+    try:
+        candidate = text.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(candidate)
+        if dt.tzinfo is not None:
+            dt = dt.astimezone(UTC).replace(tzinfo=None)
+        return dt.replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%S")
+    except Exception:
+        try:
+            ts_clean = text.replace("Z", "")
+            if "+" in ts_clean:
+                ts_clean = ts_clean.split("+", 1)[0]
+            elif len(ts_clean) >= 6 and ts_clean[-6] == "-" and ts_clean[-3] == ":":
+                ts_clean = ts_clean[:-6]
+            if len(ts_clean) == 16:
+                return ts_clean + ":00"
+            return ts_clean[:19]
+        except Exception:
+            return text
+
+
 def season_key_for_time(value: Optional[datetime]) -> str:
     """Group dates into broad regional rainfall seasons."""
     ref = value or now_utc()
@@ -1086,13 +1205,13 @@ def classify_precip_regime(
 def get_regime_adjusted_weights(base_weights: Dict[str, float], regime: str) -> Dict[str, float]:
     """Shift model weights by weather regime without changing enabled models."""
     multipliers = {
-        "dry": {"ecmwf_ifs": 1.12, "cma_grapes": 0.86, "icon_seamless": 1.10, "gfs_seamless": 0.92},
-        "light": {"ecmwf_ifs": 1.06, "cma_grapes": 0.95, "icon_seamless": 1.00, "gfs_seamless": 0.93},
-        "stratiform": {"ecmwf_ifs": 1.10, "cma_grapes": 1.08, "icon_seamless": 1.03, "gfs_seamless": 0.88},
-        "monsoon_band": {"ecmwf_ifs": 1.03, "cma_grapes": 1.12, "icon_seamless": 1.10, "gfs_seamless": 0.86},
-        "heavy": {"ecmwf_ifs": 0.96, "cma_grapes": 1.16, "icon_seamless": 1.12, "gfs_seamless": 0.90},
-        "convective": {"ecmwf_ifs": 0.86, "cma_grapes": 0.98, "icon_seamless": 1.15, "gfs_seamless": 1.02},
-        "windy": {"ecmwf_ifs": 0.97, "cma_grapes": 0.94, "icon_seamless": 1.06, "gfs_seamless": 1.08},
+        "dry": {"ecmwf_ifs": 1.08, "icon_seamless": 1.02, "cma_grapes": 0.80, "gfs_seamless": 0.80},
+        "light": {"ecmwf_ifs": 1.05, "icon_seamless": 1.02, "cma_grapes": 0.82, "gfs_seamless": 0.82},
+        "stratiform": {"ecmwf_ifs": 1.10, "icon_seamless": 1.00, "cma_grapes": 0.84, "gfs_seamless": 0.82},
+        "monsoon_band": {"ecmwf_ifs": 1.03, "icon_seamless": 1.16, "cma_grapes": 0.86, "gfs_seamless": 0.80},
+        "heavy": {"ecmwf_ifs": 0.98, "icon_seamless": 1.18, "cma_grapes": 0.86, "gfs_seamless": 0.80},
+        "convective": {"ecmwf_ifs": 0.88, "icon_seamless": 1.22, "cma_grapes": 0.82, "gfs_seamless": 0.82},
+        "windy": {"ecmwf_ifs": 0.98, "icon_seamless": 1.10, "cma_grapes": 0.82, "gfs_seamless": 0.86},
     }.get(regime, {})
 
     adjusted = {}
@@ -1731,6 +1850,13 @@ def _ensure_elevation_cache_loaded() -> None:
     if _elevation_cache_loaded:
         return
     payload = _load_json_cache_file(_elevation_cache_file) or {}
+    if payload and payload.get("schema_version") != ELEVATION_CACHE_SCHEMA_VERSION:
+        logger.info(
+            "Ignoring old elevation disk cache schema %s; current schema is %s",
+            payload.get("schema_version", "legacy"),
+            ELEVATION_CACHE_SCHEMA_VERSION,
+        )
+        payload = {}
     raw = payload.get("data") or {}
     to_cache: Dict[str, float] = {}
     for gid, value in raw.items():
@@ -1749,6 +1875,8 @@ def _persist_elevation_cache(entries: Dict[str, float]) -> None:
     if not entries:
         return
     payload = _load_json_cache_file(_elevation_cache_file) or {}
+    if payload and payload.get("schema_version") != ELEVATION_CACHE_SCHEMA_VERSION:
+        payload = {}
     data = payload.get("data") or {}
     if not isinstance(data, dict):
         data = {}
@@ -1757,6 +1885,7 @@ def _persist_elevation_cache(entries: Dict[str, float]) -> None:
         if felev is not None:
             data[str(gid)] = felev
     payload = {
+        "schema_version": ELEVATION_CACHE_SCHEMA_VERSION,
         "updated_at": now_iso(),
         "data": data,
     }
@@ -2058,14 +2187,14 @@ class TokenBucketRateLimiter:
             effective_cooldown = max(effective_cooldown, seconds, min_cooldown)
             
             self._global_cooldown_until = time.time() + effective_cooldown
-            logger.warning("⏳ GLOBAL COOLDOWN SET: %.0fs (%.1f min) - consecutive 429s: %d", 
+            logger.warning("GLOBAL COOLDOWN SET: %.0fs (%.1f min) - consecutive 429s: %d", 
                           effective_cooldown, effective_cooldown / 60, self._consecutive_429s)
     
     def reset_cooldown(self) -> None:
         """Reset consecutive 429 counter on successful request."""
         with self._lock:
             if self._consecutive_429s > 0:
-                logger.info("✅ Rate limit cooldown reset after successful request")
+                logger.info("Rate limit cooldown reset after successful request")
             self._consecutive_429s = 0
     
     def increase_interval(self, factor: float = 2.0) -> None:
@@ -2315,6 +2444,9 @@ class HTTPClient:
         use_rate_limit: bool = True,
         rate_limit_timeout: Optional[float] = None,
         log_rate_limit_timeout: bool = True,
+        set_global_cooldown_on_429: bool = True,
+        record_circuit_failure: bool = True,
+        record_model_429: bool = True,
         headers: Optional[Dict[str, str]] = None,
     ) -> Optional[requests.Response]:
         """
@@ -2373,14 +2505,15 @@ class HTTPClient:
             # Handle rate limit response (FIXED: Actually wait for Retry-After!)
             if resp.status_code == 429:
                 current_model = _get_current_model_key()
-                if current_model:
+                if current_model and record_model_429:
                     _record_model_429(current_model)
                 with self._lock:
                     self._rate_limit_429_count += 1
                 
-                logger.warning("🚫 Rate limit hit (429) for %s (total 429s: %d)", 
+                logger.warning("Rate limit hit (429) for %s (total 429s: %d)", 
                               url, self._rate_limit_429_count)
-                circuit_breaker.record_failure()
+                if record_circuit_failure:
+                    circuit_breaker.record_failure()
                 
                 # Parse Retry-After header and SET GLOBAL COOLDOWN
                 retry_after = resp.headers.get("Retry-After", "60")
@@ -2392,9 +2525,13 @@ class HTTPClient:
                 wait = min(wait, int(CONFIG.rate_limit_retry_after_cap))
                 wait = max(wait, int(CONFIG.rate_limit_min_cooldown))
                 
-                # THIS IS THE KEY FIX: Actually enforce waiting!
-                rate_limiter.set_global_cooldown(wait)
-                rate_limiter.increase_interval(CONFIG.rate_limit_backoff_factor)
+                if set_global_cooldown_on_429:
+                    rate_limiter.set_global_cooldown(wait)
+                    rate_limiter.increase_interval(CONFIG.rate_limit_backoff_factor)
+                else:
+                    logger.warning(
+                        "Optional request hit 429; not applying global cooldown to core forecast fetches"
+                    )
                 
                 # Refund budget - 429 shouldn't count against quota
                 if budget_reserved:
@@ -2422,28 +2559,32 @@ class HTTPClient:
             
             # Server errors (5xx) - refund, not our fault
             logger.warning("HTTP %d for %s", resp.status_code, url)
-            circuit_breaker.record_failure()
+            if record_circuit_failure:
+                circuit_breaker.record_failure()
             if budget_reserved:
                 budget.refund(1)  # Server error = refund
             return resp
         
         except requests.exceptions.Timeout:
             logger.warning("Timeout for %s", url)
-            circuit_breaker.record_failure()
+            if record_circuit_failure:
+                circuit_breaker.record_failure()
             if budget_reserved:
                 budget.refund(1)  # Timeout = refund
             return None
         
         except requests.exceptions.ConnectionError as e:
             logger.warning("Connection error for %s: %s", url, str(e)[:100])
-            circuit_breaker.record_failure()
+            if record_circuit_failure:
+                circuit_breaker.record_failure()
             if budget_reserved:
                 budget.refund(1)  # Connection error = refund
             return None
         
         except requests.exceptions.RequestException as e:
             logger.exception("Request error for %s: %s", url, e)
-            circuit_breaker.record_failure()
+            if record_circuit_failure:
+                circuit_breaker.record_failure()
             if budget_reserved:
                 budget.refund(1)  # Any error = refund
             return None
@@ -2524,37 +2665,48 @@ class GridPoint:
 # FOCUSED on rural farming areas in Mizoram + Mizo villages in Myanmar
 # Using 0.10° (~11km) spacing for balance between coverage and API efficiency
 PRIORITY_ZONES = {
-    # MIZORAM RURAL FARMING AREAS (not capital Aizawl)
-    
+    # Central/east ridge farming belt: Serchhip, Khawzawl, Khawhai, Champhai.
     "serchhip_champhai_corridor": {
-        # Major farming belt: Serchhip (23.30, 92.85) to Champhai (23.47, 93.33)
-        # Includes: Changelzawl (23.45, 92.98), Thenzawl, Biate
-        "lat_min": 23.20, "lat_max": 23.55, "lon_min": 92.80, "lon_max": 93.40,
+        "lat_min": 23.20, "lat_max": 23.60, "lon_min": 92.75, "lon_max": 93.40,
         "step": 0.10, "radius_km": 10
     },
-    
+
+    # South/central Mizoram: Lunglei, Hnahthial, Lawngtlai, Sangau, Saiha side.
     "lunglei_lawngtlai_farming": {
-        # Southern Mizoram farming: Lunglei (22.88, 92.73), Lawngtlai (22.53, 92.90)
-        # Includes: Zohmun (23.12, 92.95), Hnahthial, Sangau
-        "lat_min": 22.45, "lat_max": 23.15, "lon_min": 92.65, "lon_max": 93.05,
+        "lat_min": 22.45, "lat_max": 23.15, "lon_min": 92.60, "lon_max": 93.10,
         "step": 0.10, "radius_km": 10
     },
-    
-    "kolasib_mamit_north": {
-        # Northern Mizoram farming: Kolasib (24.22, 92.68) area
-        # Includes: Mamit, Zawlnuam, Bairabi
-        "lat_min": 23.90, "lat_max": 24.30, "lon_min": 92.40, "lon_max": 92.80,
+
+    # Tlabung/Demagiri lowland pocket on the Bangladesh border.
+    "tlabung_west_lunglei": {
+        "lat_min": 22.80, "lat_max": 23.05, "lon_min": 92.42, "lon_max": 92.62,
         "step": 0.10, "radius_km": 8
     },
 
-    # MYANMAR MIZO VILLAGES (Kabaw Valley)
+    # Aizawl west ridge and tourist/high terrain pocket: Reiek and nearby ridges.
+    "aizawl_reiek_hills": {
+        "lat_min": 23.55, "lat_max": 23.80, "lon_min": 92.55, "lon_max": 92.80,
+        "step": 0.10, "radius_km": 8
+    },
+
+    # North Mizoram and western lowland/foothill corridor: Mamit, Zawlnuam, Bairabi, Kolasib.
+    "kolasib_mamit_north": {
+        "lat_min": 23.85, "lat_max": 24.35, "lon_min": 92.30, "lon_max": 92.85,
+        "step": 0.10, "radius_km": 8
+    },
+
+    # Saitual/Ngopa/Darlawn northeast ridge zone.
+    "saitual_ngopa_northeast": {
+        "lat_min": 23.65, "lat_max": 24.05, "lon_min": 92.85, "lon_max": 93.25,
+        "step": 0.10, "radius_km": 8
+    },
+
+    # Myanmar Mizo villages (Kabaw Valley).
     "kabaw_valley": {
-        # Tahan, Kanan, Hmuntha corridor
         "lat_min": 23.15, "lat_max": 23.90, "lon_min": 94.00, "lon_max": 94.25,
         "step": 0.10, "radius_km": 10
     },
     "tamu_area": {
-        # Tamu border + Khuahmunnuam
         "lat_min": 24.00, "lat_max": 24.30, "lon_min": 94.15, "lon_max": 94.35,
         "step": 0.10, "radius_km": 8
     },
@@ -2584,7 +2736,8 @@ COVERAGE_POLYGON: List[Tuple[float, float]] = [
     (22.05, 92.65),   # W
     (22.30, 92.55),
     (22.70, 92.50),
-    (23.00, 92.50),
+    (22.85, 92.43),   # Tlabung/Demagiri west pocket
+    (23.05, 92.45),
     (23.40, 92.45),
     (23.70, 92.40),
     (24.00, 92.25),
@@ -2716,13 +2869,11 @@ def generate_grid() -> Tuple[GridPoint, ...]:
         batches_per_model, num_models, total_api_calls, CONFIG.daily_budget, ",".join(ENABLED_MODEL_KEYS)
     )
 
-    # Verify key locations are covered (expanded list)
-    # Use refine_radius_km + 5km buffer for coverage check (consistent with grid generation)
+    # Verify every named location is covered. This catches future POI additions
+    # that would otherwise be silently removed by the polygon filter.
+    # Use refine_radius_km + 5km buffer for coverage check (consistent with grid generation).
     coverage_check_km = CONFIG.refine_radius_km + 5.0  # 10km + 5km buffer = 15km default
-    key_locs = ["aizawl", "champhai", "kalemyo", "tahan", "kanan", "rihkhawdar", 
-                "changelzawl", "zohmun", "tamu", "hmuntha", "letpanchaung",
-                "mamit", "saitual", "hnahthial", "saiha", "khawzawl",
-                "vairengte", "khawmawi", "hmawngkawn", "melbuk", "new_haimual"]
+    key_locs = sorted(LOCATIONS.keys())
     for loc_key in key_locs:
         if loc_key in LOCATIONS:
             loc = LOCATIONS[loc_key]
@@ -2744,60 +2895,58 @@ def generate_grid() -> Tuple[GridPoint, ...]:
 def fetch_elevations_bulk(points: List[GridPoint]) -> Dict[str, float]:
     """
     Fetch elevations for multiple points efficiently.
-    
-    Uses bulk API call (up to 100 points per request).
-    Falls back to known locations and terrain zone averages.
-    
+
+    Source priority:
+    1. Versioned disk/in-memory cache populated from the elevation API.
+    2. Open-Meteo elevation API for uncached points.
+    3. Manual town elevation only as a no-network fallback for exact POI cells.
+    4. Terrain-zone average as the final fallback.
+
     Returns: Dict[grid_id, elevation_m]
     """
     _ensure_elevation_cache_loaded()
 
-    result:  Dict[str, float] = {}
-    uncached:  List[GridPoint] = []
+    result: Dict[str, float] = {}
+    uncached: List[GridPoint] = []
     persist_updates: Dict[str, float] = {}
-    
-    # Check known locations and cache first
+    known_fallbacks: Dict[str, float] = {}
+
     for p in points:
-        # Check known locations
         for loc in LOCATIONS.values():
-            if abs(loc.lat - p.lat) < 0.01 and abs(loc. lon - p.lon) < 0.01:
-                elev = sanitize_elevation_for_point(p.lat, p.lon, loc.elevation_m, context="known_elevation")
-                result[p.id] = elev
-                persist_updates[p.id] = elev
+            if abs(loc.lat - p.lat) < 0.01 and abs(loc.lon - p.lon) < 0.01:
+                known_fallbacks[p.id] = loc.elevation_m
                 break
+
+        cached = cache_elevation.get(f"elev:{p.id}")
+        if cached is not None:
+            elev = sanitize_elevation_for_point(p.lat, p.lon, cached, context="cached_elevation")
+            result[p.id] = elev
+            if abs(safe_float(cached, elev) - elev) >= 1.0:
+                cache_elevation.set(f"elev:{p.id}", elev)
+                persist_updates[p.id] = elev
         else:
-            # Check cache
-            cached = cache_elevation.get(f"elev:{p.id}")
-            if cached is not None:
-                elev = sanitize_elevation_for_point(p.lat, p.lon, cached, context="cached_elevation")
-                result[p.id] = elev
-                if abs(safe_float(cached, elev) - elev) >= 1.0:
-                    cache_elevation.set(f"elev:{p.id}", elev)
-                    persist_updates[p.id] = elev
-            else:
-                uncached.append(p)
-    
+            uncached.append(p)
+
     if not uncached:
-        logger.debug("All %d elevations from cache/known", len(points))
+        logger.debug("All %d elevations from cache", len(points))
         return result
-    
+
     logger.info("Fetching elevations for %d points", len(uncached))
-    
-    # Batch fetch from API
+
     batch_size = CONFIG.elevation_batch_size
-    
+
     for i in range(0, len(uncached), batch_size):
         batch = uncached[i:i + batch_size]
-        
+
         lats = ",".join(str(p.lat) for p in batch)
         lons = ",".join(str(p.lon) for p in batch)
-        
+
         data = http.get_json(
             Endpoints.ELEVATION,
             params={"latitude": lats, "longitude": lons},
-            use_budget=False  # Elevation API is typically free
+            use_budget=False,  # Elevation API is typically free
         )
-        
+
         if data and "elevation" in data:
             elevations = data["elevation"]
             if isinstance(elevations, list):
@@ -2813,26 +2962,25 @@ def fetch_elevations_bulk(points: List[GridPoint]) -> Dict[str, float]:
                         result[p.id] = elev
                         to_cache[f"elev:{p.id}"] = elev
                         persist_updates[p.id] = elev
-                
+
                 if to_cache:
-                    cache_elevation.set_many(to_cache)
-    
-    # Fallback for any still missing - use terrain zone average
-    for p in uncached: 
+                    cache_elevation.set_many(to_cache, ttl=CONFIG.cache_elevation_ttl)
+
+    for p in uncached:
         if p.id not in result:
+            fallback_value = known_fallbacks.get(p.id, fallback_elevation_for_point(p.lat, p.lon))
+            fallback_context = "known_elevation_fallback" if p.id in known_fallbacks else "fallback_elevation"
             elev = sanitize_elevation_for_point(
                 p.lat,
                 p.lon,
-                fallback_elevation_for_point(p.lat, p.lon),
-                context="fallback_elevation",
+                fallback_value,
+                context=fallback_context,
             )
             result[p.id] = elev
-            cache_elevation.set(f"elev:{p.id}", elev)
-            persist_updates[p.id] = elev
 
     if persist_updates:
         _persist_elevation_cache(persist_updates)
-    
+
     return result
 
 
@@ -3398,30 +3546,6 @@ def align_hourly(model_map: Dict[str, Dict]) -> Tuple[List[str], Dict[str, Dict[
         - Common timestamps list (normalized)
         - Dict[model_key, Dict[variable, aligned_values]]
     """
-    def normalize_timestamp(ts: str) -> str:
-        """Normalize timestamp to ISO UTC format for consistent comparison."""
-        if not ts:
-            return ts
-        try:
-            # Try parsing various formats
-            # Open-Meteo typically returns: "2024-01-15T12:00" or "2024-01-15T12:00:00"
-            if 'T' in ts:
-                # Already ISO format, just ensure consistent precision
-                # Strip timezone info and treat as UTC
-                ts_clean = ts.replace('Z', '')
-                # Remove timezone offset like +05:30 or -05:00 at the END only
-                if '+' in ts_clean:
-                    ts_clean = ts_clean.split('+')[0]
-                elif len(ts_clean) >= 6 and ts_clean[-6] == '-' and ts_clean[-3] == ':':  # e.g., -05:00
-                    ts_clean = ts_clean[:-6]
-                # Ensure consistent precision
-                if len(ts_clean) == 16:  # "2024-01-15T12:00"
-                    return ts_clean + ":00"
-                return ts_clean[:19]  # "2024-01-15T12:00:00"
-            return ts
-        except Exception:
-            return ts
-    
     # Collect all timestamps (normalized)
     all_times: Set[str] = set()
     for rec in model_map.values():
@@ -4145,17 +4269,35 @@ def fetch_aifs_daily_zone_forecasts(
     use_cache: bool = True,
 ) -> Dict[str, Dict[str, Any]]:
     """
-    Fetch AIFS daily guidance for the 3 representative terrain zones.
+    Fetch AIFS guidance for the 3 representative terrain zones.
 
-    This is intentionally daily-only and zone-based to keep API cost tiny while
-    still adding medium-range guidance for days 4-7.
+    This is intentionally zone-based to keep API cost tiny while still adding
+    medium-range guidance.  It does not replace ECMWF IFS or ICON in the core
+    point forecast; it only nudges the medium range where AIFS can add signal.
     """
+    if not CONFIG.aifs_guidance_enabled:
+        logger.info("AIFS guidance disabled by AIFS_GUIDANCE_ENABLE=0")
+        return {}
+
     if forecast_days is None:
         forecast_days = CONFIG.forecast_days
 
     results: Dict[str, Dict[str, Any]] = {}
+    optional_http_kwargs = {
+        "timeout": CONFIG.http_timeout_ecmwf,
+        "use_budget": False,
+        "rate_limit_timeout": CONFIG.aux_rate_limit_timeout,
+        "log_rate_limit_timeout": False,
+    }
+    if CONFIG.aifs_guidance_isolate_rate_limit:
+        optional_http_kwargs.update({
+            "set_global_cooldown_on_429": False,
+            "record_circuit_failure": False,
+            "record_model_429": False,
+        })
+
     for zone_key, zone in SEASONAL_ZONES.items():
-        cache_key = f"aifs_daily:{zone_key}:{forecast_days}"
+        cache_key = f"aifs_guidance:{zone_key}:{forecast_days}:v2"
         if use_cache:
             cached = cache_general.get(cache_key)
             if isinstance(cached, dict) and cached.get("daily"):
@@ -4165,18 +4307,45 @@ def fetch_aifs_daily_zone_forecasts(
         params = {
             "latitude": zone["lat"],
             "longitude": zone["lon"],
+            "hourly": ",".join(AIFS_HOURLY_VARS),
             "daily": ",".join(DAILY_VARS),
             "timezone": "auto",
             "forecast_days": forecast_days,
             "models": AIFS_DAILY_MODEL_KEY,
         }
+        before_429s = int(http.stats().get("rate_limit_429_count", 0) or 0)
         data = http.get_json(
             f"{Endpoints.OPEN_METEO_BASE}/v1/ecmwf",
             params=params,
-            timeout=CONFIG.http_timeout_ecmwf,
+            **optional_http_kwargs,
         )
+        if int(http.stats().get("rate_limit_429_count", 0) or 0) > before_429s:
+            logger.warning(
+                "AIFS guidance was rate-limited for zone %s; skipping remaining optional AIFS guidance this run",
+                zone_key,
+            )
+            break
+
         if not isinstance(data, dict) or "daily" not in data:
-            logger.warning("AIFS daily fetch failed for zone %s", zone_key)
+            # Some Open-Meteo/AIFS variable rollouts can temporarily reject an
+            # hourly variable while daily fields still work. Retry daily-only so
+            # the run keeps useful guidance instead of failing the whole zone.
+            fallback_params = dict(params)
+            fallback_params.pop("hourly", None)
+            before_429s = int(http.stats().get("rate_limit_429_count", 0) or 0)
+            data = http.get_json(
+                f"{Endpoints.OPEN_METEO_BASE}/v1/ecmwf",
+                params=fallback_params,
+                **optional_http_kwargs,
+            )
+            if int(http.stats().get("rate_limit_429_count", 0) or 0) > before_429s:
+                logger.warning(
+                    "AIFS daily-only fallback was rate-limited for zone %s; skipping remaining optional AIFS guidance this run",
+                    zone_key,
+                )
+                break
+        if not isinstance(data, dict) or "daily" not in data:
+            logger.warning("AIFS guidance fetch failed for zone %s", zone_key)
             continue
 
         payload = {
@@ -4184,12 +4353,13 @@ def fetch_aifs_daily_zone_forecasts(
             "zone": zone_key,
             "generated": now_iso(),
             "data": data,
+            "hourly": data.get("hourly", {}),
             "daily": data.get("daily", {}),
         }
         cache_general.set(cache_key, payload, ttl=max(CONFIG.cache_general_ttl, 1800))
         results[zone_key] = payload
 
-    logger.info("AIFS daily zone guidance prepared: %d/%d zones", len(results), len(SEASONAL_ZONES))
+    logger.info("AIFS zone guidance prepared: %d/%d zones", len(results), len(SEASONAL_ZONES))
     return results
 
 
@@ -4270,6 +4440,230 @@ def blend_daily_with_aifs_guidance(
     return daily_data
 
 
+def _aifs_hourly_blend_weight(hour_index: int) -> float:
+    """Small medium-range AIFS weight; never affects the first 48 hours."""
+    if hour_index < 48:
+        return 0.0
+    if hour_index < 72:
+        return 0.06
+    if hour_index < 96:
+        return 0.12
+    if hour_index < 120:
+        return 0.18
+    return 0.22
+
+
+def _blend_aifs_scalar_series(
+    series: List[Optional[float]],
+    times: List[str],
+    aifs_hourly: Dict[str, Any],
+    var_name: str,
+    *,
+    decimals: int = 1,
+    max_delta: Optional[float] = None,
+) -> Tuple[List[Optional[float]], int]:
+    """Blend one hourly series with zone AIFS guidance from hour 48 onward."""
+    if not series or not times or not aifs_hourly:
+        return series, 0
+    aifs_times = aifs_hourly.get("time", []) or []
+    aifs_values = aifs_hourly.get(var_name, []) or []
+    if not aifs_times or not aifs_values:
+        return series, 0
+
+    index_by_time = {normalize_timestamp(t): idx for idx, t in enumerate(aifs_times)}
+    out = list(series)
+    applied = 0
+    for idx, time_key in enumerate(times):
+        if idx >= len(out):
+            break
+        weight = _aifs_hourly_blend_weight(idx)
+        if weight <= 0:
+            continue
+        aifs_idx = index_by_time.get(normalize_timestamp(time_key))
+        if aifs_idx is None or aifs_idx >= len(aifs_values):
+            continue
+        aifs_val = safe_float(aifs_values[aifs_idx], None)
+        if aifs_val is None:
+            continue
+        base_val = safe_float(out[idx], None)
+        if base_val is None:
+            out[idx] = round(aifs_val, decimals)
+            applied += 1
+            continue
+        if max_delta is not None:
+            delta = clamp(aifs_val - base_val, -max_delta, max_delta)
+            aifs_val = base_val + delta
+        out[idx] = round(base_val * (1.0 - weight) + aifs_val * weight, decimals)
+        applied += 1
+    return out, applied
+
+
+def _blend_aifs_direction_series(
+    series: List[Optional[float]],
+    times: List[str],
+    aifs_hourly: Dict[str, Any],
+) -> Tuple[List[Optional[float]], int]:
+    """Blend wind direction using circular/vector math from hour 48 onward."""
+    if not series or not times or not aifs_hourly:
+        return series, 0
+    aifs_times = aifs_hourly.get("time", []) or []
+    aifs_values = aifs_hourly.get("wind_direction_10m", []) or []
+    if not aifs_times or not aifs_values:
+        return series, 0
+
+    index_by_time = {normalize_timestamp(t): idx for idx, t in enumerate(aifs_times)}
+    out = list(series)
+    applied = 0
+    for idx, time_key in enumerate(times):
+        if idx >= len(out):
+            break
+        weight = _aifs_hourly_blend_weight(idx)
+        if weight <= 0:
+            continue
+        aifs_idx = index_by_time.get(normalize_timestamp(time_key))
+        if aifs_idx is None or aifs_idx >= len(aifs_values):
+            continue
+        base_dir = safe_float(out[idx], None)
+        aifs_dir = safe_float(aifs_values[aifs_idx], None)
+        if base_dir is None or aifs_dir is None:
+            continue
+        base_rad = math.radians(base_dir)
+        aifs_rad = math.radians(aifs_dir)
+        x = math.sin(base_rad) * (1.0 - weight) + math.sin(aifs_rad) * weight
+        y = math.cos(base_rad) * (1.0 - weight) + math.cos(aifs_rad) * weight
+        if abs(x) < 1e-9 and abs(y) < 1e-9:
+            continue
+        out[idx] = round((math.degrees(math.atan2(x, y)) + 360.0) % 360.0, 1)
+        applied += 1
+    return out, applied
+
+
+def apply_aifs_hourly_guidance(
+    times: List[str],
+    aifs_zone_payload: Optional[Dict[str, Any]],
+    *,
+    precipitation: List[Optional[float]],
+    temperature: List[Optional[float]],
+    wind_speed: List[Optional[float]],
+    wind_direction: List[Optional[float]],
+    wind_gust: List[Optional[float]],
+    humidity: List[Optional[float]],
+    pressure: List[Optional[float]],
+    cloud: List[Optional[float]],
+    dewpoint: List[Optional[float]],
+) -> Tuple[
+    List[Optional[float]],
+    List[Optional[float]],
+    List[Optional[float]],
+    List[Optional[float]],
+    List[Optional[float]],
+    List[Optional[float]],
+    List[Optional[float]],
+    List[Optional[float]],
+    List[Optional[float]],
+    Optional[Dict[str, Any]],
+]:
+    """Apply zone AIFS hourly guidance conservatively to medium-range fields."""
+    global _AIFS_GUIDANCE_WARNING_LOGGED
+    original_series = (
+        precipitation,
+        temperature,
+        wind_speed,
+        wind_direction,
+        wind_gust,
+        humidity,
+        pressure,
+        cloud,
+        dewpoint,
+    )
+    if not aifs_zone_payload:
+        return (
+            precipitation,
+            temperature,
+            wind_speed,
+            wind_direction,
+            wind_gust,
+            humidity,
+            pressure,
+            cloud,
+            dewpoint,
+            None,
+        )
+    aifs_hourly = aifs_zone_payload.get("hourly") or (aifs_zone_payload.get("data", {}) or {}).get("hourly", {})
+    if not isinstance(aifs_hourly, dict) or not aifs_hourly.get("time"):
+        return (
+            precipitation,
+            temperature,
+            wind_speed,
+            wind_direction,
+            wind_gust,
+            humidity,
+            pressure,
+            cloud,
+            dewpoint,
+            None,
+        )
+
+    try:
+        counts: Dict[str, int] = {}
+        precipitation, counts["precipitation"] = _blend_aifs_scalar_series(
+            precipitation, times, aifs_hourly, "precipitation", decimals=2, max_delta=8.0
+        )
+        temperature, counts["temperature"] = _blend_aifs_scalar_series(
+            temperature, times, aifs_hourly, "temperature_2m", decimals=1, max_delta=4.0
+        )
+        wind_speed, counts["wind_speed"] = _blend_aifs_scalar_series(
+            wind_speed, times, aifs_hourly, "wind_speed_10m", decimals=1, max_delta=20.0
+        )
+        wind_direction, counts["wind_direction"] = _blend_aifs_direction_series(wind_direction, times, aifs_hourly)
+        wind_gust, counts["wind_gust"] = _blend_aifs_scalar_series(
+            wind_gust, times, aifs_hourly, "wind_gusts_10m", decimals=1, max_delta=30.0
+        )
+        humidity, counts["humidity"] = _blend_aifs_scalar_series(
+            humidity, times, aifs_hourly, "relative_humidity_2m", decimals=1, max_delta=30.0
+        )
+        pressure, counts["pressure"] = _blend_aifs_scalar_series(
+            pressure, times, aifs_hourly, "pressure_msl", decimals=1, max_delta=8.0
+        )
+        cloud, counts["cloud"] = _blend_aifs_scalar_series(
+            cloud, times, aifs_hourly, "cloud_cover", decimals=1, max_delta=45.0
+        )
+        dewpoint, counts["dewpoint"] = _blend_aifs_scalar_series(
+            dewpoint, times, aifs_hourly, "dewpoint_2m", decimals=1, max_delta=4.0
+        )
+    except Exception as err:
+        if not _AIFS_GUIDANCE_WARNING_LOGGED:
+            logger.warning(
+                "AIFS hourly guidance skipped; core ECMWF/ICON ensemble remains active. Error: %s",
+                err,
+            )
+            _AIFS_GUIDANCE_WARNING_LOGGED = True
+        return (*original_series, {"model": AIFS_DAILY_MODEL_KEY, "skipped": True, "reason": str(err)[:160]})
+
+    total_applied = sum(counts.values())
+    meta = None
+    if total_applied:
+        meta = {
+            "model": AIFS_DAILY_MODEL_KEY,
+            "zone": aifs_zone_payload.get("zone"),
+            "blend_start_hour": 48,
+            "max_weight": _aifs_hourly_blend_weight(999),
+            "applied_counts": counts,
+        }
+    return (
+        precipitation,
+        temperature,
+        wind_speed,
+        wind_direction,
+        wind_gust,
+        humidity,
+        pressure,
+        cloud,
+        dewpoint,
+        meta,
+    )
+
+
 def blend_values(per_model: Dict[str, List], weights: Dict[str, float]) -> List: 
     """
     Weighted blend of values from multiple models.
@@ -4308,7 +4702,7 @@ def blend_values(per_model: Dict[str, List], weights: Dict[str, float]) -> List:
                 has_value = True
         
         if has_value and den > 0:
-            result. append(round(num / den, 3))
+            result.append(round(num / den, 3))
         else:
             result.append(None)
     
@@ -4940,6 +5334,17 @@ class BiasManager:
 # FIRESTORE WRITE BUFFER
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def firestore_safe_value(value: Any) -> Any:
+    """Recursively remove values Firestore rejects from buffered payloads."""
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, dict):
+        return {str(k): firestore_safe_value(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [firestore_safe_value(v) for v in value]
+    return value
+
+
 class FirestoreWriteBuffer:
     """Batch non-critical Firestore writes to reduce per-cell latency."""
 
@@ -4951,8 +5356,9 @@ class FirestoreWriteBuffer:
     def queue_set(self, doc_ref, payload: Dict[str, Any], merge: bool = False) -> None:
         if self._db is None or doc_ref is None or not payload:
             return
+        safe_payload = firestore_safe_value(payload)
         with self._lock:
-            self._pending.append((doc_ref, payload, merge))
+            self._pending.append((doc_ref, safe_payload, merge))
 
     def flush(self) -> int:
         if self._db is None:
@@ -4979,10 +5385,35 @@ class FirestoreWriteBuffer:
                 batch.commit()
                 written += ops
         except Exception as e:
-            logger.debug("Firestore buffered write flush error: %s", e)
+            logger.warning(
+                "Firestore buffered batch flush failed for %d writes; retrying individually: %s",
+                len(pending),
+                e,
+            )
+            failed: List[Tuple[Any, Dict[str, Any], bool]] = []
+            sample_errors = 0
+            written = 0
+            for doc_ref, payload, merge in pending:
+                try:
+                    doc_ref.set(payload, merge=merge)
+                    written += 1
+                except Exception as item_err:
+                    failed.append((doc_ref, payload, merge))
+                    if sample_errors < 5:
+                        logger.warning(
+                            "Firestore buffered write failed for %s: %s",
+                            getattr(doc_ref, "path", str(doc_ref)),
+                            item_err,
+                        )
+                        sample_errors += 1
             with self._lock:
-                self._pending = pending + self._pending
-            return 0
+                self._pending = failed + self._pending
+            if failed:
+                logger.warning(
+                    "Firestore buffered write retry left %d/%d writes pending",
+                    len(failed),
+                    len(pending),
+                )
 
         return written
 
@@ -5039,7 +5470,7 @@ def validate_station_observation(obs: Dict, max_age_minutes: int = 120) -> Tuple
     # Validate temperature if present
     if "temperature_c" in obs:
         temp = safe_float(obs["temperature_c"], -999)
-        if temp < QC_LIMITS.temp_min_c or temp > QC_LIMITS. temp_max_c:
+        if temp < QC_LIMITS.temp_min_c or temp > QC_LIMITS.temp_max_c:
             return False, f"temp_out_of_range_{temp}"
     
     # Validate humidity if present
@@ -5054,7 +5485,7 @@ def validate_station_observation(obs: Dict, max_age_minutes: int = 120) -> Tuple
             ts_str = obs["timestamp"]
             if isinstance(ts_str, str):
                 # Parse ISO format
-                ts = datetime. fromisoformat(ts_str.replace("Z", "+00:00"))
+                ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
                 age = (now_utc() - ts).total_seconds() / 60
                 if age > max_age_minutes:
                     return False, f"stale_data_{int(age)}_minutes"
@@ -5120,7 +5551,7 @@ def detect_outliers_spatial(
     values = []
     for obs in observations: 
         if variable in obs:
-            values. append(safe_float(obs[variable]))
+            values.append(safe_float(obs[variable]))
     
     if not values:
         return observations
@@ -5144,7 +5575,7 @@ def detect_outliers_spatial(
             val = safe_float(obs[variable])
             z = 0.6745 * (val - median) / mad  # 0.6745 is consistency constant
             if abs(z) <= threshold_std:
-                filtered. append(obs)
+                filtered.append(obs)
             else:
                 logger.debug("Spatial outlier removed: %s=%s (z=%.2f)", variable, val, z)
         else:
@@ -5463,28 +5894,28 @@ def _aggregate_crowd_reports_to_station_observations(
     cutoff = (now_utc() - timedelta(minutes=minutes)).isoformat()
 
     try:
-        from google.cloud.firestore_v1.base_query import FieldFilter
-        snaps = (
-            db.collection(crowd_mgr.REPORTS_COLLECTION)
-            .where(filter=FieldFilter("timestamp", ">=", cutoff))
-            .limit(CONFIG.station_from_crowd_max_reports)
-            .get(timeout=25)
+        raw_reports = crowd_mgr.preload_recent_reports(
+            minutes=minutes,
+            limit=CONFIG.station_from_crowd_max_reports,
+            force=True,
         )
     except Exception as e:
-        logger.debug("Crowd report query error: %s", e)
+        logger.debug("Crowd report prefetch error: %s", e)
         return 0
 
     reports = []
-    for snap in snaps:
-        d = snap.to_dict() or {}
+    for d in raw_reports:
         try:
             lat = float(d.get("lat"))
             lon = float(d.get("lon"))
             rain_mm = report_rain_mm_from_payload(d, 0.0)
             user_id = d.get("user_id", "")
-            ts = d.get("timestamp")
-            if isinstance(ts, str):
-                ts = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            ts = (
+                parse_report_dt(d.get("timestamp"))
+                or parse_report_dt(d.get("timestamp_auto"))
+                or parse_report_dt(d.get("observed_at"))
+                or parse_report_dt(d.get("received_at"))
+            )
             if not user_id or ts is None:
                 continue
             if not (CONFIG.grid_lat_min <= lat <= CONFIG.grid_lat_max and CONFIG.grid_lon_min <= lon <= CONFIG.grid_lon_max):
@@ -5824,8 +6255,7 @@ def _write_satellite_snapshot_to_disk(snapshot: Dict[str, NowcastSource]) -> Non
             "fetched_at_epoch": time.time(),
             "data": {gid: _serialize_nowcast_source(src) for gid, src in snapshot.items()},
         }
-        with open(_satellite_snapshot_file, "w", encoding="utf-8") as fh:
-            json.dump(payload, fh)
+        _write_json_cache_file(_satellite_snapshot_file, payload)
     except Exception as e:
         logger.debug("Satellite snapshot disk write failed: %s", e)
 
@@ -6813,6 +7243,8 @@ def generate_focus_area_bulletin(
             wind_pm = {m: aligned[m].get("wind_speed_10m", []) for m in aligned}
             gust_pm = {m: aligned[m].get("wind_gusts_10m", []) for m in aligned}
             code_pm = {m: aligned[m].get("weather_code", []) for m in aligned}
+            cape_pm = {m: aligned[m].get("cape", []) for m in aligned}
+            li_pm = {m: aligned[m].get("lifted_index", []) for m in aligned}
             first_dt = parse_iso_dt(times[0])
             month = first_dt.month if first_dt else None
             base_weights = get_model_weights(ref_time=first_dt, available_model_keys=list(aligned.keys()))
@@ -6823,6 +7255,8 @@ def generate_focus_area_bulletin(
             wind = blend_values_dynamic(wind_pm, base_weights, regimes)[:n]
             gust = blend_values_dynamic(gust_pm, base_weights, regimes)[:n]
             codes = blend_weather_codes_dynamic(code_pm, base_weights, regimes)[:n]
+            cape = blend_values(cape_pm, base_weights)[:n]
+            lifted_index = blend_values(li_pm, base_weights)[:n]
 
             area = _bulletin_area_for_point(lat, lon)
             aid = str(area.get("id"))
@@ -6835,29 +7269,43 @@ def generate_focus_area_bulletin(
                 "rain_cells": 0,
                 "heavy_cells": 0,
                 "wind_cells": 0,
+                "thunder_cells": 0,
+                "hail_cells": 0,
                 "max_rain": 0.0,
                 "max_prob": 0,
                 "max_gust": 0.0,
+                "max_cape": 0.0,
+                "min_lifted_index": None,
                 "rain_start": None,
                 "rain_end": None,
                 "heavy_start": None,
                 "heavy_end": None,
                 "wind_start": None,
                 "wind_end": None,
+                "thunder_start": None,
+                "thunder_end": None,
             })
             stats["cell_count"] += 1
 
             rain_indices: List[int] = []
             heavy_indices: List[int] = []
             wind_indices: List[int] = []
+            thunder_indices: List[int] = []
+            hail_indices: List[int] = []
             for i in range(n):
                 mm = safe_float(precip[i] if i < len(precip) else 0.0, 0.0)
                 pp = int(safe_float(prob[i] if i < len(prob) else 0.0, 0.0))
                 ws = safe_float(wind[i] if i < len(wind) else 0.0, 0.0)
                 gs = safe_float(gust[i] if i < len(gust) else ws, ws)
                 code = codes[i] if i < len(codes) else 0
+                cape_i = safe_float(cape[i] if i < len(cape) else 0.0, 0.0)
+                li_i = safe_float(lifted_index[i] if i < len(lifted_index) else None, None)
                 rainy_code = is_rainy_weather_code(code)
-                convective_code = int(safe_float(code, 0)) in CONVECTIVE_WMO_CODES
+                code_int = int(safe_float(code, 0))
+                convective_code = code_int in CONVECTIVE_WMO_CODES
+                thunder_code = code_int in (95, 96, 99)
+                hail_code = code_int in (96, 99)
+                unstable_rain = cape_i >= 1200 and (li_i is None or li_i <= -3.0) and (mm >= 0.8 or pp >= 55)
 
                 if mm >= 0.3 or pp >= 45 or (rainy_code and (mm >= 0.05 or pp >= 25)):
                     rain_indices.append(i)
@@ -6865,10 +7313,17 @@ def generate_focus_area_bulletin(
                     heavy_indices.append(i)
                 if gs >= 45.0 or ws >= 30.0:
                     wind_indices.append(i)
+                if thunder_code or unstable_rain or (convective_code and (mm >= 1.0 or gs >= 40)):
+                    thunder_indices.append(i)
+                if hail_code and (mm >= 0.2 or pp >= 35):
+                    hail_indices.append(i)
 
                 stats["max_rain"] = max(stats["max_rain"], mm)
                 stats["max_prob"] = max(stats["max_prob"], pp)
                 stats["max_gust"] = max(stats["max_gust"], gs)
+                stats["max_cape"] = max(stats["max_cape"], cape_i)
+                if li_i is not None:
+                    stats["min_lifted_index"] = li_i if stats["min_lifted_index"] is None else min(stats["min_lifted_index"], li_i)
 
             def merge_window(prefix: str, indices: List[int]) -> None:
                 if not indices:
@@ -6885,6 +7340,11 @@ def generate_focus_area_bulletin(
             if wind_indices:
                 stats["wind_cells"] += 1
                 merge_window("wind", wind_indices)
+            if thunder_indices:
+                stats["thunder_cells"] += 1
+                merge_window("thunder", thunder_indices)
+            if hail_indices:
+                stats["hail_cells"] += 1
         except Exception as e:
             logger.debug("Regional bulletin cell skipped for %s: %s", gid, e)
             continue
@@ -6895,9 +7355,13 @@ def generate_focus_area_bulletin(
         rain_cov = stats.get("rain_cells", 0) / cells
         heavy_cov = stats.get("heavy_cells", 0) / cells
         wind_cov = stats.get("wind_cells", 0) / cells
+        thunder_cov = stats.get("thunder_cells", 0) / cells
+        hail_cov = stats.get("hail_cells", 0) / cells
         max_rain = round(safe_float(stats.get("max_rain"), 0.0), 1)
         max_prob = int(safe_float(stats.get("max_prob"), 0.0))
         max_gust = round(safe_float(stats.get("max_gust"), 0.0), 0)
+        max_cape = round(safe_float(stats.get("max_cape"), 0.0), 0)
+        min_lifted_index = safe_float(stats.get("min_lifted_index"), None)
 
         if heavy_cov >= 0.18 or max_rain >= 8.0 or (max_prob >= 80 and rain_cov >= 0.35):
             rain_risk = "HIGH"
@@ -6917,8 +7381,20 @@ def generate_focus_area_bulletin(
         else:
             wind_risk = "NONE"
 
-        timing_start = stats.get("heavy_start") if stats.get("heavy_start") is not None else stats.get("rain_start")
-        timing_end = stats.get("heavy_end") if stats.get("heavy_end") is not None else stats.get("rain_end")
+        if (hail_cov >= 0.08 and max_rain >= 0.8) or (max_gust >= 62 and thunder_cov > 0) or (thunder_cov >= 0.18 and max_rain >= 2.0):
+            thunder_risk = "HIGH"
+        elif thunder_cov > 0 or (max_cape >= 1600 and _risk_rank(rain_risk) >= 2):
+            thunder_risk = "MODERATE"
+        elif max_cape >= 1200 and _risk_rank(rain_risk) >= 1:
+            thunder_risk = "LOW"
+        else:
+            thunder_risk = "NONE"
+
+        timing_start = stats.get("thunder_start")
+        timing_end = stats.get("thunder_end")
+        if timing_start is None:
+            timing_start = stats.get("heavy_start") if stats.get("heavy_start") is not None else stats.get("rain_start")
+            timing_end = stats.get("heavy_end") if stats.get("heavy_end") is not None else stats.get("rain_end")
         timing_mz = _bulletin_time_window(stats.get("times", []), timing_start, timing_end, True)
         timing_en = _bulletin_time_window(stats.get("times", []), timing_start, timing_end, False)
         name_mz = stats.get("name_mz") or stats.get("name")
@@ -6929,9 +7405,12 @@ def generate_focus_area_bulletin(
             summary_en = f"No strong rain or wind signal around {name}."
         else:
             rain_phrase = "ruah nasa deuh" if rain_risk == "HIGH" else ("ruah" if rain_risk == "MODERATE" else "ruah tlem")
+            thunder_phrase = " Tek leh rial/hail tlem a tel thei." if _risk_rank(thunder_risk) >= 2 else ""
             wind_phrase = " Thli na/gust a tel thei." if _risk_rank(wind_risk) >= 2 else ""
             summary_mz = f"{name_mz} lamah {timing_mz} {rain_phrase} {_risk_label_mz(rain_risk)}.{wind_phrase}"
-            summary_en = f"{name} may see {rain_phrase} {timing_en}. Wind/gust risk: {wind_risk.lower()}."
+            if thunder_phrase:
+                summary_mz += thunder_phrase
+            summary_en = f"{name} may see {rain_phrase} {timing_en}. Thunder risk: {thunder_risk.lower()}; wind/gust risk: {wind_risk.lower()}."
 
         districts.append({
             "id": stats.get("id"),
@@ -6939,6 +7418,7 @@ def generate_focus_area_bulletin(
             "name_mz": name_mz,
             "rain_risk": rain_risk,
             "wind_risk": wind_risk,
+            "thunder_risk": thunder_risk,
             "timing_mz": timing_mz,
             "timing_en": timing_en,
             "summary_mz": summary_mz,
@@ -6946,12 +7426,17 @@ def generate_focus_area_bulletin(
             "max_rain_mm_hr": max_rain,
             "max_prob_pct": max_prob,
             "max_gust_kmh": max_gust,
+            "max_cape_j_kg": max_cape,
+            "min_lifted_index_c": round(min_lifted_index, 1) if min_lifted_index is not None else None,
+            "thunder_cell_count": int(stats.get("thunder_cells", 0)),
+            "hail_cell_count": int(stats.get("hail_cells", 0)),
             "cell_count": cells,
         })
 
     districts.sort(
         key=lambda d: (
             _risk_rank(d.get("rain_risk", "NONE")),
+            _risk_rank(d.get("thunder_risk", "NONE")),
             _risk_rank(d.get("wind_risk", "NONE")),
             safe_float(d.get("max_rain_mm_hr"), 0.0),
             safe_float(d.get("max_gust_kmh"), 0.0),
@@ -6961,6 +7446,7 @@ def generate_focus_area_bulletin(
 
     notable = [d for d in districts if _risk_rank(d.get("rain_risk", "NONE")) > 0 or _risk_rank(d.get("wind_risk", "NONE")) > 0]
     heavy = [d for d in districts if d.get("rain_risk") == "HIGH"]
+    thunder_areas = [d for d in districts if _risk_rank(d.get("thunder_risk", "NONE")) >= 2]
     windier = [d for d in districts if _risk_rank(d.get("wind_risk", "NONE")) >= 2]
 
     if heavy:
@@ -6982,6 +7468,7 @@ def generate_focus_area_bulletin(
 
     rain_text = ", ".join(area_line_mz(d) for d in notable[:8]) or "a tlangpuiin a tlem"
     heavy_text = ", ".join(area_line_mz(d) for d in heavy[:6]) or "signal sang a la lang lo"
+    thunder_text = ", ".join(area_line_mz(d) for d in thunder_areas[:6]) or "signal lian a la lang lo"
     wind_text = ", ".join(f"{d.get('name_mz')} ({int(safe_float(d.get('max_gust_kmh'), 0))} km/h vel)" for d in windier[:6]) or "signal lian a la lang lo"
     valid_text = _bulletin_time_window([valid_from or "", valid_to or ""], 0, 1, True) if valid_from and valid_to else "darkar 24 chhung"
 
@@ -6990,6 +7477,7 @@ def generate_focus_area_bulletin(
         f"A hun: {valid_text}.\n\n"
         f"Ruah a awm theihna: {rain_text}.\n\n"
         f"Ruah nasa deuh theihna: {heavy_text}.\n\n"
+        f"Tek/rial leh thunderstorm theihna: {thunder_text}.\n\n"
         f"Thli na/gust a awm theihna: {wind_text}.\n\n"
         "Fimkhur tur: lightning, kawng hnawng leh lui/kawng chhe theihna avangin kal velah fimkhur rawh."
     )
@@ -6998,6 +7486,7 @@ def generate_focus_area_bulletin(
         f"Valid: {valid_text}.\n\n"
         f"Rain possible: {', '.join(d.get('name', '') for d in notable[:8]) or 'generally low signal'}.\n\n"
         f"Heavy rain possible: {', '.join(d.get('name', '') for d in heavy[:6]) or 'no strong signal yet'}.\n\n"
+        f"Thunderstorm/hail pockets: {', '.join(d.get('name', '') for d in thunder_areas[:6]) or 'no strong signal yet'}.\n\n"
         f"Strong wind/gust possible: {', '.join(d.get('name', '') for d in windier[:6]) or 'no strong signal yet'}.\n\n"
         "Use caution for lightning, wet roads, streams and local landslide-prone routes."
     )
@@ -7018,6 +7507,369 @@ def generate_focus_area_bulletin(
         "facebook_post_mz": facebook_post_mz,
         "facebook_post_en": facebook_post_en,
     }
+
+
+def _probability_to_percent(value: Any) -> int:
+    """Normalize Open-Meteo probability values, which may be 0-1 or 0-100."""
+    prob = safe_float(value, 0.0)
+    if 0.0 <= prob <= 1.0:
+        prob *= 100.0
+    return int(round(clamp(prob, 0.0, 100.0)))
+
+
+def _forecast_time_to_utc(ts: Optional[str], lon: Optional[float]) -> Optional[datetime]:
+    """Convert a forecast timestamp to UTC, inferring local offset when absent."""
+    if not ts:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        if dt.tzinfo is not None:
+            return dt.astimezone(UTC)
+        offset = timezone(timedelta(hours=infer_offset_hours_from_lon(lon)))
+        return dt.replace(tzinfo=offset).astimezone(UTC)
+    except Exception:
+        return None
+
+
+def _format_timing_from_indices(times: List[str], start_idx: Optional[int], end_idx: Optional[int]) -> str:
+    if start_idx is None:
+        return "uncertain timing"
+    end_idx = end_idx if end_idx is not None else start_idx
+    start_ts = times[start_idx] if start_idx < len(times) else None
+    end_ts = times[end_idx] if end_idx < len(times) else None
+    if not start_ts or not end_ts:
+        return _bulletin_time_window(times, start_idx, end_idx, False)
+    try:
+        start_dt = datetime.fromisoformat(str(start_ts).replace("Z", "+00:00"))
+        end_dt = datetime.fromisoformat(str(end_ts).replace("Z", "+00:00"))
+        if start_dt.date() == end_dt.date():
+            start = start_dt.strftime("%H:%M")
+            end = end_dt.strftime("%H:%M")
+            return f"around {start}" if start == end else f"around {start}-{end}"
+        return f"from {start_dt.strftime('%b %d %H:%M')} to {end_dt.strftime('%b %d %H:%M')}"
+    except Exception:
+        return _bulletin_time_window(times, start_idx, end_idx, False)
+
+
+def _local_convective_threat(
+    lat: float,
+    lon: float,
+    hourly_data: Dict[str, List],
+    times: List[str],
+    reference_time: Optional[datetime] = None,
+    hours: int = 36,
+) -> Dict[str, Any]:
+    """Classify thunderstorm severity for one grid cell using local model evidence."""
+    precip = hourly_data.get("precipitation") or []
+    prob = hourly_data.get("precipitation_probability") or []
+    gust = hourly_data.get("wind_gusts_10m") or []
+    wind = hourly_data.get("wind_speed_10m") or []
+    codes = hourly_data.get("weather_code") or []
+    cape = hourly_data.get("cape") or []
+    lifted_index = hourly_data.get("lifted_index") or []
+    n = min(hours, len(times), len(codes), len(precip), len(prob), len(gust))
+
+    area = _bulletin_area_for_point(lat, lon)
+    threat_indices: List[int] = []
+    thunder_indices: List[int] = []
+    hail_indices: List[int] = []
+    heavy_rain_indices: List[int] = []
+    strong_wind_indices: List[int] = []
+    unstable_indices: List[int] = []
+    max_rain = 0.0
+    max_prob = 0
+    max_gust = 0.0
+    max_wind = 0.0
+    max_cape = 0.0
+    min_li: Optional[float] = None
+
+    for i in range(n):
+        mm = safe_float(precip[i], 0.0)
+        pp = _probability_to_percent(prob[i])
+        gs = safe_float(gust[i], 0.0)
+        ws = safe_float(wind[i] if i < len(wind) else 0.0, 0.0)
+        code = int(safe_float(codes[i], 0))
+        cape_i = safe_float(cape[i] if i < len(cape) else 0.0, 0.0)
+        li_i = safe_float(lifted_index[i] if i < len(lifted_index) else None, None)
+        max_rain = max(max_rain, mm)
+        max_prob = max(max_prob, pp)
+        max_gust = max(max_gust, gs)
+        max_wind = max(max_wind, ws)
+        max_cape = max(max_cape, cape_i)
+        if li_i is not None:
+            min_li = li_i if min_li is None else min(min_li, li_i)
+
+        thunder_code = code in (95, 96, 99) and (mm >= 0.1 or pp >= 35 or gs >= 35)
+        hail_code = code in (96, 99)
+        unstable_rain = cape_i >= 1200 and (li_i is None or li_i <= -3.0) and (mm >= 0.8 or pp >= 55)
+        heavy_convective_rain = mm >= 3.0 and pp >= 55
+        strong_wind = gs >= 45.0
+
+        if thunder_code:
+            thunder_indices.append(i)
+        if hail_code and (mm >= 0.2 or pp >= 35):
+            hail_indices.append(i)
+        if mm >= 2.0 and pp >= 55:
+            heavy_rain_indices.append(i)
+        if strong_wind:
+            strong_wind_indices.append(i)
+        if unstable_rain:
+            unstable_indices.append(i)
+        if thunder_code or hail_code or unstable_rain or heavy_convective_rain or strong_wind:
+            threat_indices.append(i)
+
+    clusters: List[List[int]] = []
+    for idx in sorted(set(threat_indices)):
+        if not clusters or idx - clusters[-1][-1] > 2:
+            clusters.append([idx])
+        else:
+            clusters[-1].append(idx)
+
+    def cluster_score(cluster: List[int]) -> float:
+        return sum(safe_float(precip[i] if i < len(precip) else 0.0, 0.0) for i in cluster) + max(
+            safe_float(gust[i] if i < len(gust) else 0.0, 0.0) for i in cluster
+        ) / 20.0 + sum(1.0 for i in cluster if i < len(codes) and int(safe_float(codes[i], 0)) in (95, 96, 99))
+
+    event_indices = max(clusters, key=cluster_score) if clusters else []
+    first_idx = min(event_indices) if event_indices else None
+    last_idx = max(event_indices) if event_indices else None
+    peak_idx = None
+    if event_indices:
+        peak_idx = max(
+            event_indices,
+            key=lambda i: (
+                safe_float(precip[i] if i < len(precip) else 0.0, 0.0),
+                safe_float(gust[i] if i < len(gust) else 0.0, 0.0),
+                _probability_to_percent(prob[i] if i < len(prob) else 0.0),
+            ),
+        )
+
+    level = "NONE"
+    reasons: List[str] = []
+    if max_gust >= 62.0 and (thunder_indices or max_rain >= 1.0):
+        level = "ORANGE"
+        reasons.append("severe-gust")
+    if hail_indices and (max_rain >= 0.8 or max_prob >= 45):
+        level = "ORANGE"
+        reasons.append("hail-signal")
+    if thunder_indices and max_rain >= 3.0 and max_prob >= 60:
+        level = "ORANGE"
+        reasons.append("thunder-heavy-rain")
+    if level == "NONE" and (thunder_indices or unstable_indices or heavy_rain_indices or strong_wind_indices):
+        level = "YELLOW"
+        if thunder_indices:
+            reasons.append("thunder")
+        if unstable_indices:
+            reasons.append("unstable-rain")
+        if heavy_rain_indices:
+            reasons.append("heavy-shower")
+        if strong_wind_indices:
+            reasons.append("gusty-wind")
+
+    ref = reference_time or now_utc()
+    if ref.tzinfo is None:
+        ref = ref.replace(tzinfo=UTC)
+    eta_hours = None
+    if first_idx is not None and first_idx < len(times):
+        first_dt = _forecast_time_to_utc(times[first_idx], lon)
+        if first_dt is not None:
+            eta_hours = max(0, int(round((first_dt - ref.astimezone(UTC)).total_seconds() / 3600.0)))
+
+    hazard_bits: List[str] = []
+    if hail_indices:
+        hazard_bits.append("isolated hail")
+    if max_gust >= 45:
+        hazard_bits.append(f"gusts near {int(round(max_gust))} km/h")
+    if max_rain >= 2.0:
+        hazard_bits.append(f"heavy showers up to {round(max_rain, 1)} mm/hr")
+    if thunder_indices or unstable_indices:
+        hazard_bits.append("lightning")
+
+    return {
+        "level": level,
+        "area_id": area.get("id"),
+        "area_name": area.get("name"),
+        "area_name_mz": area.get("name_mz", area.get("name")),
+        "first_time": times[first_idx] if first_idx is not None and first_idx < len(times) else None,
+        "peak_time": times[peak_idx] if peak_idx is not None and peak_idx < len(times) else None,
+        "timing_en": _format_timing_from_indices(times, first_idx, last_idx),
+        "eta_hours": eta_hours,
+        "max_rain_mm_hr": round(max_rain, 2),
+        "max_prob_pct": max_prob,
+        "max_gust_kmh": round(max_gust, 1),
+        "max_wind_kmh": round(max_wind, 1),
+        "max_cape_j_kg": round(max_cape, 0),
+        "min_lifted_index_c": round(min_li, 1) if min_li is not None else None,
+        "thunder_hours": len(thunder_indices),
+        "hail_hours": len(hail_indices),
+        "strong_wind_hours": len(strong_wind_indices),
+        "reasons": reasons,
+        "hazards": hazard_bits,
+    }
+
+
+def _norwester_alert_from_threat(threat: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    level = str(threat.get("level") or "NONE").upper()
+    if level not in ("YELLOW", "ORANGE", "RED"):
+        return None
+    area = threat.get("area_name") or "the focus area"
+    area_mz = threat.get("area_name_mz") or area
+    timing = threat.get("timing_en") or "uncertain timing"
+    hazards = ", ".join(threat.get("hazards") or ["lightning/gusty showers"])
+    eta = threat.get("eta_hours")
+    intensity = "heavy" if level in ("ORANGE", "RED") else "moderate"
+    if level in ("ORANGE", "RED"):
+        text_en = f"Localized severe thunderstorm risk near {area} {timing}: {hazards}. Stay indoors during lightning."
+        text_mz = f"{area_mz} velah thunderstorm nasa deuh a awm thei ({timing}). Tek, thli na/rial tlem a tel thei; lightning hunah pawn chhuah loh a him."
+    else:
+        text_en = f"Thunderstorm/gusty shower risk near {area} {timing}: {hazards}. Exercise caution."
+        text_mz = f"{area_mz} velah thunderstorm/thli na tlem a awm thei ({timing}). Fimkhur rawh."
+    alert = {
+        "type": "NORWESTER",
+        "level": level,
+        "text_mz": text_mz,
+        "text_en": text_en,
+        "eta_hours": eta,
+        "intensity": intensity,
+        "severe": level in ("ORANGE", "RED"),
+        "affected_area": area,
+        "affected_area_mz": area_mz,
+        "peak_time": threat.get("peak_time"),
+        "max_gust_kmh": threat.get("max_gust_kmh"),
+        "max_rain_mm_hr": threat.get("max_rain_mm_hr"),
+        "hail_hours": threat.get("hail_hours", 0),
+        "thunder_hours": threat.get("thunder_hours", 0),
+        "evidence_based": True,
+    }
+    return alert
+
+
+def localize_weather_systems_for_cell(
+    weather_systems: Optional[Dict[str, Any]],
+    lat: float,
+    lon: float,
+    hourly_data: Dict[str, List],
+    times: List[str],
+    reference_time: Optional[datetime] = None,
+) -> Dict[str, Any]:
+    """Attach cell-specific Nor'wester severity so one global source does not over-alert every grid."""
+    if not isinstance(weather_systems, dict) or not weather_systems:
+        return {}
+    localized = copy.deepcopy(weather_systems)
+    nw = localized.get("norwesters")
+    if not isinstance(nw, dict) or not nw.get("active"):
+        return localized
+
+    threat = _local_convective_threat(lat, lon, hourly_data, times, reference_time=reference_time)
+    nw["local_threat"] = threat
+    nw["local_alert_level"] = threat.get("level")
+    nw["local_affected_area"] = threat.get("area_name")
+    localized["norwesters"] = nw
+
+    alerts = [
+        a for a in (localized.get("alerts") or [])
+        if not (isinstance(a, dict) and str(a.get("type") or "").upper() == "NORWESTER")
+    ]
+    alert = _norwester_alert_from_threat(threat)
+    if alert:
+        alerts.append(alert)
+    localized["alerts"] = alerts
+    return localized
+
+
+def refine_weather_systems_with_regional_bulletin(
+    weather_systems: Optional[Dict[str, Any]],
+    regional_bulletin: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Use model-derived regional evidence to target global Nor'wester alerts before push notifications."""
+    if not isinstance(weather_systems, dict):
+        return {}
+    refined = copy.deepcopy(weather_systems)
+    nw = refined.get("norwesters")
+    if not isinstance(nw, dict) or not nw.get("active"):
+        return refined
+    districts = regional_bulletin.get("districts") if isinstance(regional_bulletin, dict) else []
+    districts = [d for d in (districts or []) if isinstance(d, dict)]
+    affected = [
+        d for d in districts
+        if _risk_rank(d.get("thunder_risk", "NONE")) >= 2
+        or _risk_rank(d.get("wind_risk", "NONE")) >= 2
+        or (d.get("rain_risk") == "HIGH" and safe_float(d.get("max_cape_j_kg"), 0.0) >= 1200)
+    ]
+    affected.sort(
+        key=lambda d: (
+            _risk_rank(d.get("thunder_risk", "NONE")),
+            _risk_rank(d.get("wind_risk", "NONE")),
+            safe_float(d.get("max_rain_mm_hr"), 0.0),
+            safe_float(d.get("max_gust_kmh"), 0.0),
+        ),
+        reverse=True,
+    )
+    nw["affected_areas"] = [
+        {
+            "id": d.get("id"),
+            "name": d.get("name"),
+            "name_mz": d.get("name_mz"),
+            "thunder_risk": d.get("thunder_risk"),
+            "rain_risk": d.get("rain_risk"),
+            "wind_risk": d.get("wind_risk"),
+            "timing_en": d.get("timing_en"),
+            "max_rain_mm_hr": d.get("max_rain_mm_hr"),
+            "max_gust_kmh": d.get("max_gust_kmh"),
+            "hail_cell_count": d.get("hail_cell_count", 0),
+            "thunder_cell_count": d.get("thunder_cell_count", 0),
+        }
+        for d in affected[:8]
+    ]
+    nw["regional_targeting"] = "model_evidence" if affected else "source_only"
+    refined["norwesters"] = nw
+
+    alerts = [
+        a for a in (refined.get("alerts") or [])
+        if not (isinstance(a, dict) and str(a.get("type") or "").upper() == "NORWESTER")
+    ]
+    if affected:
+        orange = [
+            d for d in affected
+            if d.get("thunder_risk") == "HIGH"
+            or (d.get("wind_risk") == "HIGH" and safe_float(d.get("max_gust_kmh"), 0.0) >= 62.0)
+        ]
+        level = "ORANGE" if orange else "YELLOW"
+        top = (orange or affected)[:5]
+        names = ", ".join(d.get("name", "") for d in top if d.get("name"))
+        names_mz = ", ".join(d.get("name_mz", d.get("name", "")) for d in top if d.get("name") or d.get("name_mz"))
+        timings = ", ".join(
+            f"{d.get('name')}: {d.get('timing_en')}"
+            for d in top[:3]
+            if d.get("timing_en")
+        )
+        max_gust = max(safe_float(d.get("max_gust_kmh"), 0.0) for d in affected)
+        max_rain = max(safe_float(d.get("max_rain_mm_hr"), 0.0) for d in affected)
+        hail_cells = sum(int(safe_float(d.get("hail_cell_count"), 0)) for d in affected)
+        if level == "ORANGE":
+            text_en = f"Localized severe thunderstorm pockets possible mainly around {names}. Timing: {timings or 'varies by area'}. Isolated hail/lightning and gusty winds possible."
+            text_mz = f"{names_mz} velah thunderstorm nasa deuh pockets a awm thei. Hun: {timings or 'hmun azirin a inang lo'}. Tek/rial tlem leh thli na a tel thei."
+        else:
+            text_en = f"Thunderstorm/gusty shower risk mainly around {names}. Timing: {timings or 'varies by area'}."
+            text_mz = f"{names_mz} velah thunderstorm/thli na tlem a awm thei. Hun: {timings or 'hmun azirin a inang lo'}."
+        alerts.append({
+            "type": "NORWESTER",
+            "level": level,
+            "text_mz": text_mz,
+            "text_en": text_en,
+            "eta_hours": nw.get("eta_hours"),
+            "intensity": "heavy" if level == "ORANGE" else "moderate",
+            "severe": level == "ORANGE",
+            "affected_areas": nw.get("affected_areas", []),
+            "affected_area_names": [d.get("name") for d in affected[:8] if d.get("name")],
+            "max_gust_kmh": round(max_gust, 1),
+            "max_rain_mm_hr": round(max_rain, 1),
+            "hail_cell_count": hail_cells,
+            "evidence_based": True,
+        })
+    refined["alerts"] = alerts
+    return refined
+
 
 def compute_model_disagreement(
     precip_pm: Dict[str, List],
@@ -7308,25 +8160,25 @@ SEASONAL_STALE_CACHE_TTL_SEC = _env_int("SEASONAL_STALE_CACHE_TTL_SEC", 604800)
 # Representative points chosen at typical elevation for each zone
 SEASONAL_ZONES = {
     "highland": {
-        "lat": 23.72,   # Aizawl area - representative highland
+        "lat": 23.72,   # Aizawl/Khawzawl/Champhai ridge representative
         "lon": 92.72,
-        "elev": 1000,   # ~1000m typical
+        "elev": 1000,   # representative highland height
         "name": "Highland",
-        "description": "Aizawl, Champhai, Hakha, Falam (≥800m) - Cool monsoon"
+        "description": "Aizawl, Champhai, Khawzawl, Ngopa, Sangau (>=800m) - cool monsoon",
     },
     "midland": {
-        "lat": 22.80,   # Lunglei/Saiha area - representative midland
-        "lon": 92.90,
-        "elev": 500,    # ~500m typical
+        "lat": 23.32,   # Thenzawl / mid-slope Mizoram representative
+        "lon": 92.75,
+        "elev": 650,    # representative mid-slope height
         "name": "Midland",
-        "description": "Lunglei, Saiha, Kalemyo, Tedim (300-800m) - Warm transition"
+        "description": "Hnahthial, Thenzawl, Kolasib, Lawngtlai/Mamit foothills (300-800m) - warm transition",
     },
     "lowland": {
         "lat": 24.22,   # Tamu/Kabaw area - representative lowland
         "lon": 94.30,
-        "elev": 150,    # ~150m typical
+        "elev": 150,    # representative lowland height
         "name": "Lowland",
-        "description": "Tamu, Kabaw Valley, Moreh (<300m) - Hot, rain-shadow"
+        "description": "Tamu, Kabaw Valley, Tlabung, Chawngte, Bairabi (<300m) - hot/rain-shadow",
     },
 }
 
@@ -7336,7 +8188,7 @@ def _get_elevation_zone(elevation: float) -> str:
     Determine seasonal climate zone based on elevation.
     
     Elevation is the dominant climate factor in mountainous regions:
-    - Highland (≥800m): Cool monsoon, heavy rainfall
+    - Highland (>=800m): Cool monsoon, heavy rainfall
     - Midland (300-800m): Warm transition, moderate rainfall
     - Lowland (<300m): Hot, rain-shadow effect, drier
     """
@@ -7843,6 +8695,7 @@ CLIMATE_INDICES = {
 _climate_index_cache: Dict[str, Any] = {}
 _climate_index_cache_ts: float = 0.0
 CLIMATE_INDEX_CACHE_TTL = 43200  # 12 hours (indices update weekly, 12h is very safe)
+CLIMATE_INDEX_STALE_MAX_SEC = int(os.environ.get("CLIMATE_INDEX_STALE_MAX_SEC", "604800"))  # 7 days
 ENSO_VALID_RANGE = (-5.0, 5.0)
 IOD_VALID_RANGE = (-5.0, 5.0)
 BOB_SST_VALID_RANGE = (-3.0, 3.0)
@@ -7901,6 +8754,7 @@ def _fetch_observed_bob_sst(reference_month: int) -> Optional[Dict[str, float]]:
         return None
 
     samples: List[float] = []
+    marine_timeout = max(5.0, float(os.environ.get("BOB_SST_HTTP_TIMEOUT", "20")))
     for lat, lon in BOB_SST_SAMPLE_POINTS:
         payload = http.get_json(
             Endpoints.MARINE,
@@ -7911,6 +8765,9 @@ def _fetch_observed_bob_sst(reference_month: int) -> Optional[Dict[str, float]]:
                 "forecast_days": 1,
                 "timezone": "UTC",
             },
+            timeout=marine_timeout,
+            rate_limit_timeout=CONFIG.aux_rate_limit_timeout,
+            log_rate_limit_timeout=False,
             use_budget=False,
         )
         if not payload:
@@ -7993,6 +8850,8 @@ def fetch_live_climate_indices() -> Dict[str, Any]:
     result = {
         "nino34": None, "nino34_state": "NEUTRAL",
         "iod_dmi": None, "iod_state": "NEUTRAL",
+        "nino34_source": "none",
+        "iod_source": "none",
         "mjo_phase": None, "mjo_state": "NEUTRAL", "mjo_active_for_ne_india": False,
         "bob_sst_anomaly": None,
         "bob_sst_c": None,
@@ -8001,6 +8860,11 @@ def fetch_live_climate_indices() -> Dict[str, Any]:
         "source": "NOAA PSL + Open-Meteo Marine",
         "fetched_at": now_iso(),
     }
+    stale_cache_ok = bool(
+        disk_ts
+        and isinstance(disk_data, dict)
+        and (now - disk_ts) < max(CLIMATE_INDEX_CACHE_TTL, CLIMATE_INDEX_STALE_MAX_SEC)
+    )
 
     try:
         nino_url = "https://psl.noaa.gov/data/correlation/nina34.anom.data"
@@ -8018,13 +8882,25 @@ def fetch_live_climate_indices() -> Dict[str, Any]:
             )
             result["nino34"] = nino34_anom
             if nino34_anom is not None:
+                result["nino34_source"] = "live"
                 if nino34_anom <= -0.5:
                     result["nino34_state"] = "LA_NINA"
                 elif nino34_anom >= 0.5:
                     result["nino34_state"] = "EL_NINO"
-        logger.info("ENSO Nino3.4 anomaly: %s (%s)", result["nino34"], result["nino34_state"])
     except Exception as e:
         logger.warning("Failed to fetch ENSO index: %s", e)
+    if result["nino34"] is None and stale_cache_ok and disk_data.get("nino34") is not None:
+        result["nino34"] = disk_data.get("nino34")
+        result["nino34_state"] = disk_data.get("nino34_state", "NEUTRAL")
+        result["nino34_source"] = "stale_cache"
+        logger.info("ENSO Nino3.4 anomaly: %s (%s) [stale-cache fallback]", result["nino34"], result["nino34_state"])
+    elif result["nino34"] is None:
+        result["nino34"] = 0.0
+        result["nino34_state"] = "NEUTRAL"
+        result["nino34_source"] = "neutral_fallback"
+        logger.warning("ENSO Nino3.4 unavailable; using neutral fallback 0.0 (low confidence)")
+    else:
+        logger.info("ENSO Nino3.4 anomaly: %s (%s)", result["nino34"], result["nino34_state"])
 
     try:
         iod_url = "https://psl.noaa.gov/gcos_wgsp/Timeseries/Data/dmi.had.long.data"
@@ -8042,13 +8918,25 @@ def fetch_live_climate_indices() -> Dict[str, Any]:
             )
             result["iod_dmi"] = iod_val
             if iod_val is not None:
+                result["iod_source"] = "live"
                 if iod_val >= 0.4:
                     result["iod_state"] = "POSITIVE"
                 elif iod_val <= -0.4:
                     result["iod_state"] = "NEGATIVE"
-        logger.info("IOD DMI: %s (%s)", result["iod_dmi"], result["iod_state"])
     except Exception as e:
         logger.warning("Failed to fetch IOD index: %s", e)
+    if result["iod_dmi"] is None and stale_cache_ok and disk_data.get("iod_dmi") is not None:
+        result["iod_dmi"] = disk_data.get("iod_dmi")
+        result["iod_state"] = disk_data.get("iod_state", "NEUTRAL")
+        result["iod_source"] = "stale_cache"
+        logger.info("IOD DMI: %s (%s) [stale-cache fallback]", result["iod_dmi"], result["iod_state"])
+    elif result["iod_dmi"] is None:
+        result["iod_dmi"] = 0.0
+        result["iod_state"] = "NEUTRAL"
+        result["iod_source"] = "neutral_fallback"
+        logger.warning("IOD DMI unavailable; using neutral fallback 0.0 (low confidence)")
+    else:
+        logger.info("IOD DMI: %s (%s)", result["iod_dmi"], result["iod_state"])
 
     observed_bob = _fetch_observed_bob_sst(reference_month=now_utc().month)
     if observed_bob is not None:
@@ -8074,6 +8962,15 @@ def fetch_live_climate_indices() -> Dict[str, Any]:
                 logger.info("BoB SST anomaly (fallback estimate): %s degC", bounded_bob)
             else:
                 logger.warning("Discarded implausible BoB SST fallback estimate: %s degC", bob_sst_est)
+        elif stale_cache_ok and disk_data.get("bob_sst_anomaly") is not None:
+            result["bob_sst_c"] = disk_data.get("bob_sst_c")
+            result["bob_sst_anomaly"] = disk_data.get("bob_sst_anomaly")
+            result["bob_sst_sample_count"] = disk_data.get("bob_sst_sample_count")
+            result["bob_sst_source"] = "stale_cache"
+            logger.info(
+                "BoB SST anomaly: %s degC [stale-cache fallback]",
+                result["bob_sst_anomaly"],
+            )
 
     CLIMATE_INDICES["ENSO"]["current"] = result["nino34_state"]
     CLIMATE_INDICES["IOD"]["current"] = result["iod_state"]
@@ -10807,19 +11704,14 @@ def get_cyclone_adjusted_weights(
         # Boost ECMWF weight for cyclone situations
         logger.info("Active cyclone detected - boosting ECMWF weight")
         override = {
-            "ecmwf_ifs": 0.85,      # ECMWF best for tropical cyclones
-            "cma_grapes": 0.07,
-            "gfs_seamless": 0.03,
-            "icon_seamless": 0.05,
+            "ecmwf_ifs": 0.78,      # ECMWF handles large-scale cyclone steering best here
+            "icon_seamless": 0.22,  # retain local wind/rain detail over complex terrain
         }
         if available_model_keys is not None:
             override = {
                 key: value for key, value in override.items()
                 if key in available_model_keys
             }
-            for target_key, proxy_key in MODEL_WEIGHT_PROXIES.items():
-                if target_key in override and proxy_key not in override and proxy_key in base_weights:
-                    override[target_key] = max(override[target_key], 0.07)
         return _normalize_weight_map(override)
     
     return base_weights
@@ -11085,6 +11977,7 @@ def check_norwesters() -> Optional[Dict[str, Any]]:
         "severe_possible": False,
         "eta_hours": None,
         "intensity": "none",
+        "severity_basis": "source_probe",
     }
 
     check_points = [
@@ -11159,8 +12052,9 @@ def check_norwesters() -> Optional[Dict[str, Any]]:
                         best_distance = dist_to_focus
                         best_motion_speed = clamp(wind_gust * 0.7, 35.0, 65.0)
 
-                    if (approaching or near_focus) and (
-                        wind_gust >= 80 or (cape >= 2200 and cloud >= 60 and dist_to_focus < 600)
+                    if approaching and (
+                        wind_gust >= 62
+                        or (cape >= 3000 and cloud >= 70 and precip >= 0.5 and wind_gust >= 45 and dist_to_focus < 600)
                     ):
                         result["severe_possible"] = True
 
@@ -11170,9 +12064,11 @@ def check_norwesters() -> Optional[Dict[str, Any]]:
         logger.debug("Nor'wester check failed: %s", e)
 
     if result["active"]:
-        if max_gust >= 80 or max_cape >= 2200:
+        result["max_gust_kmh"] = round(max_gust, 1)
+        result["max_cape_j_kg"] = round(max_cape, 0)
+        if result.get("severe_possible") or max_gust >= 62:
             result["intensity"] = "heavy"
-        elif max_gust >= 60 or max_cape >= 1500:
+        elif max_gust >= 45 or max_cape >= 2200:
             result["intensity"] = "moderate"
         else:
             result["intensity"] = "light"
@@ -11665,6 +12561,114 @@ def weighted_station_rainfall(
     if total_w <= 0:
         return None
     return weighted_sum / total_w
+
+
+def station_temperature_weight(station: Dict[str, Any]) -> float:
+    """Confidence weight for short-term temperature nudging."""
+    detail = str(station.get("source_detail") or station.get("source") or "").lower()
+    raw_conf = safe_float(station.get("confidence"), None)
+    if "open_meteo" in detail:
+        # Open-Meteo proxy observations are not independent enough for model
+        # verification, but they are useful as a conservative current-temp anchor.
+        raw_conf = CONFIG.temperature_nowcast_proxy_weight if raw_conf is None else max(raw_conf, CONFIG.temperature_nowcast_proxy_weight)
+    elif raw_conf is None:
+        raw_conf = 0.75 if detail else 0.55
+    return clamp(raw_conf, 0.05, 1.0)
+
+
+def weighted_station_temperature(
+    lat: float,
+    lon: float,
+    stations: List[Dict],
+    target_elevation_m: Optional[float] = None,
+    max_dist_km: Optional[float] = None,
+) -> Tuple[Optional[float], float, int]:
+    """
+    Interpolate observed/current temperature with distance weighting.
+
+    When station elevation is unavailable, use the same terrain-zone fallback as
+    the forecast grid. This keeps the correction physical instead of hardcoding
+    a city-specific offset.
+    """
+    max_dist = max_dist_km or CONFIG.temperature_nowcast_max_dist_km
+    target_elev = safe_float(target_elevation_m, fallback_elevation_for_point(lat, lon))
+    total_w = 0.0
+    weighted_sum = 0.0
+    used = 0
+    max_conf = 0.0
+
+    for s in stations or []:
+        try:
+            s_lat = float(s["lat"])
+            s_lon = float(s["lon"])
+            temp_c = safe_float(first_present(s.get("temperature_c"), s.get("temperature"), s.get("temp")), None)
+            if temp_c is None:
+                continue
+            dist = haversine_km(lat, lon, s_lat, s_lon)
+            if dist > max_dist:
+                continue
+            station_elev = safe_float(s.get("elevation_m"), fallback_elevation_for_point(s_lat, s_lon))
+            elev_adjusted_temp = temp_c - 5.8 * ((target_elev or 0.0) - (station_elev or 0.0)) / 1000.0
+            conf = station_temperature_weight(s)
+            dist_w = 1.0 / (dist ** max(0.5, CONFIG.idw_exponent) + 0.5)
+            w = dist_w * conf
+            weighted_sum += w * elev_adjusted_temp
+            total_w += w
+            used += 1
+            max_conf = max(max_conf, conf)
+        except Exception:
+            continue
+
+    if total_w <= 0 or used <= 0:
+        return None, 0.0, 0
+    return weighted_sum / total_w, max_conf, used
+
+
+def apply_temperature_nowcast(
+    temperature_series: List[Optional[float]],
+    lat: float,
+    lon: float,
+    stations: List[Dict],
+    target_elevation_m: Optional[float] = None,
+) -> List[Optional[float]]:
+    """
+    Nudge only the first few hours toward nearby current temperature observations.
+
+    This addresses current-temperature drift (for example app 24C while nearby
+    current analyses are around 28C) without hardcoding a fixed warm/cold bias.
+    The model trend is preserved by applying a decaying delta, not replacing the
+    whole forecast curve.
+    """
+    out = list(temperature_series or [])
+    if not out or CONFIG.temperature_nowcast_hours <= 0:
+        return out
+
+    obs_temp, obs_conf, used = weighted_station_temperature(
+        lat,
+        lon,
+        stations,
+        target_elevation_m=target_elevation_m,
+        max_dist_km=CONFIG.temperature_nowcast_max_dist_km,
+    )
+    base_temp = safe_float(out[0], None)
+    if obs_temp is None or base_temp is None or used <= 0:
+        return out
+
+    raw_delta = obs_temp - base_temp
+    max_corr = CONFIG.temperature_nowcast_max_correction
+    delta = clamp(raw_delta, -max_corr, max_corr)
+    if abs(delta) < 0.15:
+        return out
+
+    hours = min(len(out), CONFIG.temperature_nowcast_hours)
+    first_weight = min(0.65, max(0.15, obs_conf) * 0.75)
+    for i in range(hours):
+        model_val = safe_float(out[i], None)
+        if model_val is None:
+            continue
+        decay = 1.0 / (1.0 + i * 0.7)
+        out[i] = round(model_val + delta * first_weight * decay, 1)
+    return out
 
 
 def calibrate_precip_probability_series(
@@ -12565,6 +13569,15 @@ def check_and_send_severe_weather_alerts(weather_systems: Dict) -> List[str]:
         intensity = alert.get("intensity")
         if intensity is not None:
             data["intensity"] = str(intensity)
+        affected_names = alert.get("affected_area_names") or alert.get("affected_areas")
+        if isinstance(affected_names, list) and affected_names:
+            data["affected_areas"] = ", ".join(str(name) for name in affected_names[:8])[:500]
+        elif affected_names:
+            data["affected_areas"] = str(affected_names)[:500]
+        for key in ("peak_time", "max_gust_kmh", "max_rain_mm_hr", "hail_cell_count", "thunder_hours"):
+            value = alert.get(key)
+            if value is not None:
+                data[key] = str(value)
 
         success = False
         try:
@@ -12908,10 +13921,19 @@ def write_forecast_snapshot(
     if pressure_msl:
         payload["pressure_msl"] = pressure_msl[:hours]
         payload["pressure_now_hpa"] = pressure_msl[0] if pressure_msl else None
+    payload = firestore_safe_value(payload)
     try:
         root_ref = db.collection(CONFIG.forecast_snapshot_collection).document(gid)
         run_ref = root_ref.collection("runs").document(run_id_str)
-        if write_buffer is not None:
+        if CONFIG.forecast_snapshot_run_sync:
+            # IMERG bias learning depends on per-run history. Write this
+            # critical record immediately; keep the latest/root mirror buffered.
+            run_ref.set(payload, merge=False)
+            if write_buffer is not None:
+                write_buffer.queue_set(root_ref, payload, merge=True)
+            else:
+                root_ref.set(payload, merge=True)
+        elif write_buffer is not None:
             write_buffer.queue_set(run_ref, payload, merge=False)
             write_buffer.queue_set(root_ref, payload, merge=True)
         else:
@@ -12920,7 +13942,7 @@ def write_forecast_snapshot(
             # Also keep latest snapshot at root for backward compatibility
             root_ref.set(payload, merge=True)
     except Exception as e:
-        logger.debug("Forecast snapshot write failed for %s: %s", gid, e)
+        logger.warning("Forecast snapshot write failed for %s: %s", gid, e)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -13059,6 +14081,33 @@ def process_cell(
         )
         current_month = now_utc().month
         time_dts = [parse_iso_dt(t) for t in times]
+        zone_key = _get_elevation_zone(elevation)
+        aifs_hourly_meta = None
+        if isinstance(aifs_daily_by_zone, dict):
+            (
+                blended_precip,
+                blended_temp,
+                blended_wind,
+                blended_wind_dir,
+                blended_wind_gust,
+                blended_humidity,
+                blended_pressure,
+                blended_cloud,
+                blended_dewpoint,
+                aifs_hourly_meta,
+            ) = apply_aifs_hourly_guidance(
+                times,
+                aifs_daily_by_zone.get(zone_key),
+                precipitation=blended_precip,
+                temperature=blended_temp,
+                wind_speed=blended_wind,
+                wind_direction=blended_wind_dir,
+                wind_gust=blended_wind_gust,
+                humidity=blended_humidity,
+                pressure=blended_pressure,
+                cloud=blended_cloud,
+                dewpoint=blended_dewpoint,
+            )
         
         # Temperature downscaling (lapse rate + valley cold pooling)
         blended_temp = [
@@ -13084,6 +14133,22 @@ def process_cell(
             for i in range(len(blended_apparent_temp))
         ]
         blended_dewpoint = [downscaler.correct_dewpoint(d) for d in blended_dewpoint]
+        pre_nowcast_temp = list(blended_temp)
+        blended_temp = apply_temperature_nowcast(
+            blended_temp,
+            lat,
+            lon,
+            stations,
+            target_elevation_m=elevation,
+        )
+        # Keep apparent temperature directionally consistent with a current-temp
+        # nudge while leaving humidity/wind-driven model differences intact.
+        for i in range(min(len(blended_apparent_temp), len(blended_temp), len(pre_nowcast_temp))):
+            before = safe_float(pre_nowcast_temp[i], None)
+            after = safe_float(blended_temp[i], None)
+            apparent = safe_float(blended_apparent_temp[i], None)
+            if before is not None and after is not None and apparent is not None:
+                blended_apparent_temp[i] = round(apparent + (after - before), 1)
         # Keep the moisture fields physically consistent after elevation
         # downscaling: dewpoint should not exceed temperature, and relative
         # humidity should match the corrected temperature/dewpoint pair.
@@ -13287,7 +14352,6 @@ def process_cell(
             solar_by_day=solar_by_day,
             max_days=CONFIG.forecast_days,
         )
-        zone_key = _get_elevation_zone(elevation)
         if daily_data and isinstance(aifs_daily_by_zone, dict):
             daily_data = blend_daily_with_aifs_guidance(
                 daily_data,
@@ -13336,6 +14400,14 @@ def process_cell(
             "convective_inhibition": blended_cin,
             "lifted_index": blended_lifted_index,
         }
+        weather_systems = localize_weather_systems_for_cell(
+            weather_systems,
+            lat,
+            lon,
+            hourly_data,
+            times,
+            reference_time=run_time,
+        )
         short_term = generate_nowcast_summary(
             hourly_data,
             lat,
@@ -13437,6 +14509,8 @@ def process_cell(
                 "model_disagreement": model_disagreement,
                 "downscale": downscaler.get_metadata(),
                 "pressure_tendency": pressure_tendency,
+                "wind_direction_convention": "meteorological_from_degrees",
+                "aifs_hourly_blend": aifs_hourly_meta,
                 "aifs_daily_blend": aifs_daily_meta,
             },
             "weather_systems": weather_systems,
@@ -13652,18 +14726,36 @@ def run_current_update(
             if not current:
                 continue
             
-            # Build minimal current update
+            # Build minimal current update.  Keep both legacy app-facing aliases
+            # and descriptive backend names so current-only refreshes do not
+            # accidentally mix fresh wind speed with stale hourly wind direction.
             gid = best_point.id
+            temp_now = current.get("temperature_2m")
+            apparent_now = current.get("apparent_temperature")
+            rain_now = current.get("precipitation")
+            code_now = current.get("weather_code")
+            wind_now = current.get("wind_speed_10m")
+            wind_dir_now = current.get("wind_direction_10m")
+            gust_now = current.get("wind_gusts_10m")
             current_payload = {
-                "temperature_c": current.get("temperature_2m"),
-                "apparent_temperature_c": current.get("apparent_temperature"),
+                "temp": temp_now,
+                "temperature_c": temp_now,
+                "feels_like": apparent_now,
+                "apparent_temperature_c": apparent_now,
+                "rain_mm": rain_now,
                 "humidity": current.get("relative_humidity_2m"),
-                "precipitation_mm": current.get("precipitation"),
-                "weather_code": current.get("weather_code"),
+                "precipitation_mm": rain_now,
+                "code": code_now,
+                "weather_code": code_now,
                 "cloud_cover": current.get("cloud_cover"),
-                "wind_speed_kmh": current.get("wind_speed_10m"),
-                "wind_direction_deg": current.get("wind_direction_10m"),
-                "wind_gust_kmh": current.get("wind_gusts_10m"),
+                "wind": wind_now,
+                "wind_speed_kmh": wind_now,
+                "wind_dir": wind_dir_now,
+                "wind_direction": wind_dir_now,
+                "wind_direction_deg": wind_dir_now,
+                "wind_direction_convention": "meteorological_from_degrees",
+                "wind_gust": gust_now,
+                "wind_gust_kmh": gust_now,
                 "updated_at": now_iso(),
             }
             
@@ -13774,13 +14866,28 @@ def run_update(
     # This avoids on-demand fetching during cell processing
     logger.info("Pre-fetching seasonal forecasts for 3 elevation zones...")
     prefetch_seasonal_forecasts()
-    logger.info("Pre-fetching AIFS daily guidance for 3 elevation zones...")
+    logger.info("Pre-fetching AIFS medium-range guidance for 3 elevation zones...")
     aifs_daily_by_zone = fetch_aifs_daily_zone_forecasts(forecast_days=CONFIG.forecast_days)
     
     # Fetch weather data from all models
-    logger.info("Fetching weather data from %d models...", len(ENABLED_MODELS))
-    all_weather = fetch_all_models(grid, debug=debug)
+    logger.info("Fetching weather data from %d models (%s)...", len(ENABLED_MODELS), ",".join(ENABLED_MODEL_KEYS))
+    try:
+        all_weather = fetch_all_models(grid, debug=debug)
+    except BaseException as e:
+        logger.exception("Fatal interruption/error while fetching weather models: %s", e)
+        raise
     logger.info("Got weather data for %d grid cells", len(all_weather))
+    if not all_weather:
+        logger.error("Weather model fetch returned zero grid cells; aborting run so stale data is not treated as success")
+        return {"error": "weather_fetch_empty", "processed": 0, "failed": len(grid), "total": len(grid)}
+    min_required_cells = max(1, int(len(grid) * 0.70))
+    if len(all_weather) < min_required_cells:
+        logger.error(
+            "Weather model fetch coverage too low: %d/%d cells (<70%%). Aborting run.",
+            len(all_weather),
+            len(grid),
+        )
+        return {"error": "weather_fetch_low_coverage", "processed": 0, "failed": len(grid) - len(all_weather), "total": len(grid)}
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Initialize crowdsource manager (early for station ingestion)
@@ -13855,6 +14962,17 @@ def run_update(
                 hours=24,
             )
             if regional_bulletin_snapshot:
+                weather_systems_snapshot = refine_weather_systems_with_regional_bulletin(
+                    weather_systems_snapshot,
+                    regional_bulletin_snapshot,
+                )
+                nw = weather_systems_snapshot.get("norwesters") if isinstance(weather_systems_snapshot, dict) else None
+                if isinstance(nw, dict):
+                    logger.info(
+                        "Nor'wester regional targeting: %s affected areas, local basis=%s",
+                        len(nw.get("affected_areas", [])),
+                        nw.get("regional_targeting", "unknown"),
+                    )
                 logger.info(
                     "Regional rain/wind bulletin prepared (%d areas)",
                     len(regional_bulletin_snapshot.get("districts", [])),
@@ -14319,7 +15437,9 @@ def handle_shutdown(signum, frame):
     except Exception:
         pass
     release_lock_file()
-    sys.exit(0)
+    # Non-zero makes interrupted cron/manual runs visible instead of looking
+    # like a clean success with partial or missing output.
+    sys.exit(128 + int(signum))
 
 
 def main():
@@ -14461,8 +15581,15 @@ Examples:
             release_lock_file()
             sys.exit(1)
         elif result.get("failed", 0) > 0:
-            logger.warning("Completed with %d failures", result["failed"])
+            failed = int(result.get("failed", 0) or 0)
+            processed = int(result.get("processed", 0) or 0)
+            total = int(result.get("total", 0) or 0)
+            logger.warning("Completed with %d failures", failed)
             release_lock_file()
+            # A partial miss can be tolerated, but a broken full run must fail
+            # loudly so cron/ops do not treat 0/303 processed as success.
+            if total > 0 and (processed == 0 or failed >= max(1, int(total * 0.5))):
+                sys.exit(2)
             sys.exit(0)
         else:
             release_lock_file()

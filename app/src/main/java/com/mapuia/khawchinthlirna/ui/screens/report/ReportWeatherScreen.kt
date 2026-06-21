@@ -89,6 +89,7 @@ import com.mapuia.khawchinthlirna.data.auth.UserProfile
 import com.mapuia.khawchinthlirna.data.ReverseGeocoder
 import com.mapuia.khawchinthlirna.ui.components.BannerAd
 import androidx.annotation.StringRes
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mapuia.khawchinthlirna.R
 import kotlinx.coroutines.launch
 import com.mapuia.khawchinthlirna.ui.theme.appBackgroundGradient
@@ -154,11 +155,12 @@ fun ReportWeatherScreen(
     )
 
     // Auth state
+    val authUser by authManager.authStateFlow.collectAsStateWithLifecycle(initialValue = authManager.currentUser)
     var userProfile by remember { mutableStateOf<UserProfile?>(null) }
     var isSigningIn by remember { mutableStateOf(false) }
 
-    // Load user profile
-    LaunchedEffect(authManager.userId) {
+    // Keep report header in sync after Google/anonymous sign-in or sign-out.
+    LaunchedEffect(authUser?.uid, authUser?.isAnonymous) {
         userProfile = authManager.getUserProfile()
     }
 
@@ -167,9 +169,6 @@ fun ReportWeatherScreen(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         scope.launch {
-            if (result.resultCode != Activity.RESULT_OK) {
-                return@launch
-            }
             isSigningIn = true
             val signInResult = authManager.handleGoogleSignInResult(result.data, result.resultCode)
             isSigningIn = false
@@ -183,7 +182,7 @@ fun ReportWeatherScreen(
             } else {
                 Toast.makeText(
                     context,
-                    signInFailedMessage,
+                    signInResult.exceptionOrNull()?.message ?: signInFailedMessage,
                     Toast.LENGTH_SHORT
                 ).show()
             }
@@ -886,7 +885,7 @@ private fun ConditionChip(
         Text(
             text = subLabel,
             color = textSecondary,
-            fontSize = 10.sp,
+            fontSize = 11.sp,
             textAlign = TextAlign.Center,
         )
     }
@@ -1013,7 +1012,7 @@ private fun UserProfileCard(
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "•",
+                            text = "\u2022",
                             color = textMuted,
                             fontSize = 12.sp
                         )

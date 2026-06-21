@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "88630222212-cmjkdcgp4ecep4tn7fbuhs866g5vo9pe.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mapuia.khawchinthlirna",
+            "certificate_hash": "d748a1c579c159327973f3cd854957a2267c12dc"
+          }
+        },
+        {
           "client_id": "88630222212-ppdhuk1dpd5mkfgqa10thjenuatua4k7.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

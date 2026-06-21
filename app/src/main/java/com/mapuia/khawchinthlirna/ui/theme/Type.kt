@@ -19,14 +19,14 @@ val Inter = FontFamily(
 val Typography = Typography(
     bodyLarge = TextStyle(
         fontFamily = Inter,
-        fontWeight = FontWeight.Normal,
+        fontWeight = FontWeight.Medium,
         fontSize = 16.sp,
         lineHeight = 24.sp,
-        letterSpacing = 0.5.sp,
+        letterSpacing = 0.35.sp,
     ),
     titleLarge = TextStyle(
         fontFamily = Inter,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.Bold,
         fontSize = 22.sp,
         lineHeight = 28.sp,
         letterSpacing = 0.sp,
@@ -40,14 +40,14 @@ val Typography = Typography(
     ),
     labelLarge = TextStyle(
         fontFamily = Inter,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.Bold,
         fontSize = 14.sp,
         lineHeight = 18.sp,
         letterSpacing = 0.1.sp,
     ),
     bodyMedium = TextStyle(
         fontFamily = Inter,
-        fontWeight = FontWeight.Normal,
+        fontWeight = FontWeight.Medium,
         fontSize = 14.sp,
         lineHeight = 20.sp,
         letterSpacing = 0.25.sp,

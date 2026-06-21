@@ -3,6 +3,7 @@ package com.mapuia.khawchinthlirna.data
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.Source
 import com.mapuia.khawchinthlirna.data.model.WeatherDoc
 import com.mapuia.khawchinthlirna.data.model.SkillReport
 import com.mapuia.khawchinthlirna.data.model.ImergDoc
@@ -145,9 +146,9 @@ class WeatherRepository(
     }
 
     /** Get latest IMERG satellite precipitation for a grid ID (if available). */
-    suspend fun getImergByGridId(gridId: String): ImergDoc? {
+    suspend fun getImergByGridId(gridId: String, forceServer: Boolean = false): ImergDoc? {
         imergCache[gridId]?.let { cached ->
-            if (nowMs - cached.cachedAtMs <= satelliteTtlMs) {
+            if (!forceServer && nowMs - cached.cachedAtMs <= satelliteTtlMs) {
                 return cached.value
             }
         }
@@ -155,7 +156,7 @@ class WeatherRepository(
         return try {
             val doc = db.collection(WeatherConstants.IMERG_COLLECTION)
                 .document(gridId)
-                .get()
+                .get(if (forceServer) Source.SERVER else Source.DEFAULT)
                 .await()
             val fetched = doc.toObject(ImergDoc::class.java)?.also {
                 if (it.gridId.isNullOrBlank()) it.gridId = doc.id
@@ -169,9 +170,9 @@ class WeatherRepository(
     }
 
     /** Get latest forecast snapshot for a grid ID (if available). */
-    suspend fun getForecastSnapshotByGridId(gridId: String): ForecastSnapshot? {
+    suspend fun getForecastSnapshotByGridId(gridId: String, forceServer: Boolean = false): ForecastSnapshot? {
         forecastCache[gridId]?.let { cached ->
-            if (nowMs - cached.cachedAtMs <= satelliteTtlMs) {
+            if (!forceServer && nowMs - cached.cachedAtMs <= satelliteTtlMs) {
                 return cached.value
             }
         }
@@ -179,7 +180,7 @@ class WeatherRepository(
         return try {
             val doc = db.collection(WeatherConstants.FORECAST_SNAPSHOT_COLLECTION)
                 .document(gridId)
-                .get()
+                .get(if (forceServer) Source.SERVER else Source.DEFAULT)
                 .await()
             val fetched = doc.toObject(ForecastSnapshot::class.java)?.also {
                 if (it.gridId.isNullOrBlank()) it.gridId = doc.id
@@ -197,7 +198,7 @@ class WeatherRepository(
      * Get weather by grid ID. If document doesn't exist, automatically
      * searches for nearest available grid point in Firestore using batch queries.
      */
-    suspend fun getWeatherByGridId(gridId: String): WeatherDoc? {
+    suspend fun getWeatherByGridId(gridId: String, forceServer: Boolean = false): WeatherDoc? {
         AppLog.d("WeatherRepo", "getWeatherByGridId called with: $gridId")
         
         // Validate input
@@ -208,7 +209,7 @@ class WeatherRepository(
 
         // First try the exact grid ID
         AppLog.d("WeatherRepo", "Trying exact grid ID: $gridId")
-        val exactDoc = getWeatherWithRetry(gridId)
+        val exactDoc = getWeatherWithRetry(gridId, forceServer = forceServer)
         if (exactDoc != null) {
             AppLog.d("WeatherRepo", "Found exact document for: $gridId")
             return exactDoc
@@ -216,7 +217,7 @@ class WeatherRepository(
 
         AppLog.d("WeatherRepo", "Exact doc not found, trying fallback search")
         // Document not found - try robust fallback search
-        return findNearestAvailableWeather(gridId)
+        return findNearestAvailableWeather(gridId, forceServer = forceServer)
     }
 
     /**
@@ -229,7 +230,7 @@ class WeatherRepository(
      * 
      * This handles the case where user is at 23.19_94.01 but Firebase has 23.19_94.05
      */
-    private suspend fun findNearestAvailableWeather(originalGridId: String): WeatherDoc? {
+    private suspend fun findNearestAvailableWeather(originalGridId: String, forceServer: Boolean = false): WeatherDoc? {
         val (userLat, userLon) = parseGridId(originalGridId) ?: return getCachedWeatherFallback(originalGridId)
         
         AppLog.d("WeatherRepo", "Starting robust fallback search from: $originalGridId (user: $userLat, $userLon)")
@@ -254,7 +255,7 @@ class WeatherRepository(
                 // Use FieldPath.documentId() since document IDs ARE the grid IDs
                 val snapshot = db.collection(WeatherConstants.WEATHER_COLLECTION)
                     .whereIn(FieldPath.documentId(), batch)
-                    .get()
+                    .get(if (forceServer) Source.SERVER else Source.DEFAULT)
                     .await()
                 
                 AppLog.d("WeatherRepo", "Batch $batchesQueried returned ${snapshot.documents.size} documents")
@@ -371,12 +372,16 @@ class WeatherRepository(
     }
 
 
-    private suspend fun getWeatherWithRetry(gridId: String, maxRetries: Int = WeatherConstants.MAX_RETRY_ATTEMPTS): WeatherDoc? {
+    private suspend fun getWeatherWithRetry(
+        gridId: String,
+        maxRetries: Int = WeatherConstants.MAX_RETRY_ATTEMPTS,
+        forceServer: Boolean = false,
+    ): WeatherDoc? {
         repeat(maxRetries) { attempt ->
             try {
                 val doc = db.collection(WeatherConstants.WEATHER_COLLECTION)
                     .document(gridId)
-                    .get()
+                    .get(if (forceServer) Source.SERVER else Source.DEFAULT)
                     .await()
                     .toObject(WeatherDoc::class.java)
 
@@ -460,11 +465,9 @@ class WeatherRepository(
             throw IllegalArgumentException("Invalid coordinates")
         }
 
-        // Enforce authentication because Firestore rules require request.auth != null for creating reports
-        val currentUser = FirebaseAuth.getInstance().currentUser
-        if (currentUser == null) {
-            throw IllegalStateException("Authentication required to submit reports")
-        }
+        // Firestore rules require request.auth != null. If the user did not explicitly
+        // sign in, prepare a silent anonymous account so guest reports still work.
+        val currentUser = ensureReportUser()
 
         val severityClamped = severity.coerceIn(1, 5)
 
@@ -492,5 +495,28 @@ class WeatherRepository(
         reportSource?.takeIf { it.isNotBlank() }?.let { data["report_source"] = it }
 
         db.collection(WeatherConstants.REPORTS_COLLECTION).add(data).await()
+    }
+
+    private suspend fun ensureReportUser() =
+        FirebaseAuth.getInstance().let { auth ->
+            auth.currentUser ?: try {
+                auth.signInAnonymously().await().user
+            } catch (e: Exception) {
+                AppLog.e("WeatherRepo", "Guest auth failed before report submit: ${e.message}", e)
+                throw IllegalStateException(reportAuthFailureMessage(e), e)
+            }
+        } ?: throw IllegalStateException("Report submit nan guest sign-in a hlawhchham. Firebase auth setup check rawh.")
+
+    private fun reportAuthFailureMessage(e: Exception): String {
+        val message = e.message.orEmpty()
+        return when {
+            message.contains("Requests from this Android client application", ignoreCase = true) ||
+                message.contains("blocked", ignoreCase = true) ->
+                "Report submit nan guest sign-in hi Firebase-in a block. Play signing SHA/API key/App Check setup check rawh."
+            message.contains("network", ignoreCase = true) ->
+                "Network a buai avangin report submit theih loh. Internet check la, beih leh rawh."
+            else ->
+                "Report submit nan guest sign-in a hlawhchham. Firebase auth setup check rawh."
+        }
     }
 }

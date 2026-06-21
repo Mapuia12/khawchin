@@ -57,7 +57,10 @@ class WeatherViewModel(
 ) : AndroidViewModel(app) {
 
     private val nonInteractiveRefreshIntervalMs = 10 * 60 * 1000L
+    private val foregroundRefreshIntervalMs = 2 * 60 * 1000L
     private var lastSuccessfulRefreshMs: Long = 0L
+    private var lastRefreshAttemptMs: Long = 0L
+    private var refreshInFlight: Boolean = false
 
     private val _uiState = MutableStateFlow(
         WeatherUiState(isLoading = true, gridId = DEFAULT_GRID_ID)
@@ -88,14 +91,54 @@ class WeatherViewModel(
         refresh(isUserInitiated = false)
     }
 
+    /**
+     * Called when the app comes back to the foreground.
+     *
+     * This keeps casual users off stale Firestore/cache data without showing a noisy spinner
+     * or repeatedly reading on every tiny Activity lifecycle bounce.
+     */
+    fun refreshOnAppForeground() {
+        val state = uiState.value
+        if (state.locationPermissionState == LocationPermissionState.UNKNOWN && state.weather == null) {
+            AppLog.d("WeatherVM", "Foreground refresh waiting for location permission result")
+            return
+        }
+
+        val now = System.currentTimeMillis()
+        val elapsedSinceSuccess = if (lastSuccessfulRefreshMs > 0L) now - lastSuccessfulRefreshMs else Long.MAX_VALUE
+        val elapsedSinceAttempt = if (lastRefreshAttemptMs > 0L) now - lastRefreshAttemptMs else Long.MAX_VALUE
+        val shouldRefresh =
+            state.weather == null ||
+            elapsedSinceSuccess >= foregroundRefreshIntervalMs ||
+            elapsedSinceAttempt >= nonInteractiveRefreshIntervalMs
+
+        if (!shouldRefresh) {
+            AppLog.d("WeatherVM", "Foreground refresh skipped; successElapsed=${elapsedSinceSuccess}ms attemptElapsed=${elapsedSinceAttempt}ms")
+            return
+        }
+
+        refresh(isUserInitiated = false, forceServer = true)
+    }
+
     /** Manual refresh trigger (pull-to-refresh). */
-    fun refresh(isUserInitiated: Boolean = true) {
+    fun refresh(
+        isUserInitiated: Boolean = true,
+        forceServer: Boolean = isUserInitiated,
+    ) {
+        if (refreshInFlight) {
+            AppLog.d("WeatherVM", "Refresh skipped; another refresh is already running")
+            return
+        }
+        refreshInFlight = true
+
         viewModelScope.launch {
             val now = System.currentTimeMillis()
-            if (!isUserInitiated && lastSuccessfulRefreshMs > 0L) {
+            lastRefreshAttemptMs = now
+            if (!isUserInitiated && !forceServer && lastSuccessfulRefreshMs > 0L) {
                 val elapsed = now - lastSuccessfulRefreshMs
                 if (elapsed < nonInteractiveRefreshIntervalMs) {
                     AppLog.d("WeatherVM", "Skipping non-user refresh; elapsed=${elapsed}ms")
+                    refreshInFlight = false
                     return@launch
                 }
             }
@@ -174,14 +217,14 @@ class WeatherViewModel(
                 }
 
                 // Repository already has robust fallback - finds nearest available grid within ~55km
-                var doc = repository.getWeatherByGridId(resolvedGridId)
+                var doc = repository.getWeatherByGridId(resolvedGridId, forceServer = forceServer)
                 AppLog.d("WeatherVM", "Primary fetch for $resolvedGridId returned: ${if (doc != null) "found ${doc.gridId}" else "null"}")
 
                 // FINAL FALLBACK: If repository couldn't find any nearby data,
                 // try DEFAULT_GRID_ID as absolute last resort (better than no data)
                 if (doc == null && resolvedGridId != DEFAULT_GRID_ID) {
                     AppLog.d("WeatherVM", "Trying DEFAULT_GRID_ID as final fallback: $DEFAULT_GRID_ID")
-                    doc = repository.getWeatherByGridId(DEFAULT_GRID_ID)
+                    doc = repository.getWeatherByGridId(DEFAULT_GRID_ID, forceServer = forceServer)
                     if (doc != null) {
                         AppLog.d("WeatherVM", "Final fallback succeeded with ${doc.gridId}")
                     }
@@ -196,8 +239,12 @@ class WeatherViewModel(
 
                 // Satellite IMERG + forecast snapshot (same grid as the weather doc)
                 val dataGridId = (doc?.gridId ?: resolvedGridId).takeIf { it.isNotBlank() }
-                val imerg = if (doc != null && dataGridId != null) repository.getImergByGridId(dataGridId) else null
-                val snapshot = if (doc != null && dataGridId != null) repository.getForecastSnapshotByGridId(dataGridId) else null
+                val imerg = if (doc != null && dataGridId != null) {
+                    repository.getImergByGridId(dataGridId, forceServer = forceServer)
+                } else null
+                val snapshot = if (doc != null && dataGridId != null) {
+                    repository.getForecastSnapshotByGridId(dataGridId, forceServer = forceServer)
+                } else null
 
                 _uiState.update {
                     it.copy(
@@ -212,7 +259,9 @@ class WeatherViewModel(
                         } else null,
                     )
                 }
-                lastSuccessfulRefreshMs = System.currentTimeMillis()
+                if (doc != null) {
+                    lastSuccessfulRefreshMs = System.currentTimeMillis()
+                }
             } catch (t: Throwable) {
                 _uiState.update {
                     it.copy(
@@ -221,6 +270,8 @@ class WeatherViewModel(
                         errorMessage = t.message ?: "Unknown error",
                     )
                 }
+            } finally {
+                refreshInFlight = false
             }
         }
     }
@@ -344,7 +395,7 @@ class WeatherViewModel(
         }
 
         /**
-         * Parse grid ID like "22.00_92.15" into (lat, lon) pair.
+         * Parse grid ID like "23.73_92.72" into (lat, lon) pair.
          */
         fun parseGridId(gridId: String): Pair<Double, Double>? {
             return try {

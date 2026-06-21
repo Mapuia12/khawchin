@@ -790,7 +790,7 @@ private fun BadgeItem(badgeId: String, isEarned: Boolean, isMizo: Boolean) {
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = if (isMizo) Badges.getNameMz(badgeId) else Badges.getName(badgeId),
-                fontSize = 10.sp,
+                fontSize = 11.sp,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
                 lineHeight = 12.sp,

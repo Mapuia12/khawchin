@@ -73,6 +73,16 @@ def _parse_iso_utc(value: Optional[str]) -> Optional[datetime]:
         return None
 
 
+def _imerg_history_enabled() -> bool:
+    return os.environ.get("IMERG_HISTORY_ENABLE", "1") == "1"
+
+
+def _imerg_history_doc_id(gid: str, imerg_time: datetime) -> str:
+    ref = imerg_time if imerg_time.tzinfo else imerg_time.replace(tzinfo=timezone.utc)
+    stamp = ref.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return f"{gid}_{stamp}"
+
+
 def _get_var(ds: Dataset, names) -> Optional[object]:
     for name in names:
         if name in ds.variables:
@@ -253,6 +263,19 @@ def _normalize_opendap_url(url: str) -> Optional[str]:
     raw = html.unescape(url)
     raw = unquote(raw)
     lower = raw.lower()
+    parsed = urlparse(raw)
+
+    # CMR sometimes returns direct HTTPS data links. netCDF4 cannot open those as
+    # OPeNDAP datasets, so convert the known GES DISC data path back to OPeNDAP.
+    if parsed.netloc.lower() in {"data.gesdisc.earthdata.nasa.gov", "gpm1.gesdisc.eosdis.nasa.gov"}:
+        path = parsed.path
+        if path.startswith("/data/"):
+            path = path[len("/data"):]
+        if path.startswith("/GPM_L3/"):
+            return f"https://gpm1.gesdisc.eosdis.nasa.gov/opendap{path}"
+        if path.startswith("/opendap/"):
+            return f"https://gpm1.gesdisc.eosdis.nasa.gov{path}"
+
     if "viewers/viewers" in lower or "dapservice=" in lower or "datasetid=" in lower:
         qs = parse_qs(urlparse(raw).query, keep_blank_values=True)
         dsid = (qs.get("datasetID") or qs.get("datasetid") or [None])[0]
@@ -307,6 +330,8 @@ def _build_dataset_candidates(url: str) -> List[str]:
 
 
 def _probe_dataset_url(url: str, timeout_sec: int = 20) -> bool:
+    if url.lower().startswith("s3://"):
+        return False
     auth = _earthdata_auth()
     probe_paths = (".dds", ".das", ".dmr.xml")
     with requests.Session() as session:
@@ -320,7 +345,7 @@ def _probe_dataset_url(url: str, timeout_sec: int = 20) -> bool:
                 preview = (resp.text or "")[:500].lower()
                 if "earthdata login" in preview or "urs.earthdata.nasa.gov" in preview:
                     continue
-                if "<html" in preview and "viewers/viewers" in preview:
+                if "<html" in preview or "<!doctype html" in preview or "404 - not found" in preview:
                     continue
                 return True
             except Exception:
@@ -464,6 +489,9 @@ def _pick_recent_imerg_files_cmr() -> List[str]:
                 rel = (link.get("rel") or "").lower()
                 typ = (link.get("type") or "").lower()
 
+                if href.lower().startswith("s3://"):
+                    continue
+
                 # Skip CMR collection or API links that are not OPeNDAP datasets
                 if "earthdata.nasa.gov/collections/" in href:
                     continue
@@ -513,6 +541,15 @@ def _imerg_already_current(db, grid: List[object], latest_time: datetime) -> boo
                 matched += 1
             else:
                 return False
+            if _imerg_history_enabled():
+                history_id = _imerg_history_doc_id(grid[idx].id, latest_time)
+                history_doc = db.collection(CONFIG.imerg_history_collection).document(history_id).get()
+                if not history_doc.exists:
+                    logger.info(
+                        "IMERG latest docs are current, but history sample %s is missing; rewriting current slice",
+                        history_id,
+                    )
+                    return False
         except Exception as e:
             logger.debug("IMERG state check failed for sample %d: %s", idx, e)
             return False
@@ -612,10 +649,11 @@ def ingest_imerg_late() -> int:
         )
         if _imerg_already_current(db, grid, latest_time):
             return 0
-        written = 0
+        committed_ops = 0
         queued = 0
         batch = db.batch()
         ops = 0
+        history_enabled = _imerg_history_enabled()
 
         for p in grid:
             rate, sampling_method = _sample_precip_rate(
@@ -642,13 +680,21 @@ def ingest_imerg_late() -> int:
                 doc_ref = db.collection(CONFIG.imerg_collection).document(p.id)
                 batch.set(doc_ref, payload, merge=True)
                 ops += 1
+                if history_enabled:
+                    history_ref = db.collection(CONFIG.imerg_history_collection).document(
+                        _imerg_history_doc_id(p.id, latest_time)
+                    )
+                    history_payload = dict(payload)
+                    history_payload["latest_doc_id"] = p.id
+                    batch.set(history_ref, history_payload, merge=True)
+                    ops += 1
                 queued += 1
                 if queued % 50 == 0:
                     logger.info("IMERG ingestion progress: %d/%d cells queued", queued, len(grid))
                 if ops >= 400:
                     logger.info("IMERG ingestion committing batch with %d queued writes", ops)
                     if _commit_batch_with_retry(batch, ops, "batch"):
-                        written += ops
+                        committed_ops += ops
                     batch = db.batch()
                     ops = 0
             except Exception as e:
@@ -657,10 +703,16 @@ def ingest_imerg_late() -> int:
         if ops:
             logger.info("IMERG ingestion committing final batch with %d queued writes", ops)
             if _commit_batch_with_retry(batch, ops, "final batch"):
-                written += ops
+                committed_ops += ops
 
-        logger.info("IMERG Late ingestion complete: %d/%d written (%d queued)", written, len(grid), queued)
-        return written
+        logger.info(
+            "IMERG Late ingestion complete: %d/%d cells queued, %d Firestore write ops committed (history=%s)",
+            queued,
+            len(grid),
+            committed_ops,
+            "on" if history_enabled else "off",
+        )
+        return queued
 
     finally:
         try:

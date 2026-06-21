@@ -29,7 +29,7 @@ fun getTemperatureColor(temp: Double): Color {
         temp >= 40 -> Color(0xFFFF1744) // Extreme Hot - Bright Red
         temp >= 35 -> Color(0xFFFF5252) // Very Hot - Light Red
         temp >= 30 -> Color(0xFFFFAB40) // Hot - Bright Orange
-        temp >= 25 -> Color(0xFFFFEA00) // Warm - Vivid Yellow
+        temp >= 25 -> Color(0xFFFFB020) // Warm - amber with stronger contrast than neon yellow
         temp >= 20 -> Color(0xFFB2FF59) // Pleasant - Bright Lime
         temp >= 15 -> Color(0xFFFFFFFF) // Cool - Pure White (was cyan - blended with bg)
         temp >= 10 -> Color(0xFFE0F7FA) // Cold - Light Cyan White
@@ -74,7 +74,7 @@ fun getTemperatureGlow(temp: Double): Color {
     return when {
         temp >= 35 -> Color(0xFFFF5722)
         temp >= 30 -> Color(0xFFFF9800)
-        temp >= 25 -> Color(0xFFFFEB3B)
+        temp >= 25 -> Color(0xFFFFA94D)
         temp >= 20 -> Color(0xFF4CAF50)
         temp >= 15 -> Color(0xFF00BCD4)
         else -> Color(0xFF2196F3)

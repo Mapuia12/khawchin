@@ -83,7 +83,9 @@ object InterstitialAdManager {
 
     fun trackLocationSwitch(activity: Activity, onContinue: () -> Unit) {
         preload(activity)
-        if (showIfReady(activity, onContinue, ignorePolicy = true)) return
+        // Keep location switching respectful: it is a meaningful action, but it should still
+        // obey startup delay, session caps, daily caps, and minimum spacing.
+        if (showIfReady(activity, onContinue, ignorePolicy = false)) return
         onContinue()
     }
 

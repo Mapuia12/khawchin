@@ -122,6 +122,21 @@ object WeatherColorSchemes {
     val TempColdAccent = Brush.linearGradient(listOf(Color(0xFF00D4FF), Color(0xFF7F7FD5)))
 }
 
+object WeatherPalette {
+    val SkyCloudyDay = listOf(Color(0xFF3A4E6B), Color(0xFF4F6485), Color(0xFF667BA0))
+    val SkyClearDay = listOf(Color(0xFF0B4F9E), Color(0xFF1A8EDB), Color(0xFF3BB6EE))
+    val SkyWarmDay = listOf(Color(0xFF1A5276), Color(0xFF2980B9), Color(0xFF5DADE2))
+    val SkyHotDay = listOf(Color(0xFF172033), Color(0xFF7C2D12), Color(0xFFC2410C), Color(0xFF1D4ED8))
+    val SkyColdDay = listOf(Color(0xFF1B2A4A), Color(0xFF2E5077), Color(0xFF7FBBDA))
+    val SkyRain = listOf(Color(0xFF1C2B4A), Color(0xFF253762), Color(0xFF2E4880))
+    val SkyStorm = listOf(Color(0xFF100B2C), Color(0xFF1D1450), Color(0xFF2E1E78))
+    val SkyFog = listOf(Color(0xFF2C3E50), Color(0xFF3D5166), Color(0xFF4CA1AF))
+    val SkySunrise = listOf(Color(0xFF312E81), Color(0xFF9A3412), Color(0xFFEA580C), Color(0xFF2563EB))
+    val SkySunset = listOf(Color(0xFF1A0A2E), Color(0xFF8338EC), Color(0xFFFF6B35))
+    val SkyNight = listOf(Color(0xFF050B24), Color(0xFF17206A), Color(0xFF3B2B86), Color(0xFF0F766E))
+    val SkyDeepNight = listOf(Color(0xFF020617), Color(0xFF0B1B46), Color(0xFF25135F), Color(0xFF0B5F6A))
+}
+
 fun getWeatherGradient(weatherCode: Int, isDay: Boolean): Brush {
     return when {
         !isDay -> WeatherColorSchemes.NightGradient
@@ -133,6 +148,37 @@ fun getWeatherGradient(weatherCode: Int, isDay: Boolean): Brush {
         weatherCode in 85..86 -> WeatherColorSchemes.SnowGradient // Snow showers
         weatherCode in 95..99 -> WeatherColorSchemes.StormyGradient // Thunderstorm
         else -> WeatherColorSchemes.CloudyGradient
+    }
+}
+
+fun getFullAppGradient(
+    weatherCode: Int,
+    isDay: Boolean,
+    tempC: Double,
+    hourOfDay: Int,
+): Brush {
+    if (!isDay) {
+        return Brush.verticalGradient(
+            if (hourOfDay in 22..23 || hourOfDay in 0..3) {
+                WeatherPalette.SkyDeepNight
+            } else {
+                WeatherPalette.SkyNight
+            }
+        )
+    }
+
+    if (hourOfDay in 5..7) return Brush.verticalGradient(WeatherPalette.SkySunrise)
+    if (hourOfDay in 17..19) return Brush.verticalGradient(WeatherPalette.SkySunset)
+
+    return when {
+        weatherCode in 95..99 -> Brush.verticalGradient(WeatherPalette.SkyStorm)
+        weatherCode in 51..82 -> Brush.verticalGradient(WeatherPalette.SkyRain)
+        weatherCode in 45..48 -> Brush.verticalGradient(WeatherPalette.SkyFog)
+        weatherCode in 1..3 -> Brush.verticalGradient(WeatherPalette.SkyCloudyDay)
+        tempC >= 35.0 -> Brush.verticalGradient(WeatherPalette.SkyHotDay)
+        tempC <= 14.0 -> Brush.verticalGradient(WeatherPalette.SkyColdDay)
+        tempC in 15.0..24.0 -> Brush.verticalGradient(WeatherPalette.SkyClearDay)
+        else -> Brush.verticalGradient(WeatherPalette.SkyWarmDay)
     }
 }
 

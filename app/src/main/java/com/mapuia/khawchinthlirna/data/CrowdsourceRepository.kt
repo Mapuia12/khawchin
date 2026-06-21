@@ -1,5 +1,6 @@
 package com.mapuia.khawchinthlirna.data
 
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.mapuia.khawchinthlirna.data.model.NearbyReport
@@ -39,7 +40,8 @@ class CrowdsourceRepository(
         gridId: String? = null,
     ) {
         // Validate inputs
-        require(userId.isNotBlank()) { "User ID required" }
+        val reportUserId = ensureReportUserId(userId)
+        require(reportUserId.isNotBlank()) { "User ID required" }
         require(lat in 21.0..26.0) { "Latitude must be between 21.0 and 26.0 (Mizoram region)" }
         require(lon in 91.0..96.0) { "Longitude must be between 91.0 and 96.0 (Mizoram region)" }
         require(rainIntensity in 0..6) { "Rain intensity must be 0-6" }
@@ -48,7 +50,7 @@ class CrowdsourceRepository(
         notes?.let { require(it.length <= 500) { "Notes must be max 500 characters" } }
 
         val data = hashMapOf<String, Any>(
-            "user_id" to userId,
+            "user_id" to reportUserId,
             "lat" to lat,
             "lon" to lon,
             "rain_intensity" to rainIntensity,
@@ -92,13 +94,39 @@ class CrowdsourceRepository(
             // Provide user-friendly error messages
             val userMessage = when (e.code) {
                 FirebaseFirestoreException.Code.PERMISSION_DENIED -> 
-                    "Report submit theih loh - Sign in hmasa rawh le"
+                    "Report submit theih loh - guest sign-in/Firebase permission check rawh"
                 FirebaseFirestoreException.Code.UNAVAILABLE ->
                     "Network connection a awm lo - Beih leh rawh"
                 else -> 
                     "Report submit a hlawh lo: ${e.message}"
             }
             throw Exception(userMessage, e)
+        }
+    }
+
+    private suspend fun ensureReportUserId(preferredUserId: String): String {
+        val auth = FirebaseAuth.getInstance()
+        val user = auth.currentUser ?: try {
+            auth.signInAnonymously().await().user
+        } catch (e: Exception) {
+            AppLog.e("CROWD", "Guest auth failed before full report submit: ${e.message}", e)
+            throw IllegalStateException(reportAuthFailureMessage(e), e)
+        }
+
+        return user?.uid
+            ?: throw IllegalStateException("Report submit nan guest sign-in a hlawhchham. Firebase auth setup check rawh.")
+    }
+
+    private fun reportAuthFailureMessage(e: Exception): String {
+        val message = e.message.orEmpty()
+        return when {
+            message.contains("Requests from this Android client application", ignoreCase = true) ||
+                message.contains("blocked", ignoreCase = true) ->
+                "Report submit nan guest sign-in hi Firebase-in a block. Play signing SHA/API key/App Check setup check rawh."
+            message.contains("network", ignoreCase = true) ->
+                "Network a buai avangin report submit theih loh. Internet check la, beih leh rawh."
+            else ->
+                "Report submit nan guest sign-in a hlawhchham. Firebase auth setup check rawh."
         }
     }
 

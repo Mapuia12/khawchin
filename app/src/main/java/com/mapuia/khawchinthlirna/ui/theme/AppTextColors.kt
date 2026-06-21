@@ -22,7 +22,7 @@ fun appTextPrimary(alpha: Float = 1f): Color {
 fun appTextSecondary(alpha: Float = 1f): Color {
     // Always use white text since our app background is always a dark gradient
     val base = Color.White
-    return base.copy(alpha = alpha)
+    return base.copy(alpha = alpha.coerceIn(0.82f, 1f))
 }
 
 /**
@@ -32,7 +32,7 @@ fun appTextSecondary(alpha: Float = 1f): Color {
 fun appTextMuted(alpha: Float = 1f): Color {
     // Always use white text since our app background is always a dark gradient
     val base = Color.White
-    return base.copy(alpha = alpha)
+    return base.copy(alpha = alpha.coerceIn(0.62f, 1f))
 }
 
 /**

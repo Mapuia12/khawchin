@@ -22,9 +22,9 @@ object PremiumColors {
     
     // Text colors for dark backgrounds
     val TextPrimary = Color.White
-    val TextSecondary = Color.White.copy(alpha = 0.8f)
-    val TextTertiary = Color.White.copy(alpha = 0.6f)
-    val TextMuted = Color.White.copy(alpha = 0.4f)
+    val TextSecondary = Color.White.copy(alpha = 0.9f)
+    val TextTertiary = Color.White.copy(alpha = 0.78f)
+    val TextMuted = Color.White.copy(alpha = 0.64f)
     
     // Background gradients
     val PremiumGradient = Brush.verticalGradient(

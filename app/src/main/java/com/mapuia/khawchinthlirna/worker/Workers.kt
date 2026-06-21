@@ -3,7 +3,11 @@ package com.mapuia.khawchinthlirna.worker
 import android.content.Context
 import androidx.work.*
 import com.google.firebase.firestore.FirebaseFirestore
+import com.mapuia.khawchinthlirna.data.WeatherCache
+import com.mapuia.khawchinthlirna.data.WeatherConstants
 import com.mapuia.khawchinthlirna.data.local.KhawchinDatabase
+import com.mapuia.khawchinthlirna.data.model.WeatherDoc
+import com.mapuia.khawchinthlirna.data.preferences.SelectedLocationMode
 import com.mapuia.khawchinthlirna.data.preferences.PreferencesManager
 import com.mapuia.khawchinthlirna.widget.WeatherWidgetUpdater
 import kotlinx.coroutines.Dispatchers
@@ -107,17 +111,28 @@ class WeatherRefreshWorker(
             // Use DataStore (PreferencesManager) instead of SharedPreferences
             // This ensures consistency with the rest of the app
             val preferencesManager = PreferencesManager(applicationContext)
+            val selectedLocation = preferencesManager.selectedLocationFlow.first()
             val homeLocation = preferencesManager.homeLocationFlow.first()
-            val homeGridId = homeLocation?.first
+            val refreshGridId = when {
+                selectedLocation.mode == SelectedLocationMode.MANUAL && !selectedLocation.gridId.isNullOrBlank() ->
+                    selectedLocation.gridId!!
+                homeLocation?.first != null -> homeLocation.first
+                else -> WeatherConstants.DEFAULT_GRID_ID
+            }
 
-            if (homeGridId != null) {
+            if (refreshGridId != null) {
                 // Fetch latest weather for home location
                 val weatherDoc = firestore.collection("weather_v69_grid")
-                    .document(homeGridId)
+                    .document(refreshGridId)
                     .get()
                     .await()
 
                 if (weatherDoc.exists()) {
+                    weatherDoc.toObject(WeatherDoc::class.java)?.let { doc ->
+                        if (doc.gridId.isNullOrBlank()) doc.gridId = weatherDoc.id
+                        WeatherCache(applicationContext).save(refreshGridId, doc)
+                    }
+
                     // Update widget
                     val temp = weatherDoc.getDouble("current.temp_c")?.toInt()?.toString() ?: "--"
                     val conditionText = weatherDoc.getString("current.condition.text") ?: ""

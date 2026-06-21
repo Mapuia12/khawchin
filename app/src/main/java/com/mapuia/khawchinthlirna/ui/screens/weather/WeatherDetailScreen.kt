@@ -445,7 +445,7 @@ fun WeatherStat(
         Text(
             text = label,
             color = appTextMuted(0.5f),
-            fontSize = 10.sp,
+            fontSize = 11.sp,
         )
     }
 }

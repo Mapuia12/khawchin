@@ -1,7 +1,6 @@
 package com.mapuia.khawchinthlirna.ui.theme
 
 import android.os.Build
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -86,17 +85,7 @@ fun GlassSurface(
     val shape = RoundedCornerShape(tokens.cornerRadius)
     val tint = glassTint(isDay)
 
-    // Subtle animated shimmer effect
-    val infiniteTransition = rememberInfiniteTransition(label = "glass_shimmer")
-    val shimmerAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.08f,
-        targetValue = 0.15f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(3000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "shimmer"
-    )
+    val highlightAlpha = if (enableGlow) 0.11f else 0.06f
 
     Box(
         modifier = modifier
@@ -127,7 +116,7 @@ fun GlassSurface(
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            Color.White.copy(alpha = shimmerAlpha),
+                            Color.White.copy(alpha = highlightAlpha),
                             Color.Transparent,
                         ),
                         startY = 0f,

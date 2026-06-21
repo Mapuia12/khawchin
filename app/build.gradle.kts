@@ -17,8 +17,8 @@ android {
         applicationId = "com.mapuia.khawchinthlirna"
         minSdk = 28
         targetSdk = 36
-        versionCode = 9  // Increment for each Play Store release
-        versionName = "1.2"
+        versionCode = 13  // Increment for each Play Store release
+        versionName = "1.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

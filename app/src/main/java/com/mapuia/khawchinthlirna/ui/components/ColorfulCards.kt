@@ -1,13 +1,12 @@
 package com.mapuia.khawchinthlirna.ui.components
 
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,7 +19,10 @@ import com.mapuia.khawchinthlirna.ui.theme.appTextPrimary
 import com.mapuia.khawchinthlirna.ui.theme.appTextSecondary
 
 /**
- * Premium weather card with glowing accent border and animated shimmer
+ * Premium weather card with a static accent glow.
+ *
+ * Keep this calm: the main screen already has animated weather icons, so cards should not
+ * run their own infinite shimmer loops.
  */
 @Composable
 fun ColorfulWeatherCard(
@@ -29,28 +31,7 @@ fun ColorfulWeatherCard(
     enableGlow: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "card_glow")
-    
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.25f,
-        targetValue = 0.5f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "glow"
-    )
-    
-    val shimmerOffset by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(3000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "shimmer"
-    )
-
+    val glowAlpha = if (enableGlow) 0.34f else 0.18f
     val shape = RoundedCornerShape(24.dp)
     
     Card(

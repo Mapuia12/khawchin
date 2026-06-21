@@ -3,6 +3,10 @@ package com.mapuia.khawchinthlirna.data.auth
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.pm.Signature
+import android.os.Build
+import android.util.Log
 import androidx.activity.result.ActivityResultLauncher
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
@@ -16,10 +20,13 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Source
+import com.mapuia.khawchinthlirna.R
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import java.security.MessageDigest
+import java.util.Locale
 
 /**
  * Manages Firebase Authentication with Google Sign-In and Anonymous auth.
@@ -31,10 +38,15 @@ class AuthManager(
 ) {
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val googleSignInClient: GoogleSignInClient
+    private val webClientId: String
 
     init {
+        webClientId = runCatching { context.getString(R.string.default_web_client_id) }
+            .getOrNull()
+            ?.takeIf { it.isNotBlank() }
+            ?: WEB_CLIENT_ID
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(WEB_CLIENT_ID)
+            .requestIdToken(webClientId)
             .requestEmail()
             .build()
         googleSignInClient = GoogleSignIn.getClient(context, gso)
@@ -44,6 +56,11 @@ class AuthManager(
         // Replace with your actual Web Client ID from Firebase Console
         private const val WEB_CLIENT_ID = "88630222212-ndtudd79n92emt0ptged8cnffdcp60gb.apps.googleusercontent.com"
         private const val USERS_COLLECTION = "users"
+        private val BUNDLED_ANDROID_SHA1 = setOf(
+            "6B:11:4B:17:1A:40:E0:F0:C7:99:70:92:74:6B:AB:E4:CF:7A:EB:42",
+            "D7:48:A1:C5:79:C1:59:32:79:73:F3:CD:85:49:57:A2:26:7C:12:DC",
+            "AB:E3:0E:BA:05:1D:2D:B9:A8:25:D1:62:EF:39:14:93:7A:FC:5B:3E",
+        )
     }
 
     /**
@@ -87,13 +104,19 @@ class AuthManager(
      */
     suspend fun signInAnonymously(): Result<FirebaseUser> {
         return try {
+            android.util.Log.d("AuthManager", "Starting anonymous Firebase auth...")
             val result = auth.signInAnonymously().await()
             result.user?.let {
                 createUserProfile(it)
                 Result.success(it)
             } ?: Result.failure(Exception("Anonymous sign-in failed"))
         } catch (e: Exception) {
-            Result.failure(e)
+            if (isFirebaseClientBlocked(e)) {
+                logFirebaseClientDiagnostics("Anonymous auth blocked", e)
+            } else {
+                android.util.Log.e("AuthManager", "Anonymous auth exception: ${e.message}", e)
+            }
+            Result.failure(Exception(friendlyFirebaseAuthError(e, "Guest sign-in"), e))
         }
     }
 
@@ -109,16 +132,21 @@ class AuthManager(
      */
     suspend fun handleGoogleSignInResult(data: Intent?, resultCode: Int? = null): Result<FirebaseUser> {
         return try {
-            if (resultCode != null && resultCode != Activity.RESULT_OK) {
-                return Result.failure(Exception("Google sign-in cancelled"))
-            }
+            android.util.Log.d(
+                "AuthManager",
+                "handleGoogleSignInResult called resultCode=$resultCode data=${data != null}"
+            )
             if (data == null) {
-                return Result.failure(Exception("Google sign-in returned no data"))
+                val message = if (resultCode != null && resultCode != Activity.RESULT_OK) {
+                    "Google sign-in cancelled"
+                } else {
+                    "Google sign-in returned no data"
+                }
+                return Result.failure(Exception(message))
             }
-            android.util.Log.d("AuthManager", "handleGoogleSignInResult called, data: ${data != null}")
             val task = GoogleSignIn.getSignedInAccountFromIntent(data)
             val account = task.getResult(ApiException::class.java)
-            android.util.Log.d("AuthManager", "✅ Google account obtained: ${account.email}")
+            android.util.Log.d("AuthManager", "Google account obtained: ${account.email}")
             android.util.Log.d("AuthManager", "ID Token available: ${account.idToken != null}")
             firebaseAuthWithGoogle(account)
         } catch (e: ApiException) {
@@ -129,15 +157,15 @@ class AuthManager(
                 12502 -> "Sign-in currently in progress"
                 10 -> "Developer error: SHA-1 fingerprint not registered in Firebase Console. " +
                       "Run: keytool -list -v -keystore \"%USERPROFILE%\\.android\\debug.keystore\" -alias androiddebugkey -storepass android " +
-                      "Then add the SHA-1 to Firebase Console → Project Settings → Your Android app"
+                      "Then add the SHA-1 to Firebase Console > Project Settings > Your Android app"
                 7 -> "Network error - check internet connection"
                 8 -> "Internal error"
                 else -> "Google sign-in failed (code: ${e.statusCode})"
             }
-            android.util.Log.e("AuthManager", "❌ Google Sign-In ApiException: ${e.statusCode} - $errorMessage", e)
+            android.util.Log.e("AuthManager", "Google Sign-In ApiException: ${e.statusCode} - $errorMessage", e)
             Result.failure(Exception(errorMessage))
         } catch (e: Exception) {
-            android.util.Log.e("AuthManager", "❌ Google Sign-In Exception: ${e.message}", e)
+            android.util.Log.e("AuthManager", "Google Sign-In Exception: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -180,21 +208,112 @@ class AuthManager(
                 completeGoogleAuth(result.user, account)
             } catch (retryError: Exception) {
                 android.util.Log.e("AuthManager", "Direct Google sign-in retry failed: ${retryError.message}", retryError)
-                Result.failure(retryError)
+                Result.failure(Exception(friendlyFirebaseAuthError(retryError, "Google sign-in"), retryError))
             }
         } catch (e: FirebaseAuthInvalidCredentialsException) {
             android.util.Log.e("AuthManager", "Invalid Google credential: ${e.message}", e)
             Result.failure(Exception("Google sign-in credential became invalid. Please try again."))
         } catch (e: Exception) {
-            android.util.Log.e("AuthManager", "Firebase auth exception: ${e.message}", e)
-            val friendly = when {
-                e.message?.contains("network", ignoreCase = true) == true ->
-                    "Network error while signing in. Please check internet connection."
-                e.message?.contains("Too many requests", ignoreCase = true) == true ->
-                    "Too many sign-in attempts. Please wait a little and try again."
-                else -> e.message ?: "Google authentication failed"
+            if (isFirebaseClientBlocked(e)) {
+                logFirebaseClientDiagnostics("Google Firebase auth blocked", e)
+            } else {
+                android.util.Log.e("AuthManager", "Firebase auth exception: ${e.message}", e)
             }
-            Result.failure(Exception(friendly, e))
+            Result.failure(Exception(friendlyFirebaseAuthError(e, "Google sign-in"), e))
+        }
+    }
+
+    private fun friendlyFirebaseAuthError(e: Exception, action: String): String {
+        val message = e.message.orEmpty()
+        return when {
+            message.contains("Requests from this Android client application", ignoreCase = true) ||
+                message.contains("blocked", ignoreCase = true) ->
+                "$action is blocked for this Play Store build. Add the installed app-signing SHA-1/SHA-256 to Firebase and Google Cloud API key Android restrictions, then rebuild with a fresh google-services.json."
+
+            message.contains("network", ignoreCase = true) ||
+                message.contains("unreachable", ignoreCase = true) ->
+                "Network error while signing in. Please check internet connection."
+
+            message.contains("Too many requests", ignoreCase = true) ->
+                "Too many sign-in attempts. Please wait a little and try again."
+
+            message.contains("API key", ignoreCase = true) ||
+                message.contains("CONFIGURATION_NOT_FOUND", ignoreCase = true) ->
+                "$action Firebase setup is incomplete. Check google-services.json, package name, SHA keys, and enabled sign-in providers."
+
+            else -> message.ifBlank { "$action failed. Please try again." }
+        }
+    }
+
+    private fun isFirebaseClientBlocked(e: Exception): Boolean {
+        val message = e.message.orEmpty()
+        return message.contains("Requests from this Android client application", ignoreCase = true) ||
+            message.contains("blocked", ignoreCase = true)
+    }
+
+    private fun logFirebaseClientDiagnostics(reason: String, e: Exception? = null) {
+        val fingerprints = installedSigningFingerprints()
+        val installedSha1 = fingerprints.joinToString { it.sha1 }.ifBlank { "unknown" }
+        val installedSha256 = fingerprints.joinToString { it.sha256 }.ifBlank { "unknown" }
+        val sha1InBundledConfig = fingerprints.any { it.sha1 in BUNDLED_ANDROID_SHA1 }
+
+        Log.e(
+            "AuthManager",
+            "$reason. package=${context.packageName}; " +
+                "installedSha1=$installedSha1; installedSha256=$installedSha256; " +
+                "sha1InBundledGoogleServices=$sha1InBundledConfig; " +
+                "bundledGoogleServicesSha1=${BUNDLED_ANDROID_SHA1.joinToString()}; " +
+                "webClientId=$webClientId. " +
+                "If sha1InBundledGoogleServices=false, download a fresh google-services.json after adding the Play App Signing cert. " +
+                "If true, also add the same package/SHA-1 pair to the Google Cloud API key Android restrictions and verify Firebase App Check Play Integrity.",
+            e,
+        )
+    }
+
+    private data class AppSigningFingerprint(
+        val sha1: String,
+        val sha256: String,
+    )
+
+    private fun installedSigningFingerprints(): List<AppSigningFingerprint> {
+        return try {
+            val signatures: Array<Signature> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val packageInfo = context.packageManager.getPackageInfo(
+                    context.packageName,
+                    PackageManager.GET_SIGNING_CERTIFICATES,
+                )
+                val signingInfo = packageInfo.signingInfo ?: return emptyList()
+                if (signingInfo.hasMultipleSigners()) {
+                    signingInfo.apkContentsSigners
+                } else {
+                    signingInfo.signingCertificateHistory
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                context.packageManager.getPackageInfo(
+                    context.packageName,
+                    PackageManager.GET_SIGNATURES,
+                ).signatures
+            } ?: emptyArray()
+
+            signatures
+                .distinctBy { it.toCharsString() }
+                .map {
+                    AppSigningFingerprint(
+                        sha1 = signingDigest(it, "SHA-1"),
+                        sha256 = signingDigest(it, "SHA-256"),
+                    )
+                }
+        } catch (error: Exception) {
+            Log.w("AuthManager", "Could not read installed signing certificate: ${error.message}", error)
+            emptyList()
+        }
+    }
+
+    private fun signingDigest(signature: Signature, algorithm: String): String {
+        val digest = MessageDigest.getInstance(algorithm).digest(signature.toByteArray())
+        return digest.joinToString(":") { byte ->
+            String.format(Locale.US, "%02X", byte.toInt() and 0xff)
         }
     }
 
@@ -239,10 +358,10 @@ class AuthManager(
                 )
                 userDoc.set(profile).await()
             }
-            android.util.Log.d("AuthManager", "✅ User profile created successfully")
+            android.util.Log.d("AuthManager", "User profile created successfully")
         } catch (e: Exception) {
             // Log the error but don't fail - user is still authenticated
-            android.util.Log.w("AuthManager", "⚠️ Failed to create user profile in Firestore: ${e.message}", e)
+            android.util.Log.w("AuthManager", "Failed to create user profile in Firestore: ${e.message}", e)
         }
     }
 
@@ -285,10 +404,10 @@ class AuthManager(
                 )
                 userDoc.set(profile).await()
             }
-            android.util.Log.d("AuthManager", "✅ User profile created/updated successfully")
+            android.util.Log.d("AuthManager", "User profile created/updated successfully")
         } catch (e: Exception) {
             // Log the error but don't fail the sign-in - user is still authenticated
-            android.util.Log.w("AuthManager", "⚠️ Failed to create/update user profile in Firestore: ${e.message}", e)
+            android.util.Log.w("AuthManager", "Failed to create/update user profile in Firestore: ${e.message}", e)
             // Profile creation failed but user is signed in - they can still use the app
         }
     }
@@ -354,7 +473,7 @@ class AuthManager(
         } catch (e: Exception) {
             // Firestore failed (permission denied, network error, etc.)
             // Return profile from Firebase Auth data instead
-            android.util.Log.w("AuthManager", "⚠️ Failed to get profile from Firestore, using Auth data: ${e.message}")
+            android.util.Log.w("AuthManager", "Failed to get profile from Firestore, using Auth data: ${e.message}")
             UserProfile(
                 uid = user.uid,
                 displayName = user.displayName ?: "Mizo User",
