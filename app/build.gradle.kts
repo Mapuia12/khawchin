@@ -15,10 +15,10 @@ android {
 
     defaultConfig {
         applicationId = "com.mapuia.khawchinthlirna"
-        minSdk = 28
+        minSdk = 26
         targetSdk = 36
-        versionCode = 15  // Increment for each Play Store release
-        versionName = "1.8"
+        versionCode = 17  // Increment for each Play Store release
+        versionName = "2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

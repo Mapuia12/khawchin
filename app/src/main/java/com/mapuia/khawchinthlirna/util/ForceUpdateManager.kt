@@ -70,6 +70,11 @@ class ForceUpdateManager(
                 KEY_MIN_SUPPORTED_VERSION to BuildConfig.VERSION_CODE.toLong(),
                 KEY_FORECAST_JSON_URL to DEFAULT_FORECAST_JSON_URL,
                 KEY_CURRENT_JSON_URL to DEFAULT_CURRENT_JSON_URL,
+                KEY_FORECAST_JSON_BACKUP_URL to DEFAULT_FORECAST_JSON_BACKUP_URL,
+                KEY_CURRENT_JSON_BACKUP_URL to DEFAULT_CURRENT_JSON_BACKUP_URL,
+                KEY_APP_ANNOUNCEMENTS_URL to DEFAULT_APP_ANNOUNCEMENTS_URL,
+                KEY_APP_STATUS_URL to DEFAULT_APP_STATUS_URL,
+                KEY_FIRESTORE_PUBLIC_READS_ENABLED to false,
             ),
         )
     }
@@ -153,8 +158,17 @@ class ForceUpdateManager(
         private const val KEY_MIN_SUPPORTED_VERSION = "min_supported_version_code"
         private const val KEY_FORECAST_JSON_URL = "forecast_json_url"
         private const val KEY_CURRENT_JSON_URL = "current_json_url"
+        private const val KEY_FORECAST_JSON_BACKUP_URL = "forecast_json_backup_url"
+        private const val KEY_CURRENT_JSON_BACKUP_URL = "current_json_backup_url"
+        private const val KEY_APP_ANNOUNCEMENTS_URL = "app_announcements_url"
+        private const val KEY_APP_STATUS_URL = "app_status_url"
+        private const val KEY_FIRESTORE_PUBLIC_READS_ENABLED = "firestore_public_reads_enabled"
         private const val DEFAULT_FORECAST_JSON_URL = "https://khawchin.me/forecast/khawchin_forecast.json"
         private const val DEFAULT_CURRENT_JSON_URL = "https://khawchin.me/forecast/khawchin_current.json"
+        private const val DEFAULT_FORECAST_JSON_BACKUP_URL = "https://khawchin.me/forecast/khawchin_forecast_backup.json"
+        private const val DEFAULT_CURRENT_JSON_BACKUP_URL = "https://khawchin.me/forecast/khawchin_current_backup.json"
+        private const val DEFAULT_APP_ANNOUNCEMENTS_URL = "https://khawchin.me/app/announcements.json"
+        private const val DEFAULT_APP_STATUS_URL = "https://khawchin.me/app/status.json"
     }
 }
 

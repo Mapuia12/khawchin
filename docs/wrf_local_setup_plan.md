@@ -2014,22 +2014,24 @@ Most physics settings
 ```
 ### WRF laptap atanga manual runna (auto in a in run ang)
 bash ~/wrf/scripts/wrf_local_to_json.sh
-WRF_PROFILE=9km RUN_HOURS=24 WRF_NP=4 bash ~/wrf/scripts/daily_wrf_run.sh
+WRF_PROFILE=9km RUN_HOURS=24 WRF_NP=6 bash ~/wrf/scripts/daily_wrf_run.sh
 
 ### 3km run dan
-WRF_PROFILE=3km RUN_HOURS=6 WRF_NP=8 \
-EC2_DEST_TMP=/home/ubuntu/wrf_local_3km_test.json.tmp \
-EC2_DEST_FINAL=/opt/khawchin/cache/wrf_local_3km_test.json \
-EC2_ARCHIVE_DIR=/opt/khawchin/cache/wrf_archive_3km_test \
-bash ~/wrf/scripts/daily_wrf_run.sh
-
-WRF_PROFILE=3km RUN_HOURS=24 WRF_NP=8 \
-EC2_DEST_TMP=/home/ubuntu/wrf_local_3km_latest.json.tmp \
-EC2_DEST_FINAL=/opt/khawchin/cache/wrf_local_3km_latest.json \
-EC2_ARCHIVE_DIR=/opt/khawchin/cache/wrf_archive_3km \
-bash ~/wrf/scripts/daily_wrf_run.sh
+WRF_PROFILE=3km RUN_HOURS=24 WRF_NP=6 bash ~/wrf/scripts/daily_wrf_run.sh
 
 nano ~/wrf/scripts/daily_wrf_run.sh
+
+### Neated Run a auto shutdown dan
+WRF_PROFILE=nested RUN_HOURS=24 WRF_NP=6 bash ~/wrf/scripts/daily_wrf_run.sh && powershell.exe -Command "Stop-Computer -Force"
+
+RUN_DATE=$(date -u +%Y%m%d) RUN_HH=12 WRF_PROFILE=nested RUN_HOURS=36 WRF_NP=10 bash ~/wrf/scripts/daily_wrf_run.sh && cmd.exe /c shutdown /s /t 120
+
+-d Ubuntu -- bash -lc "source ~/.bashrc; RUN_DATE=$(date -u +%Y%m%d) RUN_HH=12 WRF_PROFILE=nested RUN_HOURS=36 WRF_NP=10 bash ~/wrf/scripts/daily_wrf_run.sh && cmd.exe /c shutdown /s /t 120
+
+### check lehna
+LATEST_LOG_DIR=$(ls -td ~/wrf/runs/khawchin_gfs_*/logs/* | head -1)
+echo "$LATEST_LOG_DIR"
+tail -80 "$LATEST_LOG_DIR/daily_wrf_run.log" 2>/dev/null || ls -lh "$LATEST_LOG_DIR"
 
 ### wrf log enna
 ls -lh wrf_run/real_rsl | head
@@ -2052,3 +2054,44 @@ sudo systemctl restart khawchin-api.service
 sudo systemctl status khawchin-api.service --no-pager
 
 sudo systemctl edit khawchin-api.service
+
+### WRF weekly compare run dan
+
+cd /opt/khawchin
+/opt/khawchin/venv/bin/python weekly_model_compare.py \
+  --days 7 \
+  --wrf-archive-dir /opt/khawchin/cache/wrf_archive \
+  --wrf-3km-archive-dir /opt/khawchin/cache/wrf_archive_3km \
+  --out-dir /opt/khawchin/reports \
+  --model-run-limit 32 \
+  --snapshot-timeout-seconds 8 \
+  --gid-timeout-seconds 20 \
+  --max-runtime-seconds 900 \
+  --progress-every 10
+
+
+  ### Direct printna (weekly compare result)
+  cat /opt/khawchin/reports/weekly_model_compare_20260604.md
+
+
+  cd /opt/khawchin
+
+/opt/khawchin/venv/bin/python - <<'PY'
+import json
+p="/opt/khawchin/reports/weekly_model_compare_20260617.json"
+r=json.load(open(p))
+print("IMERG samples:", r.get("imerg_samples"))
+print("Grid IDs:", r.get("grid_ids"))
+print("WRF archive files:", r.get("wrf_archive_files"))
+print()
+
+for src, m in sorted((r.get("overall") or {}).items()):
+    print(src)
+    for k in ["n","mae","rmse","bias","heavy_csi","heavy_pod","heavy_far"]:
+        if k in m:
+            print(f"  {k}: {m[k]}")
+    print()
+PY
+
+### Download fail hnua file clean na
+wsl -d Ubuntu-22.04 -u mapuia -- bash -lc "rm -rf ~/wrf/data/gfs/2026062312 ~/wrf/runs/khawchin_gfs_nested_2026062312"

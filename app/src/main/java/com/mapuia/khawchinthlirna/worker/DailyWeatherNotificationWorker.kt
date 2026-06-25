@@ -14,6 +14,7 @@ import androidx.work.WorkerParameters
 import com.google.firebase.firestore.FirebaseFirestore
 import com.mapuia.khawchinthlirna.MainActivity
 import com.mapuia.khawchinthlirna.R
+import com.mapuia.khawchinthlirna.data.WeatherCache
 import com.mapuia.khawchinthlirna.data.WeatherConstants
 import com.mapuia.khawchinthlirna.data.WeatherRepository
 import com.mapuia.khawchinthlirna.data.model.DailyArrays
@@ -22,7 +23,9 @@ import com.mapuia.khawchinthlirna.data.preferences.PreferencesManager
 import com.mapuia.khawchinthlirna.data.preferences.SelectedLocationMode
 import com.mapuia.khawchinthlirna.service.NotificationChannels
 import kotlinx.coroutines.flow.first
+import okhttp3.OkHttpClient
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 
 class DailyWeatherNotificationWorker(
@@ -48,7 +51,16 @@ class DailyWeatherNotificationWorker(
         return try {
             val language = preferencesManager.languageFlow.first()
             val isMizo = language == "mz"
-            val repository = WeatherRepository(FirebaseFirestore.getInstance())
+            val httpClient = OkHttpClient.Builder()
+                .connectTimeout(20, TimeUnit.SECONDS)
+                .readTimeout(45, TimeUnit.SECONDS)
+                .callTimeout(60, TimeUnit.SECONDS)
+                .build()
+            val repository = WeatherRepository(
+                db = FirebaseFirestore.getInstance(),
+                cache = WeatherCache(applicationContext),
+                httpClient = httpClient,
+            )
 
             val selected = preferencesManager.selectedLocationFlow.first()
             val homeLocation = preferencesManager.homeLocationFlow.first()
@@ -74,7 +86,7 @@ class DailyWeatherNotificationWorker(
                 else -> null
             }
 
-            val weather = repository.getWeatherByGridId(targetGridId)
+            val weather = repository.getWeatherByGridId(targetGridId, forceServer = true)
             if (weather != null) {
                 showDailyNotification(weather, fallbackLocationName, isMizo)
             }

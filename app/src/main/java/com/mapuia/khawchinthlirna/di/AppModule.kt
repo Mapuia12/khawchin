@@ -21,7 +21,8 @@ val appModule = module {
     // Firebase
     single { FirebaseFirestore.getInstance() }
 
-    // Public forecast JSON client (EC2/Nginx). Firestore remains the fallback.
+    // Public forecast JSON client (EC2/Nginx). Firestore weather fallback is
+    // disabled by default after the JSON migration to protect read quota.
     single {
         OkHttpClient.Builder()
             .connectTimeout(20, TimeUnit.SECONDS)

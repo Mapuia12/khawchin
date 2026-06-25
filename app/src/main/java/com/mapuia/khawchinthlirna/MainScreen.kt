@@ -171,6 +171,8 @@ import com.mapuia.khawchinthlirna.data.model.WeatherDoc
 import com.mapuia.khawchinthlirna.data.model.SkillReport
 import com.mapuia.khawchinthlirna.data.model.ImergDoc
 import com.mapuia.khawchinthlirna.data.model.ForecastSnapshot
+import com.mapuia.khawchinthlirna.data.model.AppAnnouncement
+import com.mapuia.khawchinthlirna.data.model.AppStatus
 import com.mapuia.khawchinthlirna.data.model.CycloneImpact
 import com.mapuia.khawchinthlirna.data.model.MonthOutlook
 import com.mapuia.khawchinthlirna.data.model.MonthlyForecast
@@ -349,10 +351,10 @@ private fun buildFreshRainTimeline(weather: WeatherDoc): RainTimeline? {
     val peakEndLabel = peakEndTime?.let(::extractTimeHHMM) ?: endLabel
 
     val summaryMz = when {
-        activeNow && intermittent -> "Tunah ruah a sur mek a, darkar $windowHours chhung hian a inthlak ang. Nasa ber chu $peakStartLabel-$peakEndLabel velah a ni ang."
-        activeNow -> "Tunah ruah a sur mek a, nasa ber chu $peakStartLabel-$peakEndLabel velah a ni ang. $endLabel velah a chawlhsan thei."
-        intermittent -> "Ruah $startLabel velah a tan ang, a inthlak ang a, nasa ber chu $peakStartLabel-$peakEndLabel velah a ni ang."
-        else -> "Ruah $startLabel velah a tan ang, nasa ber chu $peakStartLabel-$peakEndLabel velah a ni ang. $endLabel velah a tawp thei."
+        activeNow && intermittent -> "Tunah ruah a sur mek a, darkar $windowHours chhung hian a inthlak thei. A nasat ber hun chu $peakStartLabel-$peakEndLabel velah a ni ang."
+        activeNow -> "Tunah ruah a sur mek a, a nasat ber hun chu $peakStartLabel-$peakEndLabel velah a ni ang. $endLabel velah a ziaawm thei."
+        intermittent -> "Ruah chu $startLabel velah a lo tan thei; a inthlak thei a, a nasat ber hun chu $peakStartLabel-$peakEndLabel velah a ni ang."
+        else -> "Ruah chu $startLabel velah a lo tan thei; a nasat ber hun chu $peakStartLabel-$peakEndLabel velah a ni ang. $endLabel velah a ziaawm thei."
     }
     val summaryEn = when {
         activeNow && intermittent -> "Rain is ongoing now and may turn on and off in the next $windowHours hours. Heaviest rain looks around $peakStartLabel-$peakEndLabel."
@@ -517,7 +519,8 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
         if (granted) vm.onLocationPermissionGranted() else permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
     }
     
-    // Auto-refresh every 30 minutes (background refresh, non-intrusive)
+    // Auto-refresh every 10 minutes while foregrounded so JSON users do not
+    // need to know pull-to-refresh exists after backend full-mode runs.
     // Uses lifecycle awareness to pause when app is in background
     val lifecycleOwner = LocalLifecycleOwner.current
     var isAppInForeground by remember { mutableStateOf(true) }
@@ -538,7 +541,7 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
     }
     
     LaunchedEffect(Unit) {
-        val autoRefreshIntervalMs = 30 * 60 * 1000L // 30 minutes
+        val autoRefreshIntervalMs = 10 * 60 * 1000L // 10 minutes
         while (true) {
             kotlinx.coroutines.delay(autoRefreshIntervalMs)
             // Only refresh if app is in foreground to save battery
@@ -559,6 +562,7 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
     var reportSubmitting by remember { mutableStateOf(false) }
     var showRewardPrompt by remember { mutableStateOf(false) }
     var menuNavigateTo by remember { mutableStateOf<String?>(null) }
+    var dismissedAnnouncementId by remember { mutableStateOf<String?>(null) }
     
     // User profile state for header icon
     val authManager: com.mapuia.khawchinthlirna.data.auth.AuthManager = org.koin.compose.koinInject()
@@ -733,6 +737,32 @@ fun MainScreen(vm: WeatherViewModel = koinViewModel()) {
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
+                    val visibleAnnouncement = uiState.appAnnouncement
+                        ?.takeIf { !it.dismissible || it.id != dismissedAnnouncementId }
+
+                    if (visibleAnnouncement != null || uiState.appStatus?.maintenance == true) {
+                        item {
+                            AppControlBanner(
+                                announcement = visibleAnnouncement,
+                                appStatus = uiState.appStatus,
+                                isDay = isDay,
+                                isMizo = isMizo,
+                                onDismiss = { announcement ->
+                                    dismissedAnnouncementId = announcement.id
+                                },
+                                onOpenUrl = { url ->
+                                    val safeUrl = url.takeIf { it.startsWith("http://") || it.startsWith("https://") }
+                                        ?: "https://play.google.com/store/apps/details?id=${context.packageName}"
+                                    runCatching {
+                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(safeUrl)))
+                                    }.onFailure {
+                                        Toast.makeText(context, safeUrl, Toast.LENGTH_LONG).show()
+                                    }
+                                },
+                            )
+                        }
+                    }
+
                     val showStatusBanner =
                         uiState.locationPermissionState == LocationPermissionState.DENIED ||
                         uiState.isLoading ||
@@ -1563,6 +1593,123 @@ private fun StatusBanner(
                         fontWeight = FontWeight.SemiBold
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppControlBanner(
+    announcement: AppAnnouncement?,
+    appStatus: AppStatus?,
+    isDay: Boolean,
+    isMizo: Boolean,
+    onDismiss: (AppAnnouncement) -> Unit,
+    onOpenUrl: (String) -> Unit,
+) {
+    val maintenance = appStatus?.maintenance == true
+    val title = when {
+        maintenance -> if (isMizo) "Service siamthat mek" else "Service maintenance"
+        announcement != null -> announcement.title(isMizo)
+        else -> return
+    }
+    val body = when {
+        maintenance -> if (isMizo) {
+            appStatus.messageMz.orEmpty().ifBlank { appStatus.messageEn.orEmpty().ifBlank { "Khawchin service siamthat mek a ni. Rei lo te hnuah lo en leh rawh." } }
+        } else {
+            appStatus.messageEn.orEmpty().ifBlank { appStatus.messageMz.orEmpty().ifBlank { "Khawchin service is under maintenance. Please check again shortly." } }
+        }
+        announcement != null -> announcement.body(isMizo)
+        else -> ""
+    }
+    if (title.isBlank() && body.isBlank()) return
+
+    val severity = (announcement?.severity ?: if (maintenance) "warning" else "info").lowercase(Locale.US)
+    val accent = when (severity) {
+        "critical", "danger", "error" -> Color(0xFFF87171)
+        "warning", "orange" -> Color(0xFFFBBF24)
+        "success", "ok" -> Color(0xFF34D399)
+        else -> Color(0xFF38BDF8)
+    }
+    val icon = when (severity) {
+        "critical", "danger", "error", "warning", "orange" -> Icons.Filled.Warning
+        else -> Icons.Filled.Info
+    }
+    val actionLabel = announcement?.actionLabel(isMizo).orEmpty()
+    val actionUrl = announcement?.actionUrl.orEmpty()
+
+    GlassCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                color = accent.copy(alpha = 0.35f),
+                shape = RoundedCornerShape(22.dp),
+            ),
+        isDay = isDay,
+    ) {
+        Row(
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(accent.copy(alpha = 0.16f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = accent,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = title,
+                    color = appTextPrimary(),
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 16.sp,
+                    lineHeight = 20.sp,
+                )
+                if (body.isNotBlank()) {
+                    Text(
+                        text = body,
+                        color = appTextSecondary(0.82f),
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                    )
+                }
+                if (actionUrl.isNotBlank()) {
+                    Button(
+                        onClick = { onOpenUrl(actionUrl) },
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                    ) {
+                        Text(
+                            text = actionLabel.ifBlank { if (isMizo) "Hawng rawh" else "Open" },
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+
+            if (announcement?.dismissible == true) {
+                Text(
+                    text = "×",
+                    color = appTextSecondary(0.80f),
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable { onDismiss(announcement) }
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                )
             }
         }
     }
@@ -3682,9 +3829,9 @@ private fun SeasonalForecastSection(
 
             if (hasSeasonalDetails) {
                 ExpandableInlineSection(
-                    title = if (isMizo) "A kimchang zawk" else "More seasonal details",
+                    title = if (isMizo) "A chipchiar zawk" else "More seasonal details",
                     subtitle = if (isMizo) {
-                        "Thla 6 trend, ENSO/IOD, thlipui season"
+                        "Thla 6 thlirna, ENSO/IOD, thlipui hun"
                     } else {
                         "6-month trend, climate drivers, cyclone season"
                     },
@@ -3789,13 +3936,13 @@ private fun SeasonalForecastSection(
 private fun humanizeSeasonalText(text: String, isMizo: Boolean): String {
     val replacements = if (isMizo) {
         mapOf(
-            "MORE_RAIN" to "Ruah tam zawk",
-            "LESS_RAIN" to "Ruah tlem zawk",
+            "MORE_RAIN" to "Ruah tam deuh",
+            "LESS_RAIN" to "Ruah tlem deuh",
             "NORMAL_RAIN" to "Ruah pangngai",
             "NORMAL" to "Pangngai",
-            "COOL" to "A vawt deuh",
-            "WARM" to "A lum deuh",
-            "HOT" to "A lum",
+            "COOL" to "Vawt deuh",
+            "WARM" to "Lum deuh",
+            "HOT" to "Lum",
             "DRY" to "Ro deuh",
         )
     } else {
@@ -3866,14 +4013,14 @@ private fun buildCurrentMonthRisk(
     }
 
     val value = when {
-        wetter -> if (isMizo) "Ruah tam zawk" else "Wetter tilt"
-        drier -> if (isMizo) "Ruah tlem zawk" else "Drier tilt"
+        wetter -> if (isMizo) "Ruah tam deuh" else "Wetter tilt"
+        drier -> if (isMizo) "Ruah tlem deuh" else "Drier tilt"
         else -> if (isMizo) "Pangngai vel" else "Near normal"
     }
     val helper = pct?.let {
-        if (isMizo) "Tun thla average nen ${signedPct(it)}" else "${signedPct(it)} vs monthly average"
+        if (isMizo) "Tun thla pangngai nen ${signedPct(it)}" else "${signedPct(it)} vs monthly average"
     } ?: if (isMizo) {
-        "Seasonal signal lian lutuk lo"
+        "Danglamna lian a lang lo"
     } else {
         "No strong monthly anomaly"
     }
@@ -3884,7 +4031,7 @@ private fun buildCurrentMonthRisk(
     }
 
     return SeasonalRiskUiSignal(
-        title = if (isMizo) "Tun thla risk" else "This month",
+        title = if (isMizo) "Tun thla dinhmun" else "This month",
         value = value,
         helper = helper,
         color = color,
@@ -3902,15 +4049,15 @@ private fun buildSevenDayConfidenceRisk(weather: WeatherDoc, isMizo: Boolean): S
         ?.average()
 
     val value = when {
-        avgConfidence == null -> if (isMizo) "Endik mek" else "Checking"
+        avgConfidence == null -> if (isMizo) "La kim lo" else "Checking"
         avgConfidence >= 0.75 -> if (isMizo) "Rintlak" else "High"
         avgConfidence >= 0.55 -> if (isMizo) "Pangngai" else "Medium"
         else -> if (isMizo) "Hniam" else "Low"
     }
     val helper = avgConfidence?.let {
-        if (isMizo) "Forecast-a model inremna ${(it * 100).roundToInt()}%" else "Model agreement ${(it * 100).roundToInt()}%"
+        if (isMizo) "Model inremna ${(it * 100).roundToInt()}%" else "Model agreement ${(it * 100).roundToInt()}%"
     } ?: if (isMizo) {
-        "Model confidence data la kim lo"
+        "Model rintlakna data a la kim lo"
     } else {
         "Confidence data is limited"
     }
@@ -3922,7 +4069,7 @@ private fun buildSevenDayConfidenceRisk(weather: WeatherDoc, isMizo: Boolean): S
     }
 
     return SeasonalRiskUiSignal(
-        title = if (isMizo) "Ni 7 rintlakna" else "7-day confidence",
+        title = if (isMizo) "Ni 7 rintlak dan" else "7-day confidence",
         value = value,
         helper = helper,
         color = color,
@@ -3946,11 +4093,11 @@ private fun buildCycloneMonsoonRisk(weather: WeatherDoc, isMizo: Boolean): Seaso
     val isClimoCycloneWindow = month in setOf(5, 10, 11)
 
     val value = when {
-        impactPct >= 50 -> if (isMizo) "Thlipui watch" else "Cyclone watch"
+        impactPct >= 50 -> if (isMizo) "Thlipui ralveng" else "Cyclone watch"
         impactPct >= 25 -> if (isMizo) "Awm thei" else "Possible"
-        isMonsoon -> if (isMizo) "Monsoon active" else "Monsoon active"
-        isClimoCycloneWindow -> if (isMizo) "Risk window" else "Risk window"
-        else -> if (isMizo) "Hriatpui tur" else "Monitor"
+        isMonsoon -> if (isMizo) "Fur a chak" else "Monsoon active"
+        isClimoCycloneWindow -> if (isMizo) "Hlauhawm hun" else "Risk window"
+        else -> if (isMizo) "Ngaihven tur" else "Monitor"
     }
     val helper = when {
         peakMonthlyRisk != null -> {
@@ -3959,10 +4106,10 @@ private fun buildCycloneMonsoonRisk(weather: WeatherDoc, isMizo: Boolean): Seaso
         }
         !cycloneOutlook?.peakMonths.isNullOrEmpty() -> {
             val peaks = cycloneOutlook?.peakMonths.orEmpty().take(3).joinToString(", ")
-            if (isMizo) "Peak window: $peaks" else "Peak window: $peaks"
+            if (isMizo) "Hlauhawm zual hun: $peaks" else "Peak window: $peaks"
         }
-        isMonsoon -> if (isMizo) "BoB/Andaman ruah luh dan ngaihven" else "Watching BoB/Andaman moisture"
-        else -> if (isMizo) "Live thlipui a awm chuan alert a lang ang" else "Alerts appear if a live system forms"
+        isMonsoon -> if (isMizo) "BoB/Andaman atanga ruahtui luh dan ngaihven" else "Watching BoB/Andaman moisture"
+        else -> if (isMizo) "Thlipui a lo awm chuan hriattirna a lang ang" else "Alerts appear if a live system forms"
     }
     val color = when {
         impactPct >= 50 -> Color(0xFFFB7185)
@@ -3972,7 +4119,7 @@ private fun buildCycloneMonsoonRisk(weather: WeatherDoc, isMizo: Boolean): Seaso
     }
 
     return SeasonalRiskUiSignal(
-        title = if (isMizo) "Thlipui/monsoon" else "Cyclone/monsoon",
+        title = if (isMizo) "Thlipui/fur ruah" else "Cyclone/monsoon",
         value = value,
         helper = helper,
         color = color,
@@ -4020,13 +4167,13 @@ private fun SeasonalRiskSnapshotCard(
                         .padding(end = 10.dp)
                 ) {
                     Text(
-                        text = if (isMizo) "Risk thlirna" else "Risk snapshot",
+                        text = if (isMizo) "Hlauhawmna tawi" else "Risk snapshot",
                         color = appTextPrimary(),
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 17.sp,
                     )
                     Text(
-                        text = if (isMizo) "Hriat ngai signal, model hming ai lo" else "Signal, not model labels",
+                        text = if (isMizo) "Model hming ni lo, hriattirna tawi" else "Signal, not model labels",
                         color = appTextSecondary(0.68f),
                         fontSize = 12.sp,
                         maxLines = 2,
@@ -4041,7 +4188,7 @@ private fun SeasonalRiskSnapshotCard(
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Text(
-                        text = if (isMizo) "Trend" else "Trend",
+                    text = if (isMizo) "Tlangpui" else "Trend",
                         color = Color(0xFF5EEAD4),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
@@ -4133,11 +4280,11 @@ private fun ClimateDriversCard(
 
     data class ImpactSignal(val emoji: String, val color: Color, val textMz: String, val textEn: String)
     val impact = when {
-        rainSignals >= 2 -> ImpactSignal("🌧️", Color(0xFF60A5FA), "Kumin hian ruah leh thlipui a tam zual a rinawm", "More rainfall & cyclone activity expected this season")
-        rainSignals == 1 -> ImpactSignal("🌤️", Color(0xFF4ADE80), "Ruah a pangngai aiin a tam deuh a rinawm", "Slightly above-normal rainfall expected")
-        rainSignals == 0 -> ImpactSignal("⚖️", Color(0xFF4ADE80), "Ruah leh thlipui a pangngai tura ngaih a ni", "Near-normal rainfall & cyclone activity expected")
-        rainSignals == -1 -> ImpactSignal("☀️", Color(0xFFFFA94D), "Ruah a pangngai aiin a tlem deuh a rinawm", "Slightly below-normal rainfall expected")
-        else -> ImpactSignal("☀️", Color(0xFFFFA94D), "Kumin hian ruah a tlem zual a rinawm", "Less rainfall expected this season")
+        rainSignals >= 2 -> ImpactSignal("🌧️", Color(0xFF60A5FA), "He hunbi chhung hian ruah leh thlipui a tam deuh a rinawm", "More rainfall & cyclone activity expected this season")
+        rainSignals == 1 -> ImpactSignal("🌤️", Color(0xFF4ADE80), "Ruah chu pangngai aiin a tam deuh a rinawm", "Slightly above-normal rainfall expected")
+        rainSignals == 0 -> ImpactSignal("⚖️", Color(0xFF4ADE80), "Ruah leh thlipui chu pangngai vel tura ngaih a ni", "Near-normal rainfall & cyclone activity expected")
+        rainSignals == -1 -> ImpactSignal("☀️", Color(0xFFFFA94D), "Ruah chu pangngai aiin a tlem deuh a rinawm", "Slightly below-normal rainfall expected")
+        else -> ImpactSignal("☀️", Color(0xFFFFA94D), "He hunbi chhung hian ruah a tlem deuh a rinawm", "Less rainfall expected this season")
     }
 
     // ENSO state label

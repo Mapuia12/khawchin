@@ -11,6 +11,8 @@ import com.mapuia.khawchinthlirna.data.model.SkillReport
 import com.mapuia.khawchinthlirna.data.model.WeatherDoc
 import com.mapuia.khawchinthlirna.data.model.ImergDoc
 import com.mapuia.khawchinthlirna.data.model.ForecastSnapshot
+import com.mapuia.khawchinthlirna.data.model.AppAnnouncement
+import com.mapuia.khawchinthlirna.data.model.AppStatus
 import com.mapuia.khawchinthlirna.data.WeatherConstants
 import com.mapuia.khawchinthlirna.data.LoadingState
 import com.mapuia.khawchinthlirna.data.preferences.PreferencesManager
@@ -43,6 +45,8 @@ data class WeatherUiState(
     val imerg: ImergDoc? = null,
     val forecastSnapshot: ForecastSnapshot? = null,
     val skillReport: SkillReport? = null,
+    val appAnnouncement: AppAnnouncement? = null,
+    val appStatus: AppStatus? = null,
     val locationPermissionState: LocationPermissionState = LocationPermissionState.UNKNOWN,
     val selectedLocationMode: SelectedLocationMode = SelectedLocationMode.CURRENT,
     val selectedLocationName: String? = null,
@@ -56,8 +60,8 @@ class WeatherViewModel(
     private val preferencesManager: PreferencesManager,
 ) : AndroidViewModel(app) {
 
-    private val nonInteractiveRefreshIntervalMs = 10 * 60 * 1000L
-    private val foregroundRefreshIntervalMs = 2 * 60 * 1000L
+    private val nonInteractiveRefreshIntervalMs = 5 * 60 * 1000L
+    private val foregroundRefreshIntervalMs = 60 * 1000L
     private var lastSuccessfulRefreshMs: Long = 0L
     private var lastRefreshAttemptMs: Long = 0L
     private var refreshInFlight: Boolean = false
@@ -153,6 +157,8 @@ class WeatherViewModel(
 
             try {
                 val selectedLocation = preferencesManager.selectedLocationFlow.first()
+                val appAnnouncement = repository.getAppAnnouncement(forceRefresh = forceServer)
+                val appStatus = repository.getAppStatus(forceRefresh = forceServer)
                 val useManualLocation =
                     selectedLocation.mode == SelectedLocationMode.MANUAL &&
                         selectedLocation.lat != null &&
@@ -254,6 +260,8 @@ class WeatherViewModel(
                         imerg = imerg,
                         forecastSnapshot = snapshot,
                         skillReport = skillReport,
+                        appAnnouncement = appAnnouncement,
+                        appStatus = appStatus,
                         errorMessage = if (doc == null) {
                             "Dik lo a awm tlat, khawchin data a awm lo ($resolvedGridId). Internet i check ang u."
                         } else null,

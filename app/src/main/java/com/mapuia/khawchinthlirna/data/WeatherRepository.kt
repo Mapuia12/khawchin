@@ -16,6 +16,9 @@ import com.mapuia.khawchinthlirna.data.model.ForecastSnapshot
 import com.mapuia.khawchinthlirna.util.AppLog
 import kotlinx.coroutines.delay
 import com.google.firebase.auth.FirebaseAuth
+import com.mapuia.khawchinthlirna.BuildConfig
+import com.mapuia.khawchinthlirna.data.model.AppAnnouncement
+import com.mapuia.khawchinthlirna.data.model.AppStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.tasks.await
@@ -65,10 +68,20 @@ class WeatherRepository(
     private companion object {
         private const val DEFAULT_EC2_FORECAST_URL = "https://khawchin.me/forecast/khawchin_forecast.json"
         private const val DEFAULT_EC2_CURRENT_URL = "https://khawchin.me/forecast/khawchin_current.json"
+        private const val DEFAULT_EC2_FORECAST_BACKUP_URL = "https://khawchin.me/forecast/khawchin_forecast_backup.json"
+        private const val DEFAULT_EC2_CURRENT_BACKUP_URL = "https://khawchin.me/forecast/khawchin_current_backup.json"
+        private const val DEFAULT_APP_ANNOUNCEMENTS_URL = "https://khawchin.me/app/announcements.json"
+        private const val DEFAULT_APP_STATUS_URL = "https://khawchin.me/app/status.json"
         private const val REMOTE_CONFIG_FORECAST_URL_KEY = "forecast_json_url"
         private const val REMOTE_CONFIG_CURRENT_URL_KEY = "current_json_url"
+        private const val REMOTE_CONFIG_FORECAST_BACKUP_URL_KEY = "forecast_json_backup_url"
+        private const val REMOTE_CONFIG_CURRENT_BACKUP_URL_KEY = "current_json_backup_url"
+        private const val REMOTE_CONFIG_APP_ANNOUNCEMENTS_URL_KEY = "app_announcements_url"
+        private const val REMOTE_CONFIG_APP_STATUS_URL_KEY = "app_status_url"
+        private const val REMOTE_CONFIG_FIRESTORE_PUBLIC_READS_ENABLED_KEY = "firestore_public_reads_enabled"
         private const val FORECAST_HTTP_CACHE_TTL_MS = 30 * 60 * 1000L
         private const val CURRENT_HTTP_CACHE_TTL_MS = 10 * 60 * 1000L
+        private const val APP_CONTROL_CACHE_TTL_MS = 10 * 60 * 1000L
         private const val MIN_EC2_GRID_POINTS = 100
         private const val MAX_HTTP_NEAREST_DISTANCE_KM = 60.0
         private const val MAX_EC2_JSON_AGE_HOURS = 20L
@@ -87,6 +100,10 @@ class WeatherRepository(
     private var combinedForecastCache: TimedValue<Map<String, WeatherDoc>?>? = null
     @Volatile
     private var currentForecastCache: TimedValue<Map<String, CurrentWeather>?>? = null
+    @Volatile
+    private var appAnnouncementCache: TimedValue<AppAnnouncement?>? = null
+    @Volatile
+    private var appStatusCache: TimedValue<AppStatus?>? = null
     private val imergCache = mutableMapOf<String, TimedValue<ImergDoc?>>()
     private val forecastCache = mutableMapOf<String, TimedValue<ForecastSnapshot?>>()
     private val httpGson = GsonBuilder()
@@ -94,7 +111,11 @@ class WeatherRepository(
         .create()
 
     private fun parseInstantOrNull(value: String?): Instant? {
-        return value?.let { runCatching { Instant.parse(it) }.getOrNull() }
+        return value?.let {
+            runCatching { Instant.parse(it) }.getOrElse {
+                runCatching { java.time.OffsetDateTime.parse(value).toInstant() }.getOrNull()
+            }
+        }
     }
 
     private fun isCombinedForecastFresh(envelope: CombinedForecastEnvelope): Boolean {
@@ -135,24 +156,73 @@ class WeatherRepository(
         return true
     }
 
-    private fun combinedForecastUrl(): String {
+    private fun remoteUrl(key: String, default: String): String {
         val configured = Firebase.remoteConfig
-            .getString(REMOTE_CONFIG_FORECAST_URL_KEY)
+            .getString(key)
             .trim()
 
         return configured
             .takeIf { it.startsWith("http://") || it.startsWith("https://") }
-            ?: DEFAULT_EC2_FORECAST_URL
+            ?: default
     }
 
-    private fun currentForecastUrl(): String {
-        val configured = Firebase.remoteConfig
-            .getString(REMOTE_CONFIG_CURRENT_URL_KEY)
-            .trim()
+    private fun combinedForecastUrls(): List<String> =
+        listOf(
+            remoteUrl(REMOTE_CONFIG_FORECAST_URL_KEY, DEFAULT_EC2_FORECAST_URL),
+            remoteUrl(REMOTE_CONFIG_FORECAST_BACKUP_URL_KEY, DEFAULT_EC2_FORECAST_BACKUP_URL),
+        ).distinct()
 
-        return configured
-            .takeIf { it.startsWith("http://") || it.startsWith("https://") }
-            ?: DEFAULT_EC2_CURRENT_URL
+    private fun currentForecastUrls(): List<String> =
+        listOf(
+            remoteUrl(REMOTE_CONFIG_CURRENT_URL_KEY, DEFAULT_EC2_CURRENT_URL),
+            remoteUrl(REMOTE_CONFIG_CURRENT_BACKUP_URL_KEY, DEFAULT_EC2_CURRENT_BACKUP_URL),
+        ).distinct()
+
+    private fun appAnnouncementsUrl(): String =
+        remoteUrl(REMOTE_CONFIG_APP_ANNOUNCEMENTS_URL_KEY, DEFAULT_APP_ANNOUNCEMENTS_URL)
+
+    private fun appStatusUrl(): String =
+        remoteUrl(REMOTE_CONFIG_APP_STATUS_URL_KEY, DEFAULT_APP_STATUS_URL)
+
+    private fun firestorePublicReadsEnabled(): Boolean =
+        Firebase.remoteConfig.getBoolean(REMOTE_CONFIG_FIRESTORE_PUBLIC_READS_ENABLED_KEY)
+
+    private fun cacheBustedUrl(url: String, forceRefresh: Boolean): String {
+        if (!forceRefresh) return url
+        val separator = if (url.contains("?")) "&" else "?"
+        return "$url${separator}_=${nowMs}"
+    }
+
+    private fun jsonRequest(url: String, forceRefresh: Boolean): Request {
+        val builder = Request.Builder()
+            .url(cacheBustedUrl(url, forceRefresh))
+            .header("Accept", "application/json")
+
+        if (forceRefresh) {
+            builder
+                .header("Cache-Control", "no-cache")
+                .header("Pragma", "no-cache")
+        }
+
+        return builder.build()
+    }
+
+    private fun isWithinControlWindow(startAt: String?, endAt: String?): Boolean {
+        val now = Instant.now()
+        parseInstantOrNull(startAt)?.let { start ->
+            if (now.isBefore(start)) return false
+        }
+        parseInstantOrNull(endAt)?.let { end ->
+            if (now.isAfter(end)) return false
+        }
+        return true
+    }
+
+    private fun isVersionAllowed(minVersionCode: Int?, maxVersionCode: Int?): Boolean {
+        val current = BuildConfig.VERSION_CODE
+        if (minVersionCode != null && current < minVersionCode) return false
+        if (maxVersionCode != null && current > maxVersionCode) return false
+        return true
     }
 
     /** Get latest skill report (global, not grid-specific). */
@@ -161,6 +231,12 @@ class WeatherRepository(
             if (nowMs - cached.cachedAtMs <= skillReportTtlMs) {
                 return cached.value
             }
+        }
+
+        if (!firestorePublicReadsEnabled()) {
+            AppLog.d("WeatherRepo", "Skipping Firestore skill report read; JSON migration mode")
+            skillReportCache = TimedValue(null, nowMs)
+            return null
         }
 
         fun mapSkillReport(doc: com.google.firebase.firestore.DocumentSnapshot): SkillReport? {
@@ -261,6 +337,12 @@ class WeatherRepository(
             }
         }
 
+        if (!firestorePublicReadsEnabled()) {
+            AppLog.d("WeatherRepo", "Skipping Firestore IMERG read for $gridId; JSON migration mode")
+            imergCache[gridId] = TimedValue(null, nowMs)
+            return null
+        }
+
         return try {
             val doc = db.collection(WeatherConstants.IMERG_COLLECTION)
                 .document(gridId)
@@ -283,6 +365,12 @@ class WeatherRepository(
             if (!forceServer && nowMs - cached.cachedAtMs <= satelliteTtlMs) {
                 return cached.value
             }
+        }
+
+        if (!firestorePublicReadsEnabled()) {
+            AppLog.d("WeatherRepo", "Skipping Firestore forecast snapshot read for $gridId; JSON migration mode")
+            forecastCache[gridId] = TimedValue(null, nowMs)
+            return null
         }
 
         return try {
@@ -312,51 +400,52 @@ class WeatherRepository(
         val client = httpClient ?: return null
         return withContext(Dispatchers.IO) {
             try {
-                val request = Request.Builder()
-                    .url(combinedForecastUrl())
-                    .header("Accept", "application/json")
-                    .build()
+                for (url in combinedForecastUrls()) {
+                    val request = jsonRequest(url, forceRefresh)
 
-                client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) {
-                        AppLog.w("WeatherRepo", "EC2 forecast HTTP ${response.code}; falling back to Firestore")
-                        return@withContext null
-                    }
-
-                    val body = response.body?.string()
-                    if (body.isNullOrBlank()) {
-                        AppLog.w("WeatherRepo", "EC2 forecast response empty; falling back to Firestore")
-                        return@withContext null
-                    }
-
-                    val envelope = httpGson.fromJson(body, CombinedForecastEnvelope::class.java)
-                    if (!isCombinedForecastFresh(envelope)) {
-                        return@withContext null
-                    }
-
-                    val rawGrid = envelope.grid.orEmpty()
-                    val validGrid = rawGrid.mapNotNull { (gid, doc) ->
-                        val normalized = doc.apply {
-                            if (gridId.isNullOrBlank()) gridId = gid
+                    client.newCall(request).execute().use { response ->
+                        if (!response.isSuccessful) {
+                            AppLog.w("WeatherRepo", "EC2 forecast HTTP ${response.code} for ${request.url}")
+                            return@use
                         }
-                        if (normalized.isValid()) gid to normalized else null
-                    }.toMap()
 
-                    if (validGrid.size < MIN_EC2_GRID_POINTS) {
-                        AppLog.w(
+                        val body = response.body?.string()
+                        if (body.isNullOrBlank()) {
+                            AppLog.w("WeatherRepo", "EC2 forecast response empty for $url")
+                            return@use
+                        }
+
+                        val envelope = httpGson.fromJson(body, CombinedForecastEnvelope::class.java)
+                        if (!isCombinedForecastFresh(envelope)) {
+                            return@use
+                        }
+
+                        val rawGrid = envelope.grid.orEmpty()
+                        val validGrid = rawGrid.mapNotNull { (gid, doc) ->
+                            val normalized = doc.apply {
+                                if (gridId.isNullOrBlank()) gridId = gid
+                            }
+                            if (normalized.isValid()) gid to normalized else null
+                        }.toMap()
+
+                        if (validGrid.size < MIN_EC2_GRID_POINTS) {
+                            AppLog.w(
+                                "WeatherRepo",
+                                "EC2 forecast too small (${validGrid.size}/${envelope.gridCount ?: 0}) for $url"
+                            )
+                            return@use
+                        }
+
+                        combinedForecastCache = TimedValue(validGrid, nowMs)
+                        AppLog.d(
                             "WeatherRepo",
-                            "EC2 forecast too small (${validGrid.size}/${envelope.gridCount ?: 0}); falling back to Firestore"
+                            "EC2 forecast loaded: ${validGrid.size} grid points, run=${envelope.runId ?: "unknown"}, url=${request.url}"
                         )
-                        return@withContext null
+                        return@withContext validGrid
                     }
-
-                    combinedForecastCache = TimedValue(validGrid, nowMs)
-                    AppLog.d(
-                        "WeatherRepo",
-                        "EC2 forecast loaded: ${validGrid.size} grid points, run=${envelope.runId ?: "unknown"}"
-                    )
-                    validGrid
                 }
+                AppLog.w("WeatherRepo", "EC2 forecast primary+backup unavailable, using Firestore fallback")
+                null
             } catch (e: Exception) {
                 AppLog.e("WeatherRepo", "EC2 forecast fetch failed: ${e.message}")
                 null
@@ -374,45 +463,119 @@ class WeatherRepository(
         val client = httpClient ?: return null
         return withContext(Dispatchers.IO) {
             try {
-                val request = Request.Builder()
-                    .url(currentForecastUrl())
-                    .header("Accept", "application/json")
-                    .build()
+                for (url in currentForecastUrls()) {
+                    val request = jsonRequest(url, forceRefresh)
+
+                    client.newCall(request).execute().use { response ->
+                        if (!response.isSuccessful) {
+                            AppLog.w("WeatherRepo", "EC2 current HTTP ${response.code} for ${request.url}")
+                            return@use
+                        }
+
+                        val body = response.body?.string()
+                        if (body.isNullOrBlank()) {
+                            AppLog.w("WeatherRepo", "EC2 current response empty for $url")
+                            return@use
+                        }
+
+                        val envelope = httpGson.fromJson(body, CurrentForecastEnvelope::class.java)
+                        if (!isCurrentForecastFresh(envelope)) {
+                            return@use
+                        }
+
+                        val validGrid = envelope.grid.orEmpty()
+                            .filterValues { it.temp > -100.0 && it.temp < 100.0 }
+
+                        if (validGrid.size < MIN_EC2_GRID_POINTS) {
+                            AppLog.w(
+                                "WeatherRepo",
+                                "EC2 current too small (${validGrid.size}/${envelope.gridCount ?: 0}) for $url"
+                            )
+                            return@use
+                        }
+
+                        currentForecastCache = TimedValue(validGrid, nowMs)
+                        AppLog.d("WeatherRepo", "EC2 current loaded: ${validGrid.size} grid points, url=$url")
+                        return@withContext validGrid
+                    }
+                }
+                AppLog.w("WeatherRepo", "EC2 current primary+backup unavailable; keeping forecast current block")
+                null
+            } catch (e: Exception) {
+                AppLog.e("WeatherRepo", "EC2 current fetch failed: ${e.message}")
+                null
+            }
+        }
+    }
+
+    suspend fun getAppAnnouncement(forceRefresh: Boolean = false): AppAnnouncement? {
+        appAnnouncementCache?.let { cached ->
+            if (!forceRefresh && nowMs - cached.cachedAtMs <= APP_CONTROL_CACHE_TTL_MS) {
+                return cached.value
+            }
+        }
+
+        val client = httpClient ?: return null
+        return withContext(Dispatchers.IO) {
+            try {
+                val request = jsonRequest(appAnnouncementsUrl(), forceRefresh)
 
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
-                        AppLog.w("WeatherRepo", "EC2 current HTTP ${response.code}; keeping forecast current block")
+                        AppLog.w("WeatherRepo", "Announcement HTTP ${response.code}")
+                        appAnnouncementCache = TimedValue(null, nowMs)
                         return@withContext null
                     }
-
                     val body = response.body?.string()
                     if (body.isNullOrBlank()) {
-                        AppLog.w("WeatherRepo", "EC2 current response empty; keeping forecast current block")
+                        appAnnouncementCache = TimedValue(null, nowMs)
                         return@withContext null
                     }
+                    val announcement = httpGson.fromJson(body, AppAnnouncement::class.java)
+                    val visible = announcement
+                        ?.takeIf { it.enabled }
+                        ?.takeIf { it.id.isNotBlank() }
+                        ?.takeIf { it.title(true).isNotBlank() || it.body(true).isNotBlank() }
+                        ?.takeIf { isWithinControlWindow(it.startAt, it.endAt) }
+                        ?.takeIf { isVersionAllowed(it.minVersionCode, it.maxVersionCode) }
 
-                    val envelope = httpGson.fromJson(body, CurrentForecastEnvelope::class.java)
-                    if (!isCurrentForecastFresh(envelope)) {
-                        return@withContext null
-                    }
-
-                    val validGrid = envelope.grid.orEmpty()
-                        .filterValues { it.temp > -100.0 && it.temp < 100.0 }
-
-                    if (validGrid.size < MIN_EC2_GRID_POINTS) {
-                        AppLog.w(
-                            "WeatherRepo",
-                            "EC2 current too small (${validGrid.size}/${envelope.gridCount ?: 0}); keeping forecast current block"
-                        )
-                        return@withContext null
-                    }
-
-                    currentForecastCache = TimedValue(validGrid, nowMs)
-                    AppLog.d("WeatherRepo", "EC2 current loaded: ${validGrid.size} grid points")
-                    validGrid
+                    appAnnouncementCache = TimedValue(visible, nowMs)
+                    visible
                 }
             } catch (e: Exception) {
-                AppLog.e("WeatherRepo", "EC2 current fetch failed: ${e.message}")
+                AppLog.e("WeatherRepo", "Announcement fetch failed: ${e.message}")
+                null
+            }
+        }
+    }
+
+    suspend fun getAppStatus(forceRefresh: Boolean = false): AppStatus? {
+        appStatusCache?.let { cached ->
+            if (!forceRefresh && nowMs - cached.cachedAtMs <= APP_CONTROL_CACHE_TTL_MS) {
+                return cached.value
+            }
+        }
+
+        val client = httpClient ?: return null
+        return withContext(Dispatchers.IO) {
+            try {
+                val request = jsonRequest(appStatusUrl(), forceRefresh)
+
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        AppLog.w("WeatherRepo", "App status HTTP ${response.code}")
+                        appStatusCache = TimedValue(null, nowMs)
+                        return@withContext null
+                    }
+                    val body = response.body?.string()
+                    val status = body
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { httpGson.fromJson(it, AppStatus::class.java) }
+                    appStatusCache = TimedValue(status, nowMs)
+                    status
+                }
+            } catch (e: Exception) {
+                AppLog.e("WeatherRepo", "App status fetch failed: ${e.message}")
                 null
             }
         }
@@ -503,6 +666,11 @@ class WeatherRepository(
             }
         } else {
             AppLog.w("WeatherRepo", "EC2 forecast unavailable, using Firestore fallback")
+        }
+
+        if (!firestorePublicReadsEnabled()) {
+            AppLog.w("WeatherRepo", "Firestore weather fallback disabled; using local cache only")
+            return getCachedWeatherFallback(gridId)
         }
 
         // First try the exact grid ID

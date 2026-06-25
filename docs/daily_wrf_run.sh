@@ -87,6 +87,7 @@ JSON_SCRIPT="/mnt/c/Users/Mapuia/AndroidStudioProjects/KhawchinThlirna/codex_bac
 DOMAIN="d01"
 PATTERN="wrfout_d01_*"
 WRF_PROFILE="${WRF_PROFILE:-9km}"
+IS_NESTED=false
 
 case "$WRF_PROFILE" in
   9km)
@@ -119,8 +120,38 @@ case "$WRF_PROFILE" in
     DEFAULT_EC2_DEST_FINAL="/opt/khawchin/cache/wrf_local_3km_latest.json"
     DEFAULT_EC2_ARCHIVE_DIR="/opt/khawchin/cache/wrf_archive_3km"
     ;;
+  nested)
+    # d01: 9km outer domain — same grid as standalone 9km
+    WRF_DX="9000"
+    WRF_DY="9000"
+    WRF_E_WE="120"
+    WRF_E_SN="110"
+    WRF_TIME_STEP="54"
+    WRF_RADT="9"
+    # d02: 3km inner domain — (e_we-1) and (e_sn-1) must be divisible by ratio 3
+    WRF_D02_E_WE="220"   # (220-1)=219, 219%3=0 ✓ — covers same area as standalone 3km (3km less width)
+    WRF_D02_E_SN="202"   # (202-1)=201, 201%3=0 ✓ — covers same area as standalone 3km (3km more height)
+    # i/j_parent_start: d02 center aligned to d01 center (ref_lat=23.30, ref_lon=93.30)
+    # Formula: i_ps = (d01_ew+1)/2 - (d02_ew-1)/(2*ratio) = 60.5 - 36.5 = 24
+    #          j_ps = (d01_sn+1)/2 - (d02_sn-1)/(2*ratio) = 55.5 - 33.5 = 22
+    WRF_I_PARENT_START="24"
+    WRF_J_PARENT_START="22"
+    WRF_DEFAULT_NP="${WRF_DEFAULT_NP:-10}"
+    SOURCE_9KM="wrf_gfs_nested_d01_9km"
+    SOURCE_3KM="wrf_gfs_nested_d02_3km"
+    OUTPUT_DIR="${WRF_OUTPUT_DIR:-$HOME/wrf/output/json}"
+    OUTPUT_3KM_DIR="$HOME/wrf/output/json_3km"
+    RUN_DIR_PREFIX="khawchin_gfs_nested"
+    DEFAULT_EC2_DEST_TMP="/home/ubuntu/wrf_local_latest.json.tmp"
+    DEFAULT_EC2_DEST_FINAL="/opt/khawchin/cache/wrf_local_latest.json"
+    DEFAULT_EC2_ARCHIVE_DIR="/opt/khawchin/cache/wrf_archive"
+    DEFAULT_EC2_DEST_3KM_TMP="/home/ubuntu/wrf_local_3km_latest.json.tmp"
+    DEFAULT_EC2_DEST_3KM_FINAL="/opt/khawchin/cache/wrf_local_3km_latest.json"
+    DEFAULT_EC2_ARCHIVE_3KM_DIR="/opt/khawchin/cache/wrf_archive_3km"
+    IS_NESTED=true
+    ;;
   *)
-    die "Unsupported WRF_PROFILE=$WRF_PROFILE (use 9km or 3km)"
+    die "Unsupported WRF_PROFILE=$WRF_PROFILE (use 9km, 3km, or nested)"
     ;;
 esac
 
@@ -128,12 +159,19 @@ ARCHIVE_DIR="${WRF_JSON_ARCHIVE_DIR:-$OUTPUT_DIR/archive}"
 
 RUN_HOURS="${RUN_HOURS:-24}"
 
-EC2_HOST="${EC2_HOST:-ubuntu@khawchin.me}"
+EC2_HOST="${EC2_HOST:-ubuntu@13.207.47.235}"
 EC2_KEY="${EC2_KEY:-$HOME/.ssh/khawchin-key.pem}"
 EC2_DEST_TMP="${EC2_DEST_TMP:-$DEFAULT_EC2_DEST_TMP}"
 EC2_DEST_FINAL="${EC2_DEST_FINAL:-$DEFAULT_EC2_DEST_FINAL}"
 EC2_ARCHIVE_DIR="${EC2_ARCHIVE_DIR:-$DEFAULT_EC2_ARCHIVE_DIR}"
 WRF_ARCHIVE_KEEP_DAYS="${WRF_ARCHIVE_KEEP_DAYS:-21}"
+if $IS_NESTED; then
+  mkdir -p "$OUTPUT_3KM_DIR" "$OUTPUT_3KM_DIR/archive"
+  ARCHIVE_3KM_DIR="$OUTPUT_3KM_DIR/archive"
+  EC2_DEST_3KM_TMP="${EC2_DEST_3KM_TMP:-$DEFAULT_EC2_DEST_3KM_TMP}"
+  EC2_DEST_3KM_FINAL="${EC2_DEST_3KM_FINAL:-$DEFAULT_EC2_DEST_3KM_FINAL}"
+  EC2_ARCHIVE_3KM_DIR="${EC2_ARCHIVE_3KM_DIR:-$DEFAULT_EC2_ARCHIVE_3KM_DIR}"
+fi
 # --------------------
 
 command -v wget >/dev/null || die "wget not found"
@@ -196,6 +234,47 @@ ln -sfn "$WPS_HOME/geogrid" geogrid
 ln -sfn "$WPS_HOME/ungrib" ungrib
 ln -sfn "$WPS_HOME/metgrid" metgrid
 
+if $IS_NESTED; then
+cat > namelist.wps <<EOF
+&share
+ wrf_core = 'ARW',
+ max_dom = 2,
+ start_date = '${START_WPS}', '${START_WPS}',
+ end_date   = '${END_WPS}',   '${END_WPS}',
+ interval_seconds = 10800,
+ io_form_geogrid = 2,
+/
+
+&geogrid
+ parent_id         = 1,   1,
+ parent_grid_ratio = 1,   3,
+ i_parent_start    = 1,   ${WRF_I_PARENT_START},
+ j_parent_start    = 1,   ${WRF_J_PARENT_START},
+ e_we              = ${WRF_E_WE},  ${WRF_D02_E_WE},
+ e_sn              = ${WRF_E_SN},  ${WRF_D02_E_SN},
+ geog_data_res     = 'default', 'default',
+ dx = ${WRF_DX},
+ dy = ${WRF_DY},
+ map_proj = 'mercator',
+ ref_lat   = 23.30,
+ ref_lon   = 93.30,
+ truelat1  = 23.30,
+ truelat2  = 0.0,
+ stand_lon = 93.30,
+ geog_data_path = '${WPS_GEOG_PATH}',
+/
+
+&ungrib
+ out_format = 'WPS',
+ prefix = 'FILE',
+/
+
+&metgrid
+ fg_name = 'FILE',
+ io_form_metgrid = 2,
+/
+EOF
+else
 cat > namelist.wps <<EOF
 &share
  wrf_core = 'ARW',
@@ -235,6 +314,7 @@ cat > namelist.wps <<EOF
  io_form_metgrid = 2,
 /
 EOF
+fi
 
 log "Download GFS data"
 cd "$GFS_DIR"
@@ -255,10 +335,13 @@ done
 
 log "Run WPS"
 cd "$RUN_DIR"
-rm -f GRIBFILE.* FILE:* PFILE:* met_em.d01.*.nc
+rm -f GRIBFILE.* FILE:* PFILE:* met_em.d0*.nc
 ln -sf "$LOG_DIR/geogrid.log" geogrid.log
 ./geogrid.exe > "$LOG_DIR/geogrid.log" 2>&1
-[[ -f geo_em.d01.nc ]] || die "geogrid failed"
+[[ -f geo_em.d01.nc ]] || die "geogrid failed (geo_em.d01.nc missing)"
+if $IS_NESTED; then
+  [[ -f geo_em.d02.nc ]] || die "geogrid failed (geo_em.d02.nc missing — check i/j_parent_start)"
+fi
 ./link_grib.csh "$GFS_DIR"/gfs*.grib2
 ln -sf "$WPS_HOME/ungrib/Variable_Tables/Vtable.GFS" Vtable
 ln -sf "$LOG_DIR/ungrib.log" ungrib.log
@@ -271,6 +354,13 @@ expected_met_count=$((RUN_HOURS / 3 + 1))
 actual_met_count=$(ls met_em.d01.*.nc | wc -l)
 if [[ "$actual_met_count" -ne "$expected_met_count" ]]; then
   die "metgrid file count mismatch: got $actual_met_count expected $expected_met_count"
+fi
+if $IS_NESTED; then
+  ls met_em.d02.*.nc >/dev/null 2>&1 || die "metgrid produced no d02 files"
+  actual_met_d02=$(ls met_em.d02.*.nc | wc -l)
+  if [[ "$actual_met_d02" -ne "$expected_met_count" ]]; then
+    die "metgrid d02 file count mismatch: got $actual_met_d02 expected $expected_met_count"
+  fi
 fi
 
 log "Run WRF"
@@ -285,6 +375,12 @@ if ! compgen -G "${RUN_DIR}/met_em.d01.*.nc" >/dev/null; then
   die "met_em files missing in $RUN_DIR"
 fi
 ln -sf "${RUN_DIR}"/met_em.d01.*.nc .
+if $IS_NESTED; then
+  if ! compgen -G "${RUN_DIR}/met_em.d02.*.nc" >/dev/null; then
+    die "met_em d02 files missing in $RUN_DIR"
+  fi
+  ln -sf "${RUN_DIR}"/met_em.d02.*.nc .
+fi
 
 START_YEAR=$(date -u -d "@${START_EPOCH}" +%Y)
 START_MONTH=$(date -u -d "@${START_EPOCH}" +%m)
@@ -307,6 +403,113 @@ if command -v ncdump >/dev/null; then
   fi
 fi
 
+if $IS_NESTED; then
+cat > namelist.input <<EOF
+&time_control
+ run_days                            = 0,
+ run_hours                           = ${RUN_HOURS},
+ run_minutes                         = 0,
+ run_seconds                         = 0,
+ start_year                          = ${START_YEAR},   ${START_YEAR},
+ start_month                         = ${START_MONTH},  ${START_MONTH},
+ start_day                           = ${START_DAY},    ${START_DAY},
+ start_hour                          = ${START_HOUR},   ${START_HOUR},
+ end_year                            = ${END_YEAR},     ${END_YEAR},
+ end_month                           = ${END_MONTH},    ${END_MONTH},
+ end_day                             = ${END_DAY},      ${END_DAY},
+ end_hour                            = ${END_HOUR},     ${END_HOUR},
+ interval_seconds                    = 10800,
+ input_from_file                     = .true.,          .true.,
+ history_interval                    = 60,              60,
+ frames_per_outfile                  = 24,              24,
+ restart                             = .false.,
+ restart_interval                    = 7200,
+ io_form_history                     = 2,
+ io_form_restart                     = 2,
+ io_form_input                       = 2,
+ io_form_boundary                    = 2,
+/
+
+&domains
+ time_step                           = ${WRF_TIME_STEP},
+ time_step_fract_num                 = 0,
+ time_step_fract_den                 = 1,
+ max_dom                             = 2,
+ e_we                                = ${WRF_E_WE},    ${WRF_D02_E_WE},
+ e_sn                                = ${WRF_E_SN},    ${WRF_D02_E_SN},
+ e_vert                              = 40,              40,
+ p_top_requested                     = 5000,
+ num_metgrid_levels                  = 34,
+ num_metgrid_soil_levels             = 4,
+ dx                                  = ${WRF_DX},      3000,
+ dy                                  = ${WRF_DY},      3000,
+ grid_id                             = 1,               2,
+ parent_id                           = 0,               1,
+ i_parent_start                      = 1,               ${WRF_I_PARENT_START},
+ j_parent_start                      = 1,               ${WRF_J_PARENT_START},
+ parent_grid_ratio                   = 1,               3,
+ parent_time_step_ratio              = 1,               3,
+ feedback                            = 1,
+ smooth_option                       = 0,
+/
+
+&physics
+ physics_suite                       = 'CONUS',
+ mp_physics                          = 8,               8,
+ ra_lw_physics                       = 4,               4,
+ ra_sw_physics                       = 4,               4,
+ radt                                = 9,               3,
+ sf_sfclay_physics                   = 1,               1,
+ sf_surface_physics                  = 2,               2,
+ bl_pbl_physics                      = 1,               1,
+ bldt                                = 0,               0,
+ cu_physics                          = 1,               0,
+ cudt                                = 5,               0,
+ isfflx                              = 1,
+ ifsnow                              = 0,
+ icloud                              = 1,
+ surface_input_source                = 1,
+ num_land_cat                        = ${NUM_LAND_CAT},
+ sf_urban_physics                    = 0,               0,
+/
+
+&fdda
+/
+
+&dynamics
+ hybrid_opt                          = 2,
+ w_damping                           = 0,
+ diff_opt                            = 1,               1,
+ km_opt                              = 4,               4,
+ diff_6th_opt                        = 0,               0,
+ diff_6th_factor                     = 0.12,            0.12,
+ base_temp                           = 290.,
+ damp_opt                            = 3,
+ zdamp                               = 5000.,
+ dampcoef                            = 0.2,
+ khdif                               = 0,               0,
+ kvdif                               = 0,               0,
+ non_hydrostatic                     = .true.,          .true.,
+ moist_adv_opt                       = 1,               1,
+ scalar_adv_opt                      = 1,               1,
+ gwd_opt                             = 0,               0,
+/
+
+&bdy_control
+ spec_bdy_width                      = 5,
+ specified                           = .true.,          .false.,
+ nested                              = .false.,         .true.,
+/
+
+&grib2
+/
+
+&namelist_quilt
+ nio_tasks_per_group = 0,
+ nio_groups = 1,
+/
+EOF
+else
 cat > namelist.input <<EOF
 &time_control
  run_days                            = 0,
@@ -412,6 +615,7 @@ cat > namelist.input <<EOF
  nio_groups = 1,
 /
 EOF
+fi
 
 NPROC=$(nproc)
 WRF_NP="${WRF_NP:-$WRF_DEFAULT_NP}"
@@ -440,19 +644,49 @@ grep -q "SUCCESS COMPLETE WRF" rsl.out.0000 rsl.error.0000 2>/dev/null || die "w
 log "Generate JSON"
 ARCHIVE_JSON="${ARCHIVE_DIR}/wrf_local_${ATTEMPT_ID}.json"
 OUTPUT_JSON="${OUTPUT_DIR}/wrf_local_latest.json"
-python3 "$JSON_SCRIPT" \
-  --wrf-dir "$WRF_HOME/run" \
-  --pattern "$PATTERN" \
-  --domain "$DOMAIN" \
-  --source "$SOURCE" \
-  --run-id "wrf_${RUN_DATE}_${RUN_HH}" \
-  --output "$ARCHIVE_JSON"
-cp -f "$ARCHIVE_JSON" "$OUTPUT_JSON"
+
+if $IS_NESTED; then
+  # d01 — 9km outer domain
+  python3 "$JSON_SCRIPT" \
+    --wrf-dir "$WRF_HOME/run" \
+    --pattern "wrfout_d01_*" \
+    --domain "d01" \
+    --source "$SOURCE_9KM" \
+    --run-id "wrf_${RUN_DATE}_${RUN_HH}" \
+    --output "$ARCHIVE_JSON"
+  cp -f "$ARCHIVE_JSON" "$OUTPUT_JSON"
+
+  # d02 — 3km inner domain
+  ARCHIVE_3KM_JSON="${ARCHIVE_3KM_DIR}/wrf_local_${ATTEMPT_ID}_3km.json"
+  OUTPUT_3KM_JSON="${OUTPUT_3KM_DIR}/wrf_local_3km_latest.json"
+  python3 "$JSON_SCRIPT" \
+    --wrf-dir "$WRF_HOME/run" \
+    --pattern "wrfout_d02_*" \
+    --domain "d02" \
+    --source "$SOURCE_3KM" \
+    --run-id "wrf_${RUN_DATE}_${RUN_HH}" \
+    --output "$ARCHIVE_3KM_JSON"
+  cp -f "$ARCHIVE_3KM_JSON" "$OUTPUT_3KM_JSON"
+else
+  python3 "$JSON_SCRIPT" \
+    --wrf-dir "$WRF_HOME/run" \
+    --pattern "$PATTERN" \
+    --domain "$DOMAIN" \
+    --source "$SOURCE" \
+    --run-id "wrf_${RUN_DATE}_${RUN_HH}" \
+    --output "$ARCHIVE_JSON"
+  cp -f "$ARCHIVE_JSON" "$OUTPUT_JSON"
+fi
 
 find "$ARCHIVE_DIR" -type f -name 'wrf_local_*.json' -mtime +"$WRF_ARCHIVE_KEEP_DAYS" -delete 2>/dev/null || true
+if $IS_NESTED; then
+  find "$ARCHIVE_3KM_DIR" -type f -name 'wrf_local_*.json' -mtime +"$WRF_ARCHIVE_KEEP_DAYS" -delete 2>/dev/null || true
+fi
 
 log "Upload latest and archive JSON to EC2"
 [[ -f "$EC2_KEY" ]] || die "EC2 key not found: $EC2_KEY"
+
+# Upload 9km (latest + archive)
 retry_scp "$OUTPUT_JSON" "${EC2_HOST}:${EC2_DEST_TMP}"
 EC2_ARCHIVE_TMP="/home/ubuntu/wrf_local_${ATTEMPT_ID}.json.tmp"
 EC2_ARCHIVE_FINAL="${EC2_ARCHIVE_DIR}/wrf_local_${ATTEMPT_ID}.json"
@@ -487,5 +721,39 @@ EOF
 REMOTE_UPLOAD_SCRIPT_FILE="$LOG_DIR/remote_upload.sh"
 printf '%s\n' "$remote_upload_script" > "$REMOTE_UPLOAD_SCRIPT_FILE"
 retry_ssh_script "$REMOTE_UPLOAD_SCRIPT_FILE"
+
+# Upload 3km (latest + archive) — nested only
+if $IS_NESTED; then
+  retry_scp "$OUTPUT_3KM_JSON" "${EC2_HOST}:${EC2_DEST_3KM_TMP}"
+  EC2_ARCHIVE_3KM_TMP="/home/ubuntu/wrf_local_${ATTEMPT_ID}_3km.json.tmp"
+  EC2_ARCHIVE_3KM_FINAL="${EC2_ARCHIVE_3KM_DIR}/wrf_local_${ATTEMPT_ID}_3km.json"
+  retry_scp "$ARCHIVE_3KM_JSON" "${EC2_HOST}:${EC2_ARCHIVE_3KM_TMP}"
+  remote_upload_3km_script=$(cat <<EOF
+set -euo pipefail
+archive_dir="${EC2_ARCHIVE_3KM_DIR}"
+dest_tmp="${EC2_DEST_3KM_TMP}"
+dest_final="${EC2_DEST_3KM_FINAL}"
+archive_tmp="${EC2_ARCHIVE_3KM_TMP}"
+archive_final="${EC2_ARCHIVE_3KM_FINAL}"
+keep_days="${WRF_ARCHIVE_KEEP_DAYS}"
+
+if [[ -z "\$archive_dir" || -z "\$dest_tmp" || -z "\$dest_final" || -z "\$archive_tmp" || -z "\$archive_final" || -z "\$keep_days" ]]; then
+  echo "Remote 3km upload variable missing" >&2
+  exit 2
+fi
+
+sudo mkdir -p "\$archive_dir" "\$(dirname "\$dest_final")"
+sudo mv "\$dest_tmp" "\$dest_final"
+sudo chmod 644 "\$dest_final"
+sudo mv "\$archive_tmp" "\$archive_final"
+sudo chmod 644 "\$archive_final"
+sudo find "\$archive_dir" -type f -name 'wrf_local_*.json' -mtime +"\$keep_days" -delete
+sudo ls -lh "\$dest_final" "\$archive_final"
+EOF
+)
+  REMOTE_UPLOAD_3KM_SCRIPT_FILE="$LOG_DIR/remote_upload_3km.sh"
+  printf '%s\n' "$remote_upload_3km_script" > "$REMOTE_UPLOAD_3KM_SCRIPT_FILE"
+  retry_ssh_script "$REMOTE_UPLOAD_3KM_SCRIPT_FILE"
+fi
 
 log "Done"
